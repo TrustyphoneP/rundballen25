@@ -11,12 +11,25 @@
 <body class="min-h-screen flex items-center justify-center">
   <div class="max-w-sm text-center px-6">
     <div style="font-family:'DM Serif Display',serif; font-size:2rem; margin-bottom:12px;">
-      Bereits abgestimmt
+      Du hast bereits abgestimmt
     </div>
-    <div style="color:rgba(240,237,232,0.5); line-height:1.6;">
-      Dieser Link wurde bereits verwendet.<br>
-      Jeder Link kann nur einmal benutzt werden.
+    <div style="color:rgba(240,237,232,0.5); line-height:1.6; margin-bottom:24px;">
+      Deine Stimme wurde bereits gezählt.
     </div>
+    {% if my_votes %}
+    <div style="background:rgba(255,255,255,0.04); border:1px solid rgba(240,237,232,0.09);
+                border-radius:14px; padding:20px; text-align:left;">
+      <div style="font-size:0.6rem; letter-spacing:0.18em; text-transform:uppercase;
+                  color:rgba(240,237,232,0.4); margin-bottom:12px; font-family:'DM Mono',monospace;">
+        Deine Auswahl
+      </div>
+      {% for vote in my_votes %}
+      <div style="padding:8px 0; border-bottom:1px solid rgba(240,237,232,0.05); font-size:0.85rem;">
+        {{ vote.vote_recipe.name }}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
   </div>
 </body>
 </html>

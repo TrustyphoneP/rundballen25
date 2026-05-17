@@ -6,20 +6,26 @@ from django.utils import timezone
 from django.db.models import Count, Q
 from django.views.decorators.http import require_POST
 
-from apps.camps.models import Camp
 from apps.recipes.models import Recipe
-from .models import Poll, VoteRecipe, VoteToken, Vote
+from .models import Poll, VoteRecipe, Vote
 from .forms import PollForm
 
+
+# ---------------------------------------------------------------------------
+# Admin – Übersicht
+# ---------------------------------------------------------------------------
 
 @login_required
 def admin_index(request):
     polls = Poll.objects.select_related("camp").annotate(
-        token_count=Count("tokens", distinct=True),
-        used_count=Count("tokens", filter=Q(tokens__used=True), distinct=True),
+        voter_count=Count("vote_recipes__votes__session_key", distinct=True),
     )
     return render(request, "voting/admin_index.html", {"polls": polls})
 
+
+# ---------------------------------------------------------------------------
+# Admin – Poll anlegen
+# ---------------------------------------------------------------------------
 
 @login_required
 def admin_create(request):
@@ -44,10 +50,14 @@ def admin_create(request):
     return render(request, "voting/admin_create.html", {"form": form})
 
 
+# ---------------------------------------------------------------------------
+# Admin – Detail: Ergebnisse + Gerichte verwalten
+# ---------------------------------------------------------------------------
+
 @login_required
 def admin_detail(request, pk):
     poll = get_object_or_404(
-        Poll.objects.prefetch_related("vote_recipes__votes", "tokens"),
+        Poll.objects.prefetch_related("vote_recipes__votes"),
         pk=pk,
     )
     results = (
@@ -55,13 +65,27 @@ def admin_detail(request, pk):
         .annotate(cnt=Count("votes"))
         .order_by("-cnt", "name")
     )
+    # Eindeutige Abstimmende = distinct session_keys
+    total_voters = Vote.objects.filter(
+        vote_recipe__poll=poll
+    ).values("session_key").distinct().count()
+
+    # Abstimmungs-URL
+    vote_url = request.build_absolute_uri(
+        f"/voting/abstimmen/{poll.pk}/"
+    )
+
     return render(request, "voting/admin_detail.html", {
         "poll":         poll,
         "results":      results,
-        "total_voters": poll.tokens.filter(used=True).count(),
-        "total_tokens": poll.tokens.count(),
+        "total_voters": total_voters,
+        "vote_url":     vote_url,
     })
 
+
+# ---------------------------------------------------------------------------
+# Admin – Status setzen
+# ---------------------------------------------------------------------------
 
 @login_required
 @require_POST
@@ -82,6 +106,10 @@ def admin_set_status(request, pk):
     return redirect("voting:admin_detail", pk=pk)
 
 
+# ---------------------------------------------------------------------------
+# Admin – Gericht hinzufügen
+# ---------------------------------------------------------------------------
+
 @login_required
 @require_POST
 def admin_add_recipe(request, pk):
@@ -98,6 +126,10 @@ def admin_add_recipe(request, pk):
     return redirect("voting:admin_detail", pk=pk)
 
 
+# ---------------------------------------------------------------------------
+# Admin – Gericht aktivieren/deaktivieren
+# ---------------------------------------------------------------------------
+
 @login_required
 @require_POST
 def admin_toggle_recipe(request, pk, recipe_pk):
@@ -106,6 +138,10 @@ def admin_toggle_recipe(request, pk, recipe_pk):
     vr.save(update_fields=["is_active"])
     return redirect("voting:admin_detail", pk=pk)
 
+
+# ---------------------------------------------------------------------------
+# Admin – Gericht löschen
+# ---------------------------------------------------------------------------
 
 @login_required
 @require_POST
@@ -116,69 +152,99 @@ def admin_delete_recipe(request, pk, recipe_pk):
     return redirect("voting:admin_detail", pk=pk)
 
 
-@login_required
-@require_POST
-def admin_generate_tokens(request, pk):
-    poll   = get_object_or_404(Poll, pk=pk)
-    count  = max(1, min(int(request.POST.get("count", 1)), 100))
-    prefix = request.POST.get("prefix", "").strip()
-    for i in range(count):
-        label = f"{prefix} {i+1}".strip() if prefix else ""
-        VoteToken.objects.create(poll=poll, label=label)
-    messages.success(request, f"{count} Token(s) generiert.")
-    return redirect("voting:admin_detail", pk=pk)
-
+# ---------------------------------------------------------------------------
+# Admin – Stimmen zurücksetzen (für Tests)
+# ---------------------------------------------------------------------------
 
 @login_required
 @require_POST
-def admin_delete_token(request, pk, token_pk):
-    token = get_object_or_404(VoteToken, pk=token_pk, poll__pk=pk)
-    token.delete()
+def admin_reset_votes(request, pk):
+    poll = get_object_or_404(Poll, pk=pk)
+    Vote.objects.filter(vote_recipe__poll=poll).delete()
+    messages.success(request, "Alle Stimmen zurückgesetzt.")
     return redirect("voting:admin_detail", pk=pk)
 
 
-def vote(request, token):
-    vtoken = get_object_or_404(VoteToken, token=token)
-    poll   = vtoken.poll
+# ---------------------------------------------------------------------------
+# Abstimmungs-Screen (öffentlich, Session-basiert)
+# ---------------------------------------------------------------------------
 
-    if vtoken.used:
-        return render(request, "voting/already_voted.html", {"poll": poll})
+def vote(request, poll_id):
+    poll    = get_object_or_404(Poll, pk=poll_id)
+    session_key = request.session.session_key
+
+    # Session sicherstellen
+    if not session_key:
+        request.session.create()
+        session_key = request.session.session_key
+
     if poll.status != Poll.Status.OPEN:
         return render(request, "voting/poll_closed.html", {"poll": poll})
+
+    # Bereits abgestimmt?
+    session_voted_key = f"voted_poll_{poll_id}"
+    already_voted = request.session.get(session_voted_key, False)
+    if already_voted:
+        my_votes = Vote.objects.filter(
+            vote_recipe__poll=poll,
+            session_key=session_key,
+        ).select_related("vote_recipe")
+        return render(request, "voting/already_voted.html", {
+            "poll": poll, "my_votes": my_votes,
+        })
 
     recipes = poll.vote_recipes.filter(is_active=True).order_by("sort_order", "name")
 
     if request.method == "POST":
         selected_ids = request.POST.getlist("recipes")
+
         if len(selected_ids) > poll.max_votes:
-            messages.error(request, f"Maximal {poll.max_votes} Gerichte waehlbar.")
+            messages.error(request, f"Maximal {poll.max_votes} Gerichte wählbar.")
             return render(request, "voting/vote.html", {
-                "poll": poll, "recipes": recipes, "vtoken": vtoken,
+                "poll": poll, "recipes": recipes,
                 "selected_ids": [int(x) for x in selected_ids],
             })
+
         for rid in selected_ids:
             try:
                 vr = poll.vote_recipes.get(pk=rid, is_active=True)
-                Vote.objects.get_or_create(token=vtoken, vote_recipe=vr)
+                Vote.objects.get_or_create(vote_recipe=vr, session_key=session_key)
             except VoteRecipe.DoesNotExist:
                 pass
-        vtoken.used    = True
-        vtoken.used_at = timezone.now()
-        vtoken.save(update_fields=["used", "used_at"])
-        return redirect("voting:thank_you", token=token)
+
+        # Session markieren
+        request.session[session_voted_key] = True
+        request.session.modified = True
+
+        return redirect("voting:thank_you", poll_id=poll_id)
 
     return render(request, "voting/vote.html", {
-        "poll": poll, "recipes": recipes, "vtoken": vtoken, "selected_ids": [],
+        "poll":         poll,
+        "recipes":      recipes,
+        "selected_ids": [],
     })
 
 
-def thank_you(request, token):
-    vtoken = get_object_or_404(VoteToken, token=token)
+# ---------------------------------------------------------------------------
+# Danke-Seite
+# ---------------------------------------------------------------------------
+
+def thank_you(request, poll_id):
+    poll        = get_object_or_404(Poll, pk=poll_id)
+    session_key = request.session.session_key
+    my_votes    = Vote.objects.filter(
+        vote_recipe__poll=poll,
+        session_key=session_key,
+    ).select_related("vote_recipe")
     return render(request, "voting/thank_you.html", {
-        "poll":  vtoken.poll,
-        "votes": vtoken.votes.select_related("vote_recipe"),
+        "poll":     poll,
+        "my_votes": my_votes,
     })
 
+
+# ---------------------------------------------------------------------------
+# Ergebnisse JSON (Live-Refresh im Admin)
+# ---------------------------------------------------------------------------
 
 @login_required
 def results_json(request, pk):
@@ -189,7 +255,7 @@ def results_json(request, pk):
         .order_by("-cnt")
         .values("name", "cnt", "is_vegan")
     )
-    return JsonResponse({
-        "results":      list(results),
-        "total_voters": poll.tokens.filter(used=True).count(),
-    })
+    total = Vote.objects.filter(
+        vote_recipe__poll=poll
+    ).values("session_key").distinct().count()
+    return JsonResponse({"results": list(results), "total_voters": total})
