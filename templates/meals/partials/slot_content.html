@@ -1,0 +1,30 @@
+{% load meals_tags %}
+{% if current %}
+  <span class="slot-recipe" title="{{ current.name }}">
+    {{ current.name }}
+    {% if current.is_vegan %}<span class="badge badge-ok" style="margin-left:4px;">V</span>{% endif %}
+  </span>
+  <form method="post"
+        action="{% url 'meals:clear_slot' day_pk=day.pk slot=slot_key %}"
+        hx-post="{% url 'meals:clear_slot' day_pk=day.pk slot=slot_key %}"
+        hx-target="#day-{{ day.pk }}"
+        hx-swap="outerHTML">
+    {% csrf_token %}
+    <button type="submit" class="clear-btn" title="Entfernen">x</button>
+  </form>
+{% else %}
+  <form method="post"
+        action="{% url 'meals:assign_recipe' day_pk=day.pk slot=slot_key %}"
+        hx-post="{% url 'meals:assign_recipe' day_pk=day.pk slot=slot_key %}"
+        hx-target="#day-{{ day.pk }}"
+        hx-swap="outerHTML">
+    {% csrf_token %}
+    <select name="recipe_id" class="slot-select"
+            onchange="this.form.requestSubmit()">
+      <option value="">– auswaehlen –</option>
+      {% for recipe in categories|dict_key:slot_key %}
+      <option value="{{ recipe.pk }}">{{ recipe.name }}</option>
+      {% endfor %}
+    </select>
+  </form>
+{% endif %}

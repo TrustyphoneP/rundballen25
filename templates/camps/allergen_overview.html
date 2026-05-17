@@ -1,0 +1,54 @@
+{% extends "base/base.html" %}
+
+{% block title %}Unvertraeglichkeiten – {{ camp.name }}{% endblock %}
+{% block page_title %}Unvertraeglichkeiten{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{% url 'camps:participant_list' camp_pk=camp.pk %}" class="btn btn-ghost">Zur Teilnehmerliste</a>
+{% endblock %}
+
+{% block content %}
+
+<div class="section-mono mb-5">{{ camp.name }}</div>
+
+{% if allergen_counts %}
+<div class="grid grid-cols-3 gap-4 mb-8">
+  {% for allergen in allergen_counts %}
+  <div class="card p-5">
+    <div class="flex items-start gap-4">
+      <div class="font-display text-3xl" style="color:#e07b54; min-width:40px; line-height:1;">
+        {{ allergen.cnt }}
+      </div>
+      <div>
+        <div class="font-medium text-sm mb-1">{{ allergen.name }}</div>
+        <div class="text-xs" style="color:rgba(240,237,232,0.4);">
+          {{ allergen.cnt }} Person{{ allergen.cnt|pluralize:"","en" }} betroffen
+        </div>
+      </div>
+    </div>
+    <!-- Betroffene Personen -->
+    <div class="mt-4 pt-4 border-t" style="border-color:rgba(240,237,232,0.07);">
+      <div class="section-mono mb-2">Betroffene Personen</div>
+      {% for person in allergen.participants.all %}
+        {% if person.camp == camp %}
+        <div class="flex items-center justify-between py-1">
+          <a href="{{ person.get_absolute_url }}"
+             class="text-xs hover:underline" style="color:rgba(240,237,232,0.8); text-decoration:none;">
+            {{ person.full_name }}
+          </a>
+          <span class="badge badge-muted">{{ person.get_person_type_display }}</span>
+        </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card p-12 text-center" style="color:rgba(240,237,232,0.35);">
+  <div class="font-display text-2xl mb-2">Keine Unvertraeglichkeiten erfasst</div>
+  <div class="text-sm">Beim Erfassen von Teilnehmern koennen Allergien angegeben werden.</div>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends "base/base.html" %}
+{% block title %}Zutaten{% endblock %}
+{% block page_title %}Zutaten-Stammdaten{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{% url 'recipes:ingredient_create' %}" class="btn btn-primary">+ Neue Zutat</a>
+  <a href="{% url 'recipes:list' %}" class="btn btn-ghost">Zu den Rezepten</a>
+{% endblock %}
+
+{% block content %}
+<form method="get" class="flex gap-3 mb-5">
+  <div class="flex-1 max-w-sm">
+    <input type="text" name="q" value="{{ q }}" placeholder="Zutat suchen...">
+  </div>
+  <button type="submit" class="btn btn-ghost">Suchen</button>
+</form>
+
+<div class="card overflow-hidden">
+  {% if ingredients %}
+  <table>
+    <thead><tr>
+      <th>Name</th>
+      <th>Allergene</th>
+      <th>Vegan</th>
+      <th></th>
+    </tr></thead>
+    <tbody>
+      {% for ing in ingredients %}
+      <tr>
+        <td class="font-medium">{{ ing.name }}</td>
+        <td>
+          {% for a in ing.allergens.all %}
+            <span class="badge badge-warn">{{ a.short_code }}</span>
+          {% empty %}
+            <span style="color:rgba(240,237,232,0.3);font-size:0.75rem;">–</span>
+          {% endfor %}
+        </td>
+        <td>
+          {% if ing.is_vegan %}<span class="badge badge-ok">Ja</span>
+          {% else %}<span style="color:rgba(240,237,232,0.3);font-size:0.75rem;">Nein</span>{% endif %}
+        </td>
+        <td class="text-right">
+          <a href="{% url 'recipes:ingredient_edit' pk=ing.pk %}" class="btn btn-ghost"
+             style="padding:3px 10px;font-size:0.72rem;">Bearbeiten</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="p-12 text-center" style="color:rgba(240,237,232,0.35);">
+    Keine Zutaten gefunden.
+    <a href="{% url 'recipes:ingredient_create' %}" style="color:#e8a444;">Erste Zutat anlegen</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

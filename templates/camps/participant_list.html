@@ -1,0 +1,122 @@
+{% extends "base/base.html" %}
+
+{% block title %}Teilnehmer – {{ camp.name }}{% endblock %}
+{% block page_title %}Teilnehmer &amp; Betreuer{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{% url 'camps:csv_export' camp_pk=camp.pk %}" class="btn btn-ghost">CSV-Export</a>
+  <a href="{% url 'camps:csv_import' camp_pk=camp.pk %}" class="btn btn-ghost">CSV-Import</a>
+  <a href="{% url 'camps:participant_create' camp_pk=camp.pk %}" class="btn btn-primary">+ Hinzufuegen</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Statistik-Leiste -->
+<div class="grid grid-cols-5 gap-4 mb-6">
+  {% for label, val, cls in stats_display %}
+  <div class="card px-4 py-4">
+    <div class="section-mono mb-2">{{ label }}</div>
+    <div class="font-display text-3xl {{ cls }}">{{ val }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Filter -->
+<form method="get" class="flex gap-3 mb-5 items-end flex-wrap" id="filter-form">
+  <div class="flex-1 min-w-48">
+    <div class="section-mono mb-1">Suche</div>
+    {{ filter_form.q }}
+  </div>
+  <div>
+    <div class="section-mono mb-1">Typ</div>
+    {{ filter_form.person_type }}
+  </div>
+  <div>
+    <div class="section-mono mb-1">Unvertraeglichkeit</div>
+    {{ filter_form.intolerance }}
+  </div>
+  <div>
+    <div class="section-mono mb-1">Diaet</div>
+    {{ filter_form.diet }}
+  </div>
+  <button type="submit" class="btn btn-ghost">Filtern</button>
+  <a href="?" class="btn btn-ghost" style="color:rgba(240,237,232,0.4);">Zuruecksetzen</a>
+</form>
+
+<!-- Tabelle -->
+<div class="card overflow-hidden">
+  {% if participants %}
+  <table id="person-table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Typ</th>
+        <th>Diaet</th>
+        <th>Unvertraeglichkeiten</th>
+        <th>Hinweise</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for person in participants %}
+      <tr id="row-{{ person.pk }}">
+        <td>
+          <a href="{{ person.get_absolute_url }}" class="font-medium hover:text-acc-DEFAULT"
+             style="text-decoration:none; color:inherit;">
+            {{ person.full_name }}
+          </a>
+        </td>
+        <td>
+          <span class="badge badge-muted">{{ person.get_person_type_display }}</span>
+        </td>
+        <td>
+          {% for flag in person.diet_flags %}
+            <span class="badge badge-ok">{{ flag }}</span>
+          {% empty %}
+            <span style="color:rgba(240,237,232,0.3); font-size:0.75rem;">–</span>
+          {% endfor %}
+        </td>
+        <td>
+          {% for allergen in person.intolerances.all %}
+            <span class="badge badge-warn">{{ allergen.name }}</span>
+          {% empty %}
+            <span style="color:rgba(240,237,232,0.3); font-size:0.75rem;">Keine</span>
+          {% endfor %}
+        </td>
+        <td style="color:rgba(240,237,232,0.5); font-size:0.75rem; max-width:180px;">
+          {% if person.intolerance_notes %}
+            {{ person.intolerance_notes|truncatechars:60 }}
+          {% endif %}
+        </td>
+        <td class="text-right">
+          <div class="flex gap-2 justify-end">
+            <a href="{% url 'camps:participant_edit' pk=person.pk %}" class="btn btn-ghost" style="padding:4px 10px;font-size:0.72rem;">Bearbeiten</a>
+            <form method="post" action="{% url 'camps:participant_delete' pk=person.pk %}"
+                  hx-delete="{% url 'camps:participant_delete' pk=person.pk %}"
+                  hx-target="#row-{{ person.pk }}"
+                  hx-swap="outerHTML"
+                  hx-confirm="{{ person.full_name }} wirklich entfernen?">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-danger" style="padding:4px 10px;font-size:0.72rem;">Entfernen</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="py-16 text-center" style="color:rgba(240,237,232,0.35);">
+    <div class="font-display text-2xl mb-2">Keine Eintraege</div>
+    <div class="text-sm">Filter anpassen oder
+      <a href="{% url 'camps:participant_create' camp_pk=camp.pk %}" style="color:#e8a444;">Teilnehmer hinzufuegen</a>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<div class="mt-4 section-mono">
+  {{ participants|length }} Eintraege angezeigt
+</div>
+
+{% endblock %}

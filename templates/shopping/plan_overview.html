@@ -1,0 +1,104 @@
+{% extends "base/base.html" %}
+{% block title %}Einkaufsplan – {{ camp.name }}{% endblock %}
+{% block page_title %}Einkaufsplan{% endblock %}
+
+{% block topbar_actions %}
+  <form method="post" action="{% url 'shopping:create_from_plan' %}">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-ghost">Neu generieren</button>
+  </form>
+  <a href="{% url 'shopping:create_from_recipes' %}" class="btn btn-ghost">Aus Rezepten</a>
+{% endblock %}
+
+{% block content %}
+
+<div class="section-mono mb-5">{{ camp.name }} · {{ camp.start_date|date:"d.m.Y" }} – {{ camp.end_date|date:"d.m.Y" }} · {{ camp.total_persons }} Personen</div>
+
+{% if paired %}
+<div class="grid gap-6" style="grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));">
+  {% for sd, sl in paired %}
+  <div class="card overflow-hidden">
+
+    <!-- Kopf -->
+    <div class="px-5 py-4 border-b" style="border-color:rgba(240,237,232,0.08);">
+      <div class="flex items-start justify-between">
+        <div>
+          <div class="font-display text-lg">{{ sd.label }}</div>
+          <div class="section-mono mt-1">{{ sd.date|date:"l, d. F Y" }}</div>
+          {% if sd.date != sl.from_date %}
+            <div class="text-xs mt-1" style="color:#e8a444;">
+              (Vorgezogen wegen Sonntag)
+            </div>
+          {% endif %}
+        </div>
+        <div class="text-right">
+          <span class="badge badge-blue">{{ sl.items.count }} Pos.</span>
+        </div>
+      </div>
+      <div class="text-xs mt-2" style="color:rgba(240,237,232,0.45);">{{ sd.description }}</div>
+    </div>
+
+    <!-- Vorschau Zutaten -->
+    <div style="max-height: 280px; overflow-y: auto;">
+      {% with fresh_items=sl.items.all dry_items=sl.items.all %}
+
+      {% if dry_items.exists %}
+      <div class="px-5 pt-3 pb-1">
+        <div class="section-mono mb-2">Trocken</div>
+        {% for item in dry_items|slice:":20" %}
+        <div class="flex justify-between py-1" style="border-bottom:1px solid rgba(240,237,232,0.04); font-size:0.78rem;">
+          <span {% if item.is_bought %}style="text-decoration:line-through; color:rgba(240,237,232,0.35);"{% endif %}>
+            {{ item.ingredient.name }}
+          </span>
+          <span class="font-mono" style="color:#e8a444;">{{ item.amount|floatformat:"-1" }} {{ item.unit }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if fresh_items.exists %}
+      <div class="px-5 pt-3 pb-3">
+        <div class="section-mono mb-2">Frisch</div>
+        {% for item in fresh_items|slice:":20" %}
+        <div class="flex justify-between py-1" style="border-bottom:1px solid rgba(240,237,232,0.04); font-size:0.78rem;">
+          <span {% if item.is_bought %}style="text-decoration:line-through; color:rgba(240,237,232,0.35);"{% endif %}>
+            {{ item.ingredient.name }}
+          </span>
+          <span class="font-mono" style="color:#e8a444;">{{ item.amount|floatformat:"-1" }} {{ item.unit }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if not fresh_items.exists and not dry_items.exists %}
+      <div class="px-5 py-8 text-center" style="color:rgba(240,237,232,0.3); font-size:0.8rem;">
+        Keine Zutaten — Wochenplan befuellen
+      </div>
+      {% endif %}
+
+      {% endwith %}
+    </div>
+
+    <!-- Aktionen -->
+    <div class="px-5 py-3 flex gap-2 border-t" style="border-color:rgba(240,237,232,0.08);">
+      <a href="{% url 'shopping:detail' pk=sl.pk %}" class="btn btn-primary" style="flex:1; justify-content:center;">
+        Oeffnen
+      </a>
+      <a href="{% url 'shopping:export_csv' pk=sl.pk %}" class="btn btn-ghost">CSV</a>
+    </div>
+
+  </div>
+  {% endfor %}
+</div>
+
+{% else %}
+<div class="card p-12 text-center" style="color:rgba(240,237,232,0.35);">
+  <div class="font-display text-2xl mb-3">Noch keine Einkaufslisten</div>
+  <form method="post" action="{% url 'shopping:create_from_plan' %}" class="mt-4">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-primary">Aus Wochenplan generieren</button>
+  </form>
+</div>
+{% endif %}
+
+{% endblock %}

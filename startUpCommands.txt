@@ -1,0 +1,16 @@
+# 1. Docker Desktop starten und warten bis das Symbol in der Taskleiste grün ist
+
+# 2. In den Projektordner navigieren
+cd D:\p\rundballen25
+
+# 3. Container starten
+docker compose up
+
+# Migrations ausführen falls neue dabei sind
+docker compose exec web python manage.py migrate
+
+# Falls das Docker-Image neu gebaut werden muss (neue Packages in requirements)
+docker compose build
+docker compose up
+
+docker compose down

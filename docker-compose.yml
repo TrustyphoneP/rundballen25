@@ -1,0 +1,57 @@
+# docker-compose.yml – Entwicklung
+# Windows:  docker compose up   (in PowerShell oder Git Bash)
+# Ubuntu:   docker compose up
+#
+# Voraussetzung Windows: Docker Desktop läuft (Taskleisten-Symbol grün)
+
+services:
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app                        # Live-Reload: Änderungen sofort sichtbar
+      - media_data:/app/media
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - DB_HOST=db
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: ${DB_NAME:-rundballen25}
+      POSTGRES_USER: ${DB_USER:-rundballen}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+    ports:
+      - "5432:5432"                   # Für DBeaver / pgAdmin direkt erreichbar
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-rundballen} -d ${DB_NAME:-rundballen25}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+  redis_data:
+  media_data:

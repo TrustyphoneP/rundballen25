@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="de" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1e4c59">
+  <title>{% block title %}rundballen25{% endblock %}</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            p:    { DEFAULT:'#1e4c59', light:'#2a6275', dark:'#122f38', pale:'#3a7a8f' },
+            acc:  { DEFAULT:'#e8a444', dim:'rgba(232,164,68,0.15)', brd:'rgba(232,164,68,0.28)' },
+            ok:   '#4caf7d',
+            warn: '#e07b54',
+          },
+          fontFamily: {
+            display: ['"DM Serif Display"','serif'],
+            mono:    ['"DM Mono"','monospace'],
+            sans:    ['Outfit','sans-serif'],
+          },
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/htmx.org@2.0.3" defer></script>
+  <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+  <style>
+    body { font-weight: 300; }
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    .nav-link { display:flex; align-items:center; gap:8px; padding:7px 10px; border-radius:8px;
+                font-size:0.8rem; color:rgba(240,237,232,0.5); transition:all 0.15s;
+                border:1px solid transparent; margin-bottom:1px; text-decoration:none; }
+    .nav-link:hover { background:rgba(255,255,255,0.05); color:rgba(240,237,232,0.9); }
+    .nav-link.active { background:rgba(232,164,68,0.15); border-color:rgba(232,164,68,0.28); color:#e8a444; }
+    .nav-dot { width:5px; height:5px; border-radius:50%; background:currentColor; opacity:0.5; flex-shrink:0; }
+    .nav-link.active .nav-dot { opacity:1; }
+    input, select, textarea {
+      background:rgba(255,255,255,0.05) !important;
+      border:1px solid rgba(240,237,232,0.1) !important;
+      border-radius:8px !important;
+      color:rgb(240,237,232) !important;
+      font-family:'Outfit',sans-serif !important;
+      padding:8px 12px !important;
+      outline:none !important;
+      width:100%;
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color:#3a7a8f !important;
+    }
+    input::placeholder { color:rgba(240,237,232,0.35) !important; }
+    select option { background:#122f38; }
+    label.check-label { display:flex; align-items:center; gap:6px; cursor:pointer; font-size:0.8rem; }
+    input[type=checkbox] { width:auto !important; accent-color:#e8a444; }
+    .btn { display:inline-flex; align-items:center; gap:6px; padding:7px 16px; border-radius:8px;
+           font-size:0.78rem; font-weight:500; cursor:pointer; border:1px solid transparent;
+           font-family:'Outfit',sans-serif; transition:all 0.15s; text-decoration:none; white-space:nowrap; }
+    .btn-primary { background:#e8a444; color:#122f38; }
+    .btn-primary:hover { background:#f2c27a; }
+    .btn-ghost { background:rgba(255,255,255,0.05); border-color:rgba(240,237,232,0.1); color:rgba(240,237,232,0.8); }
+    .btn-ghost:hover { background:rgba(255,255,255,0.09); }
+    .btn-danger { background:rgba(224,123,84,0.15); border-color:rgba(224,123,84,0.35); color:#e07b54; }
+    .btn-danger:hover { background:rgba(224,123,84,0.25); }
+    .badge { display:inline-flex; align-items:center; font-family:'DM Mono',monospace;
+             font-size:0.58rem; padding:2px 7px; border-radius:999px; border:1px solid; white-space:nowrap; }
+    .badge-warn { color:#e07b54; border-color:rgba(224,123,84,0.35); background:rgba(224,123,84,0.1); }
+    .badge-ok   { color:#4caf7d; border-color:rgba(76,175,125,0.35); background:rgba(76,175,125,0.1); }
+    .badge-blue { color:#e8a444; border-color:rgba(232,164,68,0.3);  background:rgba(232,164,68,0.1); }
+    .badge-muted{ color:rgba(240,237,232,0.45); border-color:rgba(240,237,232,0.12); background:transparent; }
+    .card { background:rgba(255,255,255,0.04); border:1px solid rgba(240,237,232,0.09); border-radius:12px; }
+    .section-mono { font-family:'DM Mono',monospace; font-size:0.58rem; letter-spacing:0.18em;
+                    text-transform:uppercase; color:rgba(240,237,232,0.4); }
+    table { width:100%; border-collapse:collapse; }
+    th { font-family:'DM Mono',monospace; font-size:0.6rem; letter-spacing:0.12em; text-transform:uppercase;
+         color:rgba(240,237,232,0.4); padding:10px 16px; text-align:left;
+         border-bottom:1px solid rgba(240,237,232,0.08); font-weight:400; }
+    td { padding:10px 16px; font-size:0.8rem; border-bottom:1px solid rgba(240,237,232,0.04); vertical-align:middle; }
+    tr:last-child td { border-bottom:none; }
+    tr:hover td { background:rgba(255,255,255,0.02); }
+    .flash { padding:10px 16px; border-radius:8px; font-size:0.8rem; margin-bottom:16px; border:1px solid; }
+    .flash-success { background:rgba(76,175,125,0.1); border-color:rgba(76,175,125,0.3); color:#4caf7d; }
+    .flash-warning { background:rgba(224,123,84,0.1); border-color:rgba(224,123,84,0.3); color:#e07b54; }
+    .flash-error   { background:rgba(224,123,84,0.15); border-color:rgba(224,123,84,0.4); color:#e07b54; }
+  </style>
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="h-full bg-p-dark text-white font-sans antialiased flex overflow-hidden">
+
+  <!-- SIDEBAR -->
+  <aside class="w-56 flex-shrink-0 flex flex-col border-r h-full overflow-hidden"
+         style="background:#1e4c59; border-color:rgba(240,237,232,0.09);">
+    <!-- Logo -->
+    <div class="px-5 py-4 border-b" style="border-color:rgba(240,237,232,0.09);">
+      <a href="{% url 'camps:dashboard' %}" class="block">
+        <div class="font-display text-xl leading-none">
+          rundballen<span style="color:#e8a444">24</span>
+        </div>
+        <div class="section-mono mt-1">Freizeiten-Planung</div>
+      </a>
+    </div>
+
+    <!-- Nav -->
+    <nav class="flex-1 px-3 py-3 overflow-y-auto">
+      <div class="section-mono px-2 mb-2 mt-1">Uebersicht</div>
+      <a href="{% url 'camps:dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+        <div class="nav-dot"></div> Dashboard
+      </a>
+
+      {% if active_camp %}
+      <div class="section-mono px-2 mb-2 mt-4">Planung</div>
+      <a href="{% url 'meals:index' %}" class="nav-link {% if 'meals' in request.resolver_match.app_name %}active{% endif %}">
+        <div class="nav-dot"></div> Wochenplan
+      </a>
+      <a href="#" class="nav-link">
+        <div class="nav-dot"></div> Brotplanung
+      </a>
+      <a href="{% url 'recipes:list' %}"
+         class="nav-link {% if 'recipes' in request.resolver_match.app_name %}active{% endif %}">
+        <div class="nav-dot"></div> Rezepte
+      </a>
+      <a href="{% url 'shopping:create_from_plan' %}" class="nav-link {% if 'shopping' in request.resolver_match.app_name %}active{% endif %}">
+        <div class="nav-dot"></div> Einkaufsliste
+      </a>
+
+      <div class="section-mono px-2 mb-2 mt-4">Personen</div>
+      <a href="{% url 'camps:participant_list' camp_pk=active_camp.pk %}"
+         class="nav-link {% if 'participant' in request.resolver_match.url_name %}active{% endif %}">
+        <div class="nav-dot"></div> Teilnehmer
+        {% if stats.mit_intol %}
+        <span class="ml-auto" style="background:#e07b54;color:#fff;font-family:'DM Mono',monospace;font-size:0.55rem;padding:1px 5px;border-radius:999px;">
+          {{ stats.mit_intol }}
+        </span>
+        {% endif %}
+      </a>
+      <a href="{% url 'camps:allergen_overview' camp_pk=active_camp.pk %}"
+         class="nav-link {% if request.resolver_match.url_name == 'allergen_overview' %}active{% endif %}">
+        <div class="nav-dot"></div> Unvertraeglichkeiten
+      </a>
+
+      <div class="section-mono px-2 mb-2 mt-4">Weiteres</div>
+      <a href="#" class="nav-link"><div class="nav-dot"></div> Feedback</a>
+      <a href="{% url 'voting:index' %}" class="nav-link {% if 'voting' in request.resolver_match.app_name %}active{% endif %}"><div class="nav-dot"></div> Abstimmung</a>
+      {% endif %}
+    </nav>
+
+    <!-- User -->
+    <div class="px-4 py-3 border-t flex items-center gap-3" style="border-color:rgba(240,237,232,0.09);">
+      <div class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-mono flex-shrink-0"
+           style="background:#2a6275; color:#e8a444;">
+        {{ request.user.get_initials|default:request.user.username|slice:":2"|upper }}
+      </div>
+      <div class="min-w-0">
+        <div class="text-sm font-medium truncate">{{ request.user.get_full_name|default:request.user.username }}</div>
+        <div class="text-xs truncate" style="color:rgba(240,237,232,0.4);">
+          {{ request.user.get_role_display|default:"Benutzer" }}
+        </div>
+      </div>
+      <a href="{% url 'accounts:logout' %}" class="ml-auto text-xs"
+         style="color:rgba(240,237,232,0.3);">Abmelden</a>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="flex-1 flex flex-col overflow-hidden min-w-0">
+
+    <!-- Topbar -->
+    <header class="flex items-center gap-4 px-6 border-b flex-shrink-0"
+            style="height:52px; border-color:rgba(240,237,232,0.09); background:rgba(18,47,56,0.6); backdrop-filter:blur(8px);">
+      <h1 class="font-display text-lg flex-1">{% block page_title %}{% endblock %}</h1>
+      {% if active_camp %}
+      <span class="badge badge-blue">{{ active_camp.name }}</span>
+      {% endif %}
+      {% block topbar_actions %}{% endblock %}
+    </header>
+
+    <!-- Content -->
+    <main class="flex-1 overflow-y-auto p-6">
+      {% if messages %}
+        {% for msg in messages %}
+        <div class="flash flash-{{ msg.tags }}">{{ msg }}</div>
+        {% endfor %}
+      {% endif %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+</body>
+</html>

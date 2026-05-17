@@ -1,0 +1,340 @@
+{% extends "base/base.html" %}
+{% block title %}{{ action }} – rundballen25{% endblock %}
+{% block page_title %}{{ action }}{% endblock %}
+
+{% block extra_head %}
+<style>
+  .ingredient-row {
+    display: grid;
+    grid-template-columns: 1fr 90px 90px 1fr auto;
+    gap: 8px;
+    align-items: start;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(240,237,232,0.06);
+    position: relative;
+  }
+  .ingredient-row:last-child { border-bottom: none; }
+  .autocomplete-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 220px;
+    background: #1e4c59;
+    border: 1px solid rgba(240,237,232,0.15);
+    border-radius: 8px;
+    z-index: 50;
+    max-height: 200px;
+    overflow-y: auto;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+  .autocomplete-item {
+    padding: 8px 12px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(240,237,232,0.06);
+  }
+  .autocomplete-item:last-child { border-bottom: none; }
+  .autocomplete-item:hover { background: rgba(255,255,255,0.07); }
+  .delete-row-btn {
+    background: none;
+    border: none;
+    color: rgba(240,237,232,0.25);
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 8px 4px;
+    line-height: 1;
+    transition: color 0.15s;
+    align-self: center;
+  }
+  .delete-row-btn:hover { color: #e07b54; }
+  .hidden-row { display: none !important; }
+  .allergen-checks { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+  .allergen-check-item {
+    display: flex; align-items: center; gap: 5px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(240,237,232,0.09);
+    border-radius: 6px;
+    padding: 4px 9px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .allergen-check-item:has(input:checked) {
+    background: rgba(224,123,84,0.12);
+    border-color: rgba(224,123,84,0.35);
+    color: #e07b54;
+  }
+  input[type=checkbox] { width: auto !important; }
+</style>
+{% endblock %}
+
+{% block topbar_actions %}
+  {% if recipe %}
+  <a href="{% url 'recipes:detail' pk=recipe.pk %}" class="btn btn-ghost">Abbrechen</a>
+  {% else %}
+  <a href="{% url 'recipes:list' %}" class="btn btn-ghost">Abbrechen</a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<form method="post" enctype="multipart/form-data" novalidate id="recipe-form">
+{% csrf_token %}
+{{ formset.management_form }}
+
+<div class="grid gap-5" style="grid-template-columns: 1fr 340px;">
+
+  <!-- Linke Spalte: Zutaten -->
+  <div>
+    <!-- Grunddaten -->
+    <div class="card p-6 mb-5">
+      <div class="section-mono mb-4">Grunddaten</div>
+      <div class="mb-4">
+        <label class="section-mono block mb-1">Rezeptname *</label>
+        {{ form.name }}
+        {% if form.name.errors %}<div class="text-xs mt-1" style="color:#e07b54">{{ form.name.errors.0 }}</div>{% endif %}
+      </div>
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <div>
+          <label class="section-mono block mb-1">Kategorie</label>
+          {{ form.category }}
+        </div>
+        <div>
+          <label class="section-mono block mb-1">Basis-Portionen *</label>
+          {{ form.base_servings }}
+          <div class="text-xs mt-1" style="color:rgba(240,237,232,0.35);">
+            Alle Mengen gelten fuer diese Personenzahl
+          </div>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <div>
+          <label class="section-mono block mb-1">Zubereitung (Min)</label>
+          {{ form.prep_time_min }}
+        </div>
+        <div>
+          <label class="section-mono block mb-1">Kochzeit (Min)</label>
+          {{ form.cook_time_min }}
+        </div>
+      </div>
+      <div>
+        <label class="section-mono block mb-1">Beschreibung</label>
+        {{ form.description }}
+      </div>
+    </div>
+
+    <!-- Zutaten-Formset -->
+    <div class="card p-6 mb-5">
+      <div class="flex items-center justify-between mb-4">
+        <div class="section-mono">Zutaten</div>
+        <div class="section-mono" id="ingredient-count"></div>
+      </div>
+
+      <!-- Header -->
+      <div class="grid gap-2 mb-2" style="grid-template-columns: 1fr 90px 90px 1fr auto;">
+        <div class="section-mono">Zutat</div>
+        <div class="section-mono">Menge</div>
+        <div class="section-mono">Einheit</div>
+        <div class="section-mono">Hinweis</div>
+        <div></div>
+      </div>
+
+      <div id="ingredient-rows">
+        {% for subform in formset %}
+        <div class="ingredient-row {% if subform.instance.pk == None and forloop.counter > 1 %}{% endif %}"
+             id="row-{{ forloop.counter0 }}"
+             data-row="{{ forloop.counter0 }}">
+          {{ subform.id }}
+          {{ subform.ingredient }}
+          <div style="position:relative;">
+            <input type="text"
+                   name="ingredients-{{ forloop.counter0 }}-ingredient_name"
+                   value="{% if subform.instance.pk %}{{ subform.instance.ingredient.name }}{% endif %}"
+                   placeholder="Zutat..."
+                   class="ingredient-autocomplete"
+                   autocomplete="off"
+                   data-row="{{ forloop.counter0 }}">
+          </div>
+          {{ subform.amount }}
+          {{ subform.unit }}
+          {{ subform.note }}
+          <button type="button" class="delete-row-btn" onclick="removeRow(this)" title="Zeile entfernen">x</button>
+          {% if subform.DELETE %}
+          <input type="hidden" name="ingredients-{{ forloop.counter0 }}-DELETE" value="">
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+
+      <button type="button" class="btn btn-ghost mt-4" id="add-row-btn"
+              style="font-size:0.75rem; border-style:dashed;">
+        + Zutat hinzufuegen
+      </button>
+    </div>
+
+    <!-- Notizen -->
+    <div class="card p-6 mb-5">
+      <div class="section-mono mb-3">Notizen / Kuechen-Hinweise</div>
+      {{ form.notes }}
+    </div>
+  </div>
+
+  <!-- Rechte Spalte: Diaet + Allergene -->
+  <div>
+    <div class="card p-6 mb-5">
+      <div class="section-mono mb-4">Diaet</div>
+      <label class="check-label mb-3">{{ form.is_vegan }} Vegan</label>
+      <label class="check-label">{{ form.is_vegetarian }} Vegetarisch</label>
+    </div>
+
+    <div class="card p-6 mb-5">
+      <div class="section-mono mb-3">Enthaltene Allergene</div>
+      <div class="allergen-checks">
+        {% for checkbox in form.allergens %}
+        <label class="allergen-check-item">
+          {{ checkbox.tag }} {{ checkbox.choice_label }}
+        </label>
+        {% endfor %}
+      </div>
+      <div class="text-xs mt-3" style="color:rgba(240,237,232,0.35);">
+        Wird automatisch auf Vertraeglichkeit mit Teilnehmern geprueft.
+      </div>
+    </div>
+
+    <!-- Speichern -->
+    <div class="card p-5">
+      <button type="submit" class="btn btn-primary w-full justify-center mb-3"
+              style="width:100%; justify-content:center;">
+        Rezept speichern
+      </button>
+      {% if recipe %}
+      <form method="post" action="{% url 'recipes:delete' pk=recipe.pk %}"
+            onsubmit="return confirm('Rezept wirklich loeschen?')">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger w-full justify-center"
+                style="width:100%; justify-content:center;">
+          Rezept loeschen
+        </button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+</form>
+
+<script>
+const AUTOCOMPLETE_URL = "{% url 'recipes:ingredient_autocomplete' %}";
+const TOTAL_FORMS_INPUT = document.querySelector('[name="ingredients-TOTAL_FORMS"]');
+let totalForms = parseInt(TOTAL_FORMS_INPUT.value);
+
+// Autocomplete
+document.addEventListener('input', function(e) {
+  if (!e.target.classList.contains('ingredient-autocomplete')) return;
+  const val = e.target.value.trim();
+  clearDropdowns();
+  if (val.length < 2) return;
+
+  fetch(`${AUTOCOMPLETE_URL}?q=${encodeURIComponent(val)}`)
+    .then(r => r.json())
+    .then(data => {
+      if (!data.results.length) return;
+      const dropdown = document.createElement('div');
+      dropdown.className = 'autocomplete-dropdown';
+      data.results.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'autocomplete-item';
+        div.textContent = item.name;
+        div.addEventListener('mousedown', function(ev) {
+          ev.preventDefault();
+          e.target.value = item.name;
+          // Setze hidden ingredient-ID
+          const row = e.target.closest('.ingredient-row');
+          const hiddenInput = row.querySelector('input[name$="-ingredient"]');
+          if (hiddenInput) hiddenInput.value = item.id;
+          clearDropdowns();
+        });
+        dropdown.appendChild(div);
+      });
+      e.target.parentElement.appendChild(dropdown);
+    });
+});
+
+document.addEventListener('blur', function(e) {
+  if (e.target.classList.contains('ingredient-autocomplete')) {
+    setTimeout(clearDropdowns, 150);
+  }
+}, true);
+
+function clearDropdowns() {
+  document.querySelectorAll('.autocomplete-dropdown').forEach(d => d.remove());
+}
+
+// Zeile hinzufuegen
+document.getElementById('add-row-btn').addEventListener('click', function() {
+  const idx = totalForms;
+  const row = document.createElement('div');
+  row.className = 'ingredient-row';
+  row.id = `row-${idx}`;
+  row.dataset.row = idx;
+  row.innerHTML = `
+    <input type="hidden" name="ingredients-${idx}-id" value="">
+    <input type="hidden" name="ingredients-${idx}-ingredient" value="">
+    <div style="position:relative;">
+      <input type="text" name="ingredients-${idx}-ingredient_name"
+             placeholder="Zutat..." class="ingredient-autocomplete" autocomplete="off" data-row="${idx}">
+    </div>
+    <input type="number" name="ingredients-${idx}-amount" placeholder="Menge" step="0.001" min="0">
+    <select name="ingredients-${idx}-unit">
+      <option value="g">Gramm</option>
+      <option value="kg">Kilogramm</option>
+      <option value="ml">Milliliter</option>
+      <option value="l">Liter</option>
+      <option value="Stk">Stück</option>
+      <option value="EL">Esslöffel</option>
+      <option value="TL">Teelöffel</option>
+      <option value="Pck">Packung</option>
+      <option value="Bd">Bund</option>
+    </select>
+    <input type="text" name="ingredients-${idx}-note" placeholder="Hinweis (optional)">
+    <button type="button" class="delete-row-btn" onclick="removeRow(this)" title="Entfernen">x</button>
+  `;
+  document.getElementById('ingredient-rows').appendChild(row);
+  totalForms++;
+  TOTAL_FORMS_INPUT.value = totalForms;
+  row.querySelector('.ingredient-autocomplete').focus();
+  updateCount();
+});
+
+function removeRow(btn) {
+  const row = btn.closest('.ingredient-row');
+  // Existierende Zeile: DELETE-Flag setzen
+  const idInput = row.querySelector('input[name$="-id"]');
+  if (idInput && idInput.value) {
+    const name = idInput.name.replace('-id', '-DELETE');
+    let del = row.querySelector(`input[name="${name}"]`);
+    if (!del) {
+      del = document.createElement('input');
+      del.type = 'hidden';
+      del.name = name;
+      row.appendChild(del);
+    }
+    del.value = '1';
+    row.style.display = 'none';
+  } else {
+    row.remove();
+    totalForms--;
+    TOTAL_FORMS_INPUT.value = totalForms;
+  }
+  updateCount();
+}
+
+function updateCount() {
+  const visible = document.querySelectorAll('.ingredient-row:not([style*="display: none"])').length;
+  const el = document.getElementById('ingredient-count');
+  if (el) el.textContent = visible + ' Zutaten';
+}
+
+updateCount();
+</script>
+{% endblock %}

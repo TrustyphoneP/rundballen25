@@ -1,0 +1,130 @@
+{% extends "base/base.html" %}
+{% block title %}{{ sl.notes|truncatechars:40 }}{% endblock %}
+{% block page_title %}{{ sl.notes|truncatechars:50 }}{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{% url 'shopping:export_csv' pk=sl.pk %}" class="btn btn-ghost">CSV-Export</a>
+  <a href="{% url 'shopping:plan_overview' camp_pk=sl.camp.pk %}" class="btn btn-ghost">Zur Uebersicht</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Fortschritt -->
+<div class="grid grid-cols-4 gap-4 mb-6">
+  <div class="card px-5 py-4">
+    <div class="section-mono mb-2">Einkaufsdatum</div>
+    <div class="font-medium">{{ sl.from_date|date:"D, d. F" }}</div>
+  </div>
+  <div class="card px-5 py-4">
+    <div class="section-mono mb-2">Gesamt</div>
+    <div class="font-display text-3xl">{{ total }}</div>
+  </div>
+  <div class="card px-5 py-4">
+    <div class="section-mono mb-2">Erledigt</div>
+    <div class="font-display text-3xl" style="color:#4caf7d;">{{ bought }}</div>
+  </div>
+  <div class="card px-5 py-4">
+    <div class="section-mono mb-2">Offen</div>
+    <div class="font-display text-3xl" style="color:{% if open > 0 %}#e8a444{% else %}#4caf7d{% endif %};">{{ open }}</div>
+  </div>
+</div>
+
+{% if total > 0 %}
+<div class="mb-5">
+  <div class="h-1.5 rounded-full overflow-hidden" style="background:rgba(240,237,232,0.1);">
+    <div class="h-full rounded-full" style="background:#4caf7d; width:{% widthratio bought total 100 %}%;"></div>
+  </div>
+</div>
+{% endif %}
+
+<div class="flex gap-3 mb-5">
+  <form method="post" action="{% url 'shopping:reset_list' pk=sl.pk %}">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-ghost" style="font-size:0.75rem;">Alle zuruecksetzen</button>
+  </form>
+  <form method="post" action="{% url 'shopping:delete_list' pk=sl.pk %}"
+        onsubmit="return confirm('Einkaufsliste wirklich loeschen?')">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-danger" style="font-size:0.75rem;">Liste loeschen</button>
+  </form>
+</div>
+
+<!-- Trockene Zutaten -->
+{% if dry %}
+<div class="section-mono mb-3">Trockene Zutaten</div>
+<div class="card overflow-hidden mb-6">
+  <table>
+    <thead><tr>
+      <th style="width:36px;"></th>
+      <th>Zutat</th><th>Menge</th><th>Einheit</th>
+    </tr></thead>
+    <tbody>
+      {% for item in dry %}
+      <tr id="item-{{ item.pk }}" style="{% if item.is_bought %}opacity:0.4;{% endif %}">
+        <td>
+          <form method="post" action="{% url 'shopping:toggle_item' pk=item.pk %}"
+                hx-post="{% url 'shopping:toggle_item' pk=item.pk %}"
+                hx-target="#item-{{ item.pk }}" hx-swap="outerHTML">
+            {% csrf_token %}
+            <button type="submit" style="width:20px;height:20px;border-radius:5px;cursor:pointer;
+              border:2px solid {% if item.is_bought %}#4caf7d{% else %}rgba(240,237,232,0.25){% endif %};
+              background:{% if item.is_bought %}#4caf7d{% else %}transparent{% endif %};
+              display:flex;align-items:center;justify-content:center;">
+              {% if item.is_bought %}
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                <path d="M1.5 5L4 7.5L8.5 2.5" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+              {% endif %}
+            </button>
+          </form>
+        </td>
+        <td class="font-medium {% if item.is_bought %}line-through{% endif %}">{{ item.ingredient.name }}</td>
+        <td class="font-mono" style="color:#e8a444;">{{ item.amount|floatformat:"-1" }}</td>
+        <td style="color:rgba(240,237,232,0.5);">{{ item.unit }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<!-- Frische Zutaten -->
+{% if fresh %}
+<div class="section-mono mb-3">Frische Zutaten</div>
+<div class="card overflow-hidden">
+  <table>
+    <thead><tr>
+      <th style="width:36px;"></th>
+      <th>Zutat</th><th>Menge</th><th>Einheit</th>
+    </tr></thead>
+    <tbody>
+      {% for item in fresh %}
+      <tr id="item-{{ item.pk }}" style="{% if item.is_bought %}opacity:0.4;{% endif %}">
+        <td>
+          <form method="post" action="{% url 'shopping:toggle_item' pk=item.pk %}"
+                hx-post="{% url 'shopping:toggle_item' pk=item.pk %}"
+                hx-target="#item-{{ item.pk }}" hx-swap="outerHTML">
+            {% csrf_token %}
+            <button type="submit" style="width:20px;height:20px;border-radius:5px;cursor:pointer;
+              border:2px solid {% if item.is_bought %}#4caf7d{% else %}rgba(240,237,232,0.25){% endif %};
+              background:{% if item.is_bought %}#4caf7d{% else %}transparent{% endif %};
+              display:flex;align-items:center;justify-content:center;">
+              {% if item.is_bought %}
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                <path d="M1.5 5L4 7.5L8.5 2.5" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+              {% endif %}
+            </button>
+          </form>
+        </td>
+        <td class="font-medium {% if item.is_bought %}line-through{% endif %}">{{ item.ingredient.name }}</td>
+        <td class="font-mono" style="color:#e8a444;">{{ item.amount|floatformat:"-1" }}</td>
+        <td style="color:rgba(240,237,232,0.5);">{{ item.unit }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{% endblock %}

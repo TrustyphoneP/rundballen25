@@ -1,0 +1,84 @@
+{% load meals_tags %}
+<div class="day-card {% if day_meal and day_meal.main_course %}complete{% else %}empty{% endif %}"
+     id="day-{{ day.pk }}">
+
+  <!-- Header -->
+  <div class="day-header">
+    <div>
+      <div class="day-name">
+        {% with wd=day.date.weekday %}
+          {% if wd == 0 %}Montag
+          {% elif wd == 1 %}Dienstag
+          {% elif wd == 2 %}Mittwoch
+          {% elif wd == 3 %}Donnerstag
+          {% elif wd == 4 %}Freitag
+          {% elif wd == 5 %}Samstag
+          {% else %}Sonntag{% endif %}
+        {% endwith %}
+      </div>
+      <div class="day-date">{{ day.date|date:"d. F" }}</div>
+    </div>
+    <div class="text-right">
+      <div class="section-mono">{{ day.persons_present }} Pers.</div>
+      {% if day_meal %}
+        {% with warnings=day_meal.allergen_warning %}
+          {% if warnings %}
+            <div class="badge badge-warn mt-1">{{ warnings|length }} Allergen{{ warnings|length|pluralize:",e" }}</div>
+          {% endif %}
+        {% endwith %}
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Slots -->
+  {% if day_meal %}
+    {% for slot_key, slot_label in slots %}
+    <div class="slot-row">
+      <span class="slot-label">{{ slot_label }}</span>
+      {% if slot_key == "main_course" %}
+        {% with current=day_meal.main_course %}
+          {% include "meals/partials/slot_content.html" %}
+        {% endwith %}
+      {% elif slot_key == "dessert" %}
+        {% with current=day_meal.dessert %}
+          {% include "meals/partials/slot_content.html" %}
+        {% endwith %}
+      {% else %}
+        {% with current=day_meal.salad %}
+          {% include "meals/partials/slot_content.html" %}
+        {% endwith %}
+      {% endif %}
+    </div>
+    {% endfor %}
+  {% endif %}
+
+  <!-- Allergen-Details -->
+  {% if day_meal %}
+    {% with warnings=day_meal.allergen_warning %}
+      {% if warnings %}
+      <div class="allergen-strip">
+        {% for allergen in warnings %}
+          {% with cnt=allergen_counts|get_item:allergen.pk %}
+          <span class="badge badge-warn" title="{{ cnt }} Pers. betroffen">
+            {{ allergen.short_code }}{% if cnt %} ({{ cnt }}){% endif %}
+          </span>
+          {% endwith %}
+        {% endfor %}
+      </div>
+      {% endif %}
+    {% endwith %}
+
+    <!-- Notiz -->
+    <div class="persons-row">
+      <input type="text"
+             value="{{ day_meal.notes }}"
+             placeholder="Notiz zum Tag..."
+             style="font-size:0.72rem; padding:3px 8px; flex:1;"
+             hx-post="{% url 'meals:save_note' day_pk=day.pk %}"
+             hx-trigger="change"
+             hx-vals='js:{notes: event.target.value}'
+             hx-swap="none">
+    </div>
+  {% endif %}
+
+</div>

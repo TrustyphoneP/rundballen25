@@ -1,0 +1,86 @@
+{% extends "base/base.html" %}
+
+{% block title %}Dashboard – rundballen25{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block topbar_actions %}
+  {% if active_camp %}
+  <a href="{% url 'camps:participant_create' camp_pk=active_camp.pk %}" class="btn btn-primary">+ Teilnehmer</a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+
+{% if active_camp %}
+<!-- Stat-Karten -->
+<div class="grid grid-cols-4 gap-4 mb-8">
+  <div class="card px-5 py-5">
+    <div class="section-mono mb-2">Teilnehmer</div>
+    <div class="font-display text-4xl mb-1">{{ active_camp.participant_count }}</div>
+    <div class="text-xs" style="color:rgba(240,237,232,0.4);">+ {{ active_camp.supervisor_count }} Betreuer</div>
+  </div>
+  <div class="card px-5 py-5">
+    <div class="section-mono mb-2">Gesamt</div>
+    <div class="font-display text-4xl mb-1">{{ active_camp.total_persons }}</div>
+    <div class="text-xs" style="color:rgba(240,237,232,0.4);">Personen</div>
+  </div>
+  <div class="card px-5 py-5">
+    <div class="section-mono mb-2">Unvertraeglichkeiten</div>
+    <div class="font-display text-4xl mb-1" style="color:#e07b54;">{{ with_intol }}</div>
+    <div class="text-xs" style="color:rgba(240,237,232,0.4);">von {{ total }} erfassten Personen</div>
+  </div>
+  <div class="card px-5 py-5">
+    <div class="section-mono mb-2">Dauer</div>
+    <div class="font-display text-4xl mb-1">{{ active_camp.duration_days }}</div>
+    <div class="text-xs" style="color:rgba(240,237,232,0.4);">
+      {{ active_camp.start_date|date:"d.m." }} – {{ active_camp.end_date|date:"d.m.Y" }}
+    </div>
+  </div>
+</div>
+
+<!-- Allergen-Uebersicht -->
+{% if allergen_counts %}
+<div class="section-mono mb-3">Haeufigste Unvertraeglichkeiten</div>
+<div class="card overflow-hidden mb-8">
+  <table>
+    <thead><tr>
+      <th>Allergen / Unvertraeglichkeit</th>
+      <th>Betroffene Personen</th>
+      <th>Anteil</th>
+    </tr></thead>
+    <tbody>
+      {% for allergen in allergen_counts %}
+      <tr>
+        <td class="font-medium">{{ allergen.name }}</td>
+        <td>
+          <span class="badge badge-warn">{{ allergen.cnt }}</span>
+        </td>
+        <td>
+          <div class="flex items-center gap-3">
+            <div class="flex-1 h-1 rounded-full overflow-hidden" style="background:rgba(240,237,232,0.1); max-width:120px;">
+              <div class="h-full rounded-full" style="background:#e07b54; width:{{ allergen.cnt|floatformat:0 }}%"></div>
+            </div>
+            <span class="text-xs font-mono" style="color:rgba(240,237,232,0.45);">
+              von {{ total }}
+            </span>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{% else %}
+<!-- Kein Camp -->
+<div class="card p-12 text-center">
+  <div class="font-display text-2xl mb-2">Noch keine Freizeit angelegt</div>
+  <div class="text-sm mb-6" style="color:rgba(240,237,232,0.4);">
+    Lege zuerst eine Freizeit im Admin-Bereich an.
+  </div>
+  <a href="/admin/camps/camp/add/" class="btn btn-primary">Freizeit anlegen</a>
+</div>
+{% endif %}
+
+{% endblock %}

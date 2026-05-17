@@ -1,0 +1,106 @@
+<aside class="fixed inset-y-0 left-0 z-50 w-64 bg-atlantik flex flex-col
+              border-r border-white/8 transform transition-transform
+              lg:translate-x-0"
+       :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
+       @click.outside="sidebarOpen = false">
+
+  {# Logo #}
+  <div class="px-6 py-5 border-b border-white/8">
+    <a href="{% url 'camps:dashboard' %}" class="flex items-baseline gap-1">
+      <span class="font-display text-xl text-white">rundballen</span>
+      <span class="font-display text-xl text-accent">24</span>
+    </a>
+    <p class="text-xs text-white/40 font-mono mt-1 tracking-widest uppercase">
+      Freizeiten-Planung
+    </p>
+  </div>
+
+  {# Nav #}
+  <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+    {% with request.resolver_match.app_name as app %}
+
+    <a href="{% url 'camps:dashboard' %}"
+       class="nav-link {% if app == 'camps' %}active{% endif %}">
+      <span>⬛</span> Dashboard
+    </a>
+    <a href="{% url 'camps:list' %}"
+       class="nav-link {% if app == 'camps' %}active{% endif %}">
+      <span>🏕</span> Freizeiten
+    </a>
+
+    <div class="pt-3 pb-1 px-3">
+      <p class="text-xs text-white/30 font-mono uppercase tracking-widest">Planung</p>
+    </div>
+
+    <a href="{% url 'meals:index' %}"
+       class="nav-link {% if app == 'meals' %}active{% endif %}">
+      <span>🍽</span> Mahlzeiten
+    </a>
+    <a href="{% url 'recipes:index' %}"
+       class="nav-link {% if app == 'recipes' %}active{% endif %}">
+      <span>📋</span> Rezepte
+    </a>
+    <a href="{% url 'shopping:index' %}"
+       class="nav-link {% if app == 'shopping' %}active{% endif %}">
+      <span>🧺</span> Einkaufslisten
+    </a>
+
+    <div class="pt-3 pb-1 px-3">
+      <p class="text-xs text-white/30 font-mono uppercase tracking-widest">Teilnehmer</p>
+    </div>
+
+    <a href="{% url 'camps:participants' %}"
+       class="nav-link">
+      <span>👥</span> Teilnehmer
+    </a>
+    <a href="{% url 'camps:intolerances' %}"
+       class="nav-link">
+      <span>⚠️</span> Unverträglichkeiten
+    </a>
+    <a href="{% url 'feedback:index' %}"
+       class="nav-link {% if app == 'feedback' %}active{% endif %}">
+      <span>💬</span> Feedback
+    </a>
+
+    <div class="pt-3 pb-1 px-3">
+      <p class="text-xs text-white/30 font-mono uppercase tracking-widest">Betreuer</p>
+    </div>
+
+    <a href="{% url 'voting:index' %}"
+       class="nav-link {% if app == 'voting' %}active{% endif %}">
+      <span>🗳</span> Abstimmung
+    </a>
+
+    {% endwith %}
+  </nav>
+
+  {# User Footer #}
+  <div class="px-4 py-4 border-t border-white/8">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-full bg-atlantik-pale flex items-center justify-center text-xs font-semibold">
+        {{ request.user.get_initials|default:"?" }}
+      </div>
+      <div class="flex-1 min-w-0">
+        <p class="text-sm font-medium truncate">{{ request.user.get_full_name|default:request.user.username }}</p>
+        <p class="text-xs text-white/40 truncate">{{ request.user.get_role_display }}</p>
+      </div>
+      <a href="{% url 'accounts:logout' %}" class="text-white/30 hover:text-white/70 text-xs">↩</a>
+    </div>
+  </div>
+</aside>
+
+<style>
+.nav-link {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px; border-radius: 10px;
+  font-size: 0.82rem; color: rgba(255,255,255,0.55);
+  transition: background 0.15s, color 0.15s;
+  cursor: pointer; text-decoration: none;
+}
+.nav-link:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.9); }
+.nav-link.active {
+  background: rgba(232,164,68,0.15);
+  border: 1px solid rgba(232,164,68,0.25);
+  color: #e8a444;
+}
+</style>

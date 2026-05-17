@@ -1,0 +1,211 @@
+{% extends "base/base.html" %}
+{% block title %}{{ poll.title }} – Abstimmung{% endblock %}
+{% block page_title %}{{ poll.title }}{% endblock %}
+
+{% block extra_head %}
+<script>
+// Live-Ergebnisse alle 10 Sekunden aktualisieren wenn Poll offen
+{% if poll.status == "open" %}
+function loadResults() {
+  fetch("{% url 'voting:results_json' pk=poll.pk %}")
+    .then(r => r.json())
+    .then(data => {
+      const max = Math.max(...data.results.map(r => r.cnt), 1);
+      data.results.forEach(r => {
+        const row = document.getElementById("result-" + encodeURIComponent(r.name));
+        if (!row) return;
+        row.querySelector(".result-count").textContent = r.cnt;
+        row.querySelector(".result-bar").style.width = (r.cnt / max * 100) + "%";
+      });
+      document.getElementById("voter-count").textContent =
+        data.total_voters + " von {% url 'voting:results_json' pk=poll.pk %}".includes("") ? "" : "";
+    });
+}
+setInterval(loadResults, 10000);
+{% endif %}
+</script>
+{% endblock %}
+
+{% block topbar_actions %}
+  {% if poll.status == "draft" %}
+    <form method="post" action="{% url 'voting:set_status' pk=poll.pk %}" style="display:inline;">
+      {% csrf_token %}<input type="hidden" name="action" value="open">
+      <button type="submit" class="btn btn-primary">Abstimmung oeffnen</button>
+    </form>
+  {% elif poll.status == "open" %}
+    <form method="post" action="{% url 'voting:set_status' pk=poll.pk %}" style="display:inline;">
+      {% csrf_token %}<input type="hidden" name="action" value="close">
+      <button type="submit" class="btn btn-danger">Abstimmung schliessen</button>
+    </form>
+  {% else %}
+    <form method="post" action="{% url 'voting:set_status' pk=poll.pk %}" style="display:inline;">
+      {% csrf_token %}<input type="hidden" name="action" value="open">
+      <button type="submit" class="btn btn-ghost">Wieder oeffnen</button>
+    </form>
+  {% endif %}
+  <a href="{% url 'voting:index' %}" class="btn btn-ghost">Zurueck</a>
+{% endblock %}
+
+{% block content %}
+<div class="grid gap-6" style="grid-template-columns: 1fr 320px;">
+
+  <!-- Ergebnisse -->
+  <div>
+    <!-- Status-Banner -->
+    <div class="card px-5 py-4 mb-5 flex items-center gap-4">
+      {% if poll.status == "open" %}
+        <span class="badge badge-ok">Offen</span>
+      {% elif poll.status == "closed" %}
+        <span class="badge badge-muted">Abgeschlossen</span>
+      {% else %}
+        <span class="badge badge-blue">Entwurf</span>
+      {% endif %}
+      <span class="text-sm" style="color:rgba(240,237,232,0.5);">
+        {{ total_voters }} von {{ total_tokens }} haben abgestimmt
+      </span>
+      <span class="section-mono ml-auto">
+        {{ poll.min_votes }}–{{ poll.max_votes }} Gerichte waehlbar
+      </span>
+    </div>
+
+    <!-- Ergebnisse -->
+    <div class="section-mono mb-3">Ergebnisse</div>
+    <div class="card overflow-hidden mb-5">
+      {% if results %}
+      {% with max_votes=results.first.cnt|default:1 %}
+      <table>
+        <thead><tr>
+          <th>Gericht</th>
+          <th>Stimmen</th>
+          <th style="width:200px;">Verteilung</th>
+          <th></th>
+        </tr></thead>
+        <tbody>
+          {% for vr in results %}
+          <tr id="result-{{ vr.name|urlencode }}">
+            <td>
+              <span class="font-medium">{{ vr.name }}</span>
+              {% if vr.is_vegan %}<span class="badge badge-ok ml-2">Vegan</span>{% endif %}
+              {% if not vr.is_active %}<span class="badge badge-muted ml-2">Inaktiv</span>{% endif %}
+            </td>
+            <td>
+              <span class="result-count font-display text-xl" style="color:#e8a444;">{{ vr.cnt }}</span>
+            </td>
+            <td>
+              <div class="h-2 rounded-full overflow-hidden" style="background:rgba(240,237,232,0.08);">
+                <div class="result-bar h-full rounded-full transition-all"
+                     style="background:#e8a444; width:{% if max_votes > 0 %}{% widthratio vr.cnt max_votes 100 %}{% else %}0{% endif %}%;"></div>
+              </div>
+            </td>
+            <td>
+              <div class="flex gap-1 justify-end">
+                <form method="post" action="{% url 'voting:toggle_recipe' pk=poll.pk recipe_pk=vr.pk %}">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-ghost" style="padding:3px 8px; font-size:0.65rem;">
+                    {% if vr.is_active %}Deaktivieren{% else %}Aktivieren{% endif %}
+                  </button>
+                </form>
+                <form method="post" action="{% url 'voting:delete_recipe' pk=poll.pk recipe_pk=vr.pk %}"
+                      onsubmit="return confirm('Gericht wirklich loeschen?')">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-danger" style="padding:3px 8px; font-size:0.65rem;">x</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endwith %}
+      {% else %}
+      <div class="p-10 text-center" style="color:rgba(240,237,232,0.3);">Noch keine Gerichte</div>
+      {% endif %}
+    </div>
+
+    <!-- Gericht manuell hinzufuegen -->
+    <div class="section-mono mb-3">Gericht manuell hinzufuegen</div>
+    <div class="card p-5">
+      <form method="post" action="{% url 'voting:add_recipe' pk=poll.pk %}" class="flex gap-3">
+        {% csrf_token %}
+        <input type="text" name="name" placeholder="Gerichtsname..." style="flex:1;">
+        <input type="text" name="description" placeholder="Beschreibung (optional)" style="flex:1;">
+        <label class="check-label flex-shrink-0">
+          <input type="checkbox" name="is_vegan"> Vegan
+        </label>
+        <button type="submit" class="btn btn-ghost flex-shrink-0">Hinzufuegen</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Rechte Spalte: Tokens -->
+  <div>
+    <div class="section-mono mb-3">Abstimmungs-Links</div>
+    <div class="card p-5 mb-4">
+      <form method="post" action="{% url 'voting:generate_tokens' pk=poll.pk %}" class="mb-4">
+        {% csrf_token %}
+        <div class="mb-3">
+          <label class="section-mono block mb-1">Anzahl generieren</label>
+          <input type="number" name="count" value="1" min="1" max="100" style="width:80px;">
+        </div>
+        <div class="mb-3">
+          <label class="section-mono block mb-1">Label-Prefix (optional)</label>
+          <input type="text" name="prefix" placeholder="z.B. Betreuer">
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">
+          Token generieren
+        </button>
+      </form>
+    </div>
+
+    <!-- Token-Liste -->
+    <div class="card overflow-hidden" style="max-height:500px; overflow-y:auto;">
+      {% if poll.tokens.all %}
+      <table>
+        <thead><tr>
+          <th>Label</th>
+          <th>Status</th>
+          <th></th>
+        </tr></thead>
+        <tbody>
+          {% for token in poll.tokens.all %}
+          <tr>
+            <td style="font-size:0.75rem;">
+              {{ token.label|default:"–" }}
+              <div class="font-mono" style="font-size:0.6rem; color:rgba(240,237,232,0.3);">
+                {{ token.token|slice:":12" }}…
+              </div>
+            </td>
+            <td>
+              {% if token.used %}
+                <span class="badge badge-ok">Abgestimmt</span>
+              {% else %}
+                <span class="badge badge-muted">Offen</span>
+              {% endif %}
+            </td>
+            <td>
+              <div class="flex gap-1">
+                <a href="{% url 'voting:vote' token=token.token %}"
+                   target="_blank"
+                   class="btn btn-ghost" style="padding:2px 6px; font-size:0.6rem;">Link</a>
+                {% if not token.used %}
+                <form method="post" action="{% url 'voting:delete_token' pk=poll.pk token_pk=token.pk %}">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-danger" style="padding:2px 6px; font-size:0.6rem;">x</button>
+                </form>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="p-8 text-center" style="color:rgba(240,237,232,0.3); font-size:0.8rem;">
+        Noch keine Tokens generiert
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}

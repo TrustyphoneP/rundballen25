@@ -1,0 +1,54 @@
+{% extends "base/base.html" %}
+{% block title %}Aus Wochenplan{% endblock %}
+{% block page_title %}Einkaufsliste aus Wochenplan{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{% url 'shopping:index' %}" class="btn btn-ghost">Abbrechen</a>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-lg">
+  <div class="card p-5 mb-5" style="border-color:rgba(232,164,68,0.2); background:rgba(232,164,68,0.05);">
+    <div class="section-mono mb-1">Funktionsweise</div>
+    <div class="text-sm" style="color:rgba(240,237,232,0.6); line-height:1.6;">
+      Liest alle geplanten Abendessen im gewaehlten Zeitraum, skaliert die Zutaten
+      automatisch auf die jeweilige Personenzahl des Tages und addiert alles zusammen.
+      Voraussetzung: Wochenplan mit zugewiesenen Rezepten.
+    </div>
+  </div>
+
+  <form method="post" novalidate>
+    {% csrf_token %}
+    <div class="card p-6 mb-5">
+      <div class="mb-4">
+        <label class="section-mono block mb-1">Freizeit</label>
+        {{ form.camp }}
+      </div>
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <div>
+          <label class="section-mono block mb-1">Von</label>
+          {{ form.from_date }}
+          {% if form.from_date.errors %}
+            <div class="text-xs mt-1" style="color:#e07b54;">{{ form.from_date.errors.0 }}</div>
+          {% endif %}
+        </div>
+        <div>
+          <label class="section-mono block mb-1">Bis</label>
+          {{ form.to_date }}
+          {% if form.to_date.errors %}
+            <div class="text-xs mt-1" style="color:#e07b54;">{{ form.to_date.errors.0 }}</div>
+          {% endif %}
+        </div>
+      </div>
+      {% if form.non_field_errors %}
+        <div class="text-xs mb-3" style="color:#e07b54;">{{ form.non_field_errors.0 }}</div>
+      {% endif %}
+      <div>
+        <label class="section-mono block mb-1">Notizen (optional)</label>
+        {{ form.notes }}
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary">Einkaufsliste generieren</button>
+  </form>
+</div>
+{% endblock %}

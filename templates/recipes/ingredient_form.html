@@ -1,0 +1,44 @@
+{% extends "base/base.html" %}
+{% block title %}{% if ingredient %}{{ ingredient.name }} bearbeiten{% else %}Neue Zutat{% endif %}{% endblock %}
+{% block page_title %}{% if ingredient %}Zutat bearbeiten{% else %}Neue Zutat{% endif %}{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{% url 'recipes:ingredient_list' %}" class="btn btn-ghost">Abbrechen</a>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-xl">
+  <form method="post" novalidate>
+    {% csrf_token %}
+    <div class="card p-6 mb-5">
+      <div class="section-mono mb-4">Zutat</div>
+      <div class="mb-4">
+        <label class="section-mono block mb-1">Name *</label>
+        {{ form.name }}
+        {% if form.name.errors %}<div class="text-xs mt-1" style="color:#e07b54">{{ form.name.errors.0 }}</div>{% endif %}
+      </div>
+      <label class="check-label mb-3">{{ form.is_vegan }} Vegan</label>
+      <label class="check-label mb-4">{{ form.is_fresh }} Frische Zutat (nicht trocken lagerfaehig)</label>
+      <div class="mt-4">
+        <label class="section-mono block mb-2">Enthaltene Allergene</label>
+        <div style="display:flex; flex-wrap:wrap; gap:6px;">
+          {% for checkbox in form.allergens %}
+          <label style="display:flex; align-items:center; gap:5px; background:rgba(255,255,255,0.04);
+                        border:1px solid rgba(240,237,232,0.09); border-radius:6px; padding:4px 9px;
+                        cursor:pointer; font-size:0.75rem;">
+            {{ checkbox.tag }} {{ checkbox.choice_label }}
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+      {% if form.notes %}
+      <div class="mt-4">
+        <label class="section-mono block mb-1">Notiz</label>
+        {{ form.notes }}
+      </div>
+      {% endif %}
+    </div>
+    <button type="submit" class="btn btn-primary">Speichern</button>
+  </form>
+</div>
+{% endblock %}

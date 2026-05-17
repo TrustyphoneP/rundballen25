@@ -1,0 +1,51 @@
+{% extends "base/base.html" %}
+{% block title %}Neue Abstimmung{% endblock %}
+{% block page_title %}Neue Abstimmung{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{% url 'voting:index' %}" class="btn btn-ghost">Abbrechen</a>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-lg">
+  <div class="card p-5 mb-5" style="border-color:rgba(232,164,68,0.2); background:rgba(232,164,68,0.05);">
+    <div class="section-mono mb-1">Hinweis</div>
+    <div class="text-sm" style="color:rgba(240,237,232,0.65); line-height:1.6;">
+      Alle Rezepte aus der Datenbank werden automatisch importiert.
+      Du kannst danach einzelne Gerichte deaktivieren oder manuell weitere hinzufuegen.
+    </div>
+  </div>
+
+  <form method="post" novalidate>
+    {% csrf_token %}
+    <div class="card p-6 mb-5">
+      <div class="mb-4">
+        <label class="section-mono block mb-1">Freizeit</label>
+        {{ form.camp }}
+      </div>
+      <div class="mb-4">
+        <label class="section-mono block mb-1">Titel</label>
+        {{ form.title }}
+        {% if form.title.errors %}
+          <div class="text-xs mt-1" style="color:#e07b54;">{{ form.title.errors.0 }}</div>
+        {% endif %}
+      </div>
+      <div class="mb-4">
+        <label class="section-mono block mb-1">Beschreibung (optional)</label>
+        {{ form.description }}
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="section-mono block mb-1">Mindestauswahl</label>
+          {{ form.min_votes }}
+        </div>
+        <div>
+          <label class="section-mono block mb-1">Maximalauswahl</label>
+          {{ form.max_votes }}
+        </div>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary">Abstimmung erstellen</button>
+  </form>
+</div>
+{% endblock %}

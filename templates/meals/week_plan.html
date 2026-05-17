@@ -1,0 +1,147 @@
+{% extends "base/base.html" %}
+{% block title %}Wochenplan – {{ camp.name }}{% endblock %}
+{% block page_title %}Wochenplan{% endblock %}
+
+{% block extra_head %}
+<style>
+  .day-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+  }
+  .day-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(240,237,232,0.09);
+    border-radius: 14px;
+    overflow: hidden;
+    transition: border-color 0.15s;
+  }
+  .day-card.complete { border-color: rgba(76,175,125,0.3); }
+  .day-card.empty    { border-color: rgba(240,237,232,0.06); }
+  .day-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid rgba(240,237,232,0.07);
+  }
+  .day-name {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.62rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: rgba(240,237,232,0.45);
+  }
+  .day-date {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.3rem;
+    line-height: 1;
+    color: #f0ede8;
+  }
+  .day-date.today { color: #e8a444; }
+  .slot-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 16px;
+    border-bottom: 1px solid rgba(240,237,232,0.05);
+  }
+  .slot-row:last-of-type { border-bottom: none; }
+  .slot-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.58rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(240,237,232,0.35);
+    min-width: 72px;
+    flex-shrink: 0;
+  }
+  .slot-recipe {
+    flex: 1;
+    font-size: 0.8rem;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .slot-empty {
+    flex: 1;
+    font-size: 0.78rem;
+    color: rgba(240,237,232,0.25);
+    font-style: italic;
+  }
+  .slot-select {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(240,237,232,0.1);
+    border-radius: 6px;
+    color: #f0ede8;
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.75rem;
+    padding: 4px 8px;
+    cursor: pointer;
+    outline: none;
+    max-width: 160px;
+  }
+  .slot-select:focus { border-color: #3a7a8f; }
+  .slot-select option { background: #122f38; }
+  .clear-btn {
+    background: none;
+    border: none;
+    color: rgba(240,237,232,0.2);
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 2px 4px;
+    line-height: 1;
+    transition: color 0.15s;
+    flex-shrink: 0;
+  }
+  .clear-btn:hover { color: #e07b54; }
+  .allergen-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    padding: 6px 16px 10px;
+  }
+  .persons-row {
+    padding: 6px 16px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border-top: 1px solid rgba(240,237,232,0.05);
+  }
+  .htmx-request .slot-row { opacity: 0.5; }
+</style>
+{% endblock %}
+
+{% block topbar_actions %}
+  <span class="badge badge-blue">{{ camp.name }}</span>
+  <span class="badge badge-muted">{{ camp.start_date|date:"d.m." }} – {{ camp.end_date|date:"d.m.Y" }}</span>
+  <a href="{% url 'shopping:create_from_plan' %}" class="btn btn-ghost">Einkaufsliste</a>
+{% endblock %}
+
+{% block content %}
+
+{% if not days %}
+<div class="card p-12 text-center" style="color:rgba(240,237,232,0.4);">
+  <div class="font-display text-xl mb-2">Keine Tage vorhanden</div>
+  <div class="text-sm">Freizeit-Zeitraum im Admin pruefen.</div>
+</div>
+{% else %}
+
+<div class="mb-4 flex items-center gap-4">
+  <div class="section-mono">{{ days|length }} Tage · {{ camp.total_persons }} Personen</div>
+  <div class="flex gap-3 ml-auto text-xs" style="color:rgba(240,237,232,0.4);">
+    <span>Kategorie "Hauptgericht" / "Dessert" / "Salat" in der Rezeptverwaltung pflegen</span>
+  </div>
+</div>
+
+<div class="day-grid">
+  {% for day in days %}
+    {% with day_meal=day.day_meal %}
+    {% include "meals/partials/day_card.html" with day=day day_meal=day_meal %}
+    {% endwith %}
+  {% endfor %}
+</div>
+
+{% endif %}
+{% endblock %}

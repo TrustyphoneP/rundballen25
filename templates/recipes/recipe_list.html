@@ -1,0 +1,88 @@
+{% extends "base/base.html" %}
+{% block title %}Rezepte – rundballen25{% endblock %}
+{% block page_title %}Rezepte{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{% url 'recipes:ingredient_list' %}" class="btn btn-ghost">Zutaten</a>
+  <a href="{% url 'recipes:create' %}" class="btn btn-primary">+ Neues Rezept</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Filter -->
+<form method="get" class="flex gap-3 mb-6 flex-wrap items-end">
+  <div class="flex-1 min-w-48">
+    <div class="section-mono mb-1">Suche</div>
+    <input type="text" name="q" value="{{ q }}" placeholder="Rezeptname...">
+  </div>
+  <div>
+    <div class="section-mono mb-1">Diaet</div>
+    <select name="diet">
+      <option value="">Alle</option>
+      <option value="vegan"       {% if diet == "vegan" %}selected{% endif %}>Vegan</option>
+      <option value="vegetarian"  {% if diet == "vegetarian" %}selected{% endif %}>Vegetarisch</option>
+    </select>
+  </div>
+  <div>
+    <div class="section-mono mb-1">Ohne Allergen</div>
+    <select name="allergen">
+      <option value="">Alle Rezepte</option>
+      {% for a in allergens %}
+      <option value="{{ a.pk }}" {% if request.GET.allergen == a.pk|stringformat:"s" %}selected{% endif %}>
+        Ohne {{ a.name }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+  <button type="submit" class="btn btn-ghost">Filtern</button>
+  <a href="{% url 'recipes:list' %}" class="btn btn-ghost" style="color:rgba(240,237,232,0.4);">Zuruecksetzen</a>
+</form>
+
+<!-- Rezept-Karten -->
+{% if recipes %}
+<div class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));">
+  {% for recipe in recipes %}
+  <div class="card p-5 flex flex-col gap-3 hover:border-p-pale transition-colors" style="cursor:pointer;"
+       onclick="window.location='{% url 'recipes:detail' pk=recipe.pk %}'">
+
+    <div class="flex items-start justify-between gap-2">
+      <div class="font-medium text-base leading-snug">{{ recipe.name }}</div>
+      <div class="flex gap-1 flex-shrink-0">
+        {% if recipe.is_vegan %}<span class="badge badge-ok">Vegan</span>{% endif %}
+        {% if recipe.is_vegetarian and not recipe.is_vegan %}<span class="badge badge-ok">Vegetarisch</span>{% endif %}
+      </div>
+    </div>
+
+    {% if recipe.description %}
+    <div class="text-sm leading-relaxed" style="color:rgba(240,237,232,0.5);">
+      {{ recipe.description|truncatechars:90 }}
+    </div>
+    {% endif %}
+
+    <div class="flex items-center gap-3 pt-1" style="border-top:1px solid rgba(240,237,232,0.07);">
+      <span class="section-mono">Basis {{ recipe.base_servings }} Pers.</span>
+      <span class="section-mono">{{ recipe.recipe_ingredients.count }} Zutaten</span>
+      {% if recipe.prep_time_min %}
+      <span class="section-mono">{{ recipe.prep_time_min }} Min.</span>
+      {% endif %}
+      <div class="flex gap-1 ml-auto flex-wrap justify-end">
+        {% for allergen in recipe.allergens.all|slice:":3" %}
+          <span class="badge badge-warn">{{ allergen.short_code }}</span>
+        {% endfor %}
+        {% if recipe.allergens.count > 3 %}
+          <span class="badge badge-muted">+{{ recipe.allergens.count|add:"-3" }}</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+<div class="mt-5 section-mono">{{ recipes|length }} Rezept{{ recipes|length|pluralize:" ,e" }}</div>
+{% else %}
+<div class="card p-14 text-center" style="color:rgba(240,237,232,0.35);">
+  <div class="font-display text-2xl mb-2">Keine Rezepte gefunden</div>
+  <a href="{% url 'recipes:create' %}" style="color:#e8a444;">Erstes Rezept anlegen</a>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,58 @@
+{% extends "base/base.html" %}
+{% block title %}Abstimmungen{% endblock %}
+{% block page_title %}Abstimmungen{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{% url 'voting:create' %}" class="btn btn-primary">+ Neue Abstimmung</a>
+{% endblock %}
+
+{% block content %}
+{% if polls %}
+<div class="card overflow-hidden">
+  <table>
+    <thead><tr>
+      <th>Titel</th>
+      <th>Freizeit</th>
+      <th>Status</th>
+      <th>Teilgenommen</th>
+      <th>Gerichte</th>
+      <th></th>
+    </tr></thead>
+    <tbody>
+      {% for poll in polls %}
+      <tr>
+        <td class="font-medium">{{ poll.title }}</td>
+        <td style="color:rgba(240,237,232,0.5);">{{ poll.camp.name }}</td>
+        <td>
+          {% if poll.status == "open" %}
+            <span class="badge badge-ok">Offen</span>
+          {% elif poll.status == "closed" %}
+            <span class="badge badge-muted">Abgeschlossen</span>
+          {% else %}
+            <span class="badge badge-blue">Entwurf</span>
+          {% endif %}
+        </td>
+        <td>
+          <span class="font-mono text-sm" style="color:#e8a444;">
+            {{ poll.used_count }} / {{ poll.token_count }}
+          </span>
+        </td>
+        <td>
+          <span class="badge badge-muted">{{ poll.vote_recipes.count }} Gerichte</span>
+        </td>
+        <td class="text-right">
+          <a href="{% url 'voting:admin_detail' pk=poll.pk %}" class="btn btn-ghost"
+             style="padding:4px 12px; font-size:0.72rem;">Oeffnen</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="card p-14 text-center" style="color:rgba(240,237,232,0.35);">
+  <div class="font-display text-2xl mb-3">Noch keine Abstimmungen</div>
+  <a href="{% url 'voting:create' %}" class="btn btn-primary">Erste Abstimmung anlegen</a>
+</div>
+{% endif %}
+{% endblock %}

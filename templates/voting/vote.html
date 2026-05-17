@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ poll.title }} – Abstimmung</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body { font-family:'Outfit',sans-serif; font-weight:300; background:#122f38; color:#f0ede8; }
+    .recipe-card {
+      background:rgba(255,255,255,0.04);
+      border:2px solid rgba(240,237,232,0.09);
+      border-radius:14px;
+      padding:18px 20px;
+      cursor:pointer;
+      transition:all 0.15s;
+      user-select:none;
+    }
+    .recipe-card:hover { border-color:rgba(232,164,68,0.4); background:rgba(255,255,255,0.07); }
+    .recipe-card.selected {
+      border-color:#e8a444;
+      background:rgba(232,164,68,0.12);
+    }
+    .recipe-card.selected .check-circle {
+      background:#e8a444;
+      border-color:#e8a444;
+    }
+    .recipe-card.selected .check-circle::after {
+      content:'';
+      display:block;
+      width:10px; height:10px;
+      border-radius:50%;
+      background:#122f38;
+      margin:auto;
+    }
+    .check-circle {
+      width:22px; height:22px;
+      border-radius:50%;
+      border:2px solid rgba(240,237,232,0.25);
+      display:flex; align-items:center; justify-content:center;
+      flex-shrink:0;
+      transition:all 0.15s;
+    }
+    .counter {
+      font-family:'DM Serif Display',serif;
+      font-size:2.5rem;
+      line-height:1;
+    }
+    .counter.at-max { color:#e07b54; }
+    .submit-btn {
+      background:#e8a444; color:#122f38;
+      border:none; border-radius:10px;
+      padding:14px 32px;
+      font-size:1rem; font-weight:600;
+      cursor:pointer;
+      font-family:'Outfit',sans-serif;
+      transition:background 0.15s;
+      width:100%;
+    }
+    .submit-btn:hover { background:#f2c27a; }
+    .submit-btn:disabled { background:rgba(232,164,68,0.3); cursor:not-allowed; }
+  </style>
+</head>
+<body class="min-h-screen">
+
+{% if messages %}
+<div class="max-w-2xl mx-auto pt-6 px-4">
+  {% for msg in messages %}
+  <div style="background:rgba(224,123,84,0.1); border:1px solid rgba(224,123,84,0.3); border-radius:8px; padding:10px 16px; color:#e07b54; font-size:0.85rem; margin-bottom:12px;">
+    {{ msg }}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="max-w-2xl mx-auto px-4 py-10">
+
+  <!-- Header -->
+  <div class="text-center mb-8">
+    <div style="font-family:'DM Serif Display',serif; font-size:2rem; margin-bottom:8px;">
+      {{ poll.title }}
+    </div>
+    {% if poll.description %}
+    <div style="color:rgba(240,237,232,0.55); font-size:0.9rem; line-height:1.6;">
+      {{ poll.description }}
+    </div>
+    {% endif %}
+    <div style="margin-top:12px; font-size:0.8rem; color:rgba(240,237,232,0.4);">
+      Waehle zwischen {{ poll.min_votes }} und {{ poll.max_votes }} Gerichte aus
+    </div>
+  </div>
+
+  <!-- Zaehler -->
+  <div class="text-center mb-6">
+    <div class="counter" id="counter">0</div>
+    <div style="font-size:0.75rem; color:rgba(240,237,232,0.4); margin-top:4px;">
+      von {{ poll.max_votes }} gewaehlt
+    </div>
+  </div>
+
+  <!-- Gerichte -->
+  <form method="post" id="vote-form">
+    {% csrf_token %}
+    <div class="grid gap-3 mb-8">
+      {% for recipe in recipes %}
+      <div class="recipe-card {% if recipe.pk in selected_ids %}selected{% endif %}"
+           id="card-{{ recipe.pk }}"
+           onclick="toggleRecipe({{ recipe.pk }}, {{ poll.max_votes }})">
+        <div class="flex items-center gap-4">
+          <div class="check-circle" id="check-{{ recipe.pk }}">
+            {% if recipe.pk in selected_ids %}
+            <div style="width:10px;height:10px;border-radius:50%;background:#122f38;margin:auto;"></div>
+            {% endif %}
+          </div>
+          <div class="flex-1">
+            <div class="font-medium" style="font-size:0.95rem;">{{ recipe.name }}</div>
+            {% if recipe.description %}
+            <div style="font-size:0.78rem; color:rgba(240,237,232,0.5); margin-top:2px;">
+              {{ recipe.description|truncatechars:80 }}
+            </div>
+            {% endif %}
+          </div>
+          <div class="flex gap-1 flex-shrink-0">
+            {% if recipe.is_vegan %}
+            <span style="font-size:0.6rem; padding:2px 7px; border-radius:999px; border:1px solid rgba(76,175,125,0.4); background:rgba(76,175,125,0.1); color:#4caf7d; font-family:'DM Mono',monospace;">
+              Vegan
+            </span>
+            {% endif %}
+          </div>
+        </div>
+        <!-- Verstecktes Input -->
+        <input type="checkbox" name="recipes" value="{{ recipe.pk }}"
+               id="input-{{ recipe.pk }}"
+               {% if recipe.pk in selected_ids %}checked{% endif %}
+               style="display:none;">
+      </div>
+      {% endfor %}
+    </div>
+
+    <button type="submit" class="submit-btn" id="submit-btn">
+      Abstimmung abgeben
+    </button>
+    <div class="text-center mt-3" style="font-size:0.72rem; color:rgba(240,237,232,0.3);">
+      Du kannst nur einmal abstimmen.
+    </div>
+  </form>
+</div>
+
+<script>
+const maxVotes  = {{ poll.max_votes }};
+const minVotes  = {{ poll.min_votes }};
+let selected    = new Set([{% for id in selected_ids %}{{ id }},{% endfor %}]);
+
+function updateUI() {
+  const count   = selected.size;
+  const counter = document.getElementById("counter");
+  counter.textContent = count;
+  counter.className   = "counter" + (count >= maxVotes ? " at-max" : "");
+
+  const btn = document.getElementById("submit-btn");
+  btn.disabled = count < minVotes;
+  btn.textContent = count === 0
+    ? "Ohne Auswahl abstimmen"
+    : `${count} Gericht${count !== 1 ? "e" : ""} auswaehlen`;
+}
+
+function toggleRecipe(id, max) {
+  const card  = document.getElementById("card-" + id);
+  const check = document.getElementById("check-" + id);
+  const input = document.getElementById("input-" + id);
+
+  if (selected.has(id)) {
+    selected.delete(id);
+    card.classList.remove("selected");
+    check.innerHTML = "";
+    input.checked   = false;
+  } else {
+    if (selected.size >= max) return;
+    selected.add(id);
+    card.classList.add("selected");
+    check.innerHTML = '<div style="width:10px;height:10px;border-radius:50%;background:#122f38;margin:auto;"></div>';
+    input.checked   = true;
+  }
+  updateUI();
+}
+
+updateUI();
+</script>
+</body>
+</html>

@@ -1,0 +1,46 @@
+{% extends "base/base.html" %}
+
+{% block title %}CSV-Import – {{ camp.name }}{% endblock %}
+{% block page_title %}Teilnehmer importieren{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{% url 'camps:csv_template' %}" class="btn btn-ghost">Vorlage herunterladen</a>
+  <a href="{% url 'camps:participant_list' camp_pk=camp.pk %}" class="btn btn-ghost">Abbrechen</a>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-xl">
+  <div class="card p-5 mb-6" style="border-color:rgba(232,164,68,0.25); background:rgba(232,164,68,0.06);">
+    <div class="section-mono mb-2">CSV-Format</div>
+    <div class="text-xs font-mono" style="color:rgba(240,237,232,0.65); line-height:1.8;">
+      Vorname;Nachname;Typ;Vegan;Vegetarisch;Halal;Koscher;Allergien;Zusatzhinweise;Notizen<br>
+      Anna;Mueller;Teilnehmer;Nein;Ja;Nein;Nein;Milch/Laktose|Gluten;Bitte glutenfreies Brot;
+    </div>
+    <div class="text-xs mt-3" style="color:rgba(240,237,232,0.4);">
+      Allergien: Pipe-getrennt (|), Namen muessen mit der Datenbank uebereinstimmen.<br>
+      Boolesche Felder: Ja / Nein
+    </div>
+  </div>
+
+  <form method="post" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+    <div class="card p-6">
+      <div class="mb-4">
+        <label class="section-mono block mb-1">Freizeit</label>
+        {{ form.camp }}
+      </div>
+      <div class="mb-4">
+        <label class="section-mono block mb-1">CSV-Datei</label>
+        {{ form.csv_file }}
+        {% if form.csv_file.errors %}
+          <div class="text-xs mt-1" style="color:#e07b54;">{{ form.csv_file.errors.0 }}</div>
+        {% endif %}
+      </div>
+      <label class="check-label mb-4">
+        {{ form.skip_header }} Erste Zeile ueberspringen (Spaltenheader)
+      </label>
+      <button type="submit" class="btn btn-primary mt-2">Importieren</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

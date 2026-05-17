@@ -1,0 +1,56 @@
+{% extends "base/base.html" %}
+{% block title %}Einkaufslisten{% endblock %}
+{% block page_title %}Einkaufslisten{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{% url 'shopping:create_from_recipes' %}" class="btn btn-ghost">Aus Rezepten</a>
+  <a href="{% url 'shopping:create_from_plan' %}" class="btn btn-primary">Aus Wochenplan</a>
+{% endblock %}
+
+{% block content %}
+{% if lists %}
+<div class="card overflow-hidden">
+  <table>
+    <thead><tr>
+      <th>Freizeit</th>
+      <th>Zeitraum</th>
+      <th>Zutaten</th>
+      <th>Erstellt</th>
+      <th>Erstellt von</th>
+      <th></th>
+    </tr></thead>
+    <tbody>
+      {% for sl in lists %}
+      <tr>
+        <td class="font-medium">{{ sl.camp.name }}</td>
+        <td class="font-mono text-xs" style="color:rgba(240,237,232,0.5);">
+          {{ sl.from_date|date:"d.m.Y" }} – {{ sl.to_date|date:"d.m.Y" }}
+        </td>
+        <td>
+          <span class="badge badge-blue">{{ sl.items.count }} Positionen</span>
+        </td>
+        <td class="font-mono text-xs" style="color:rgba(240,237,232,0.4);">
+          {{ sl.generated_at|date:"d.m.Y H:i" }}
+        </td>
+        <td style="color:rgba(240,237,232,0.5); font-size:0.78rem;">
+          {{ sl.generated_by.get_full_name|default:sl.generated_by.username|default:"–" }}
+        </td>
+        <td class="text-right">
+          <a href="{% url 'shopping:detail' pk=sl.pk %}" class="btn btn-ghost"
+             style="padding:4px 12px; font-size:0.72rem;">Oeffnen</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="card p-14 text-center" style="color:rgba(240,237,232,0.35);">
+  <div class="font-display text-2xl mb-3">Noch keine Einkaufslisten</div>
+  <div class="flex gap-3 justify-center mt-4">
+    <a href="{% url 'shopping:create_from_plan' %}" class="btn btn-primary">Aus Wochenplan</a>
+    <a href="{% url 'shopping:create_from_recipes' %}" class="btn btn-ghost">Aus Rezepten</a>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

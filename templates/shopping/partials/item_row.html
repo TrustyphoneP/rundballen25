@@ -1,0 +1,28 @@
+<tr id="item-{{ item.pk }}"
+    style="{% if item.is_bought %}opacity:0.4;{% endif %} transition: opacity 0.2s;">
+  <td>
+    <form method="post" action="{% url 'shopping:toggle_item' pk=item.pk %}"
+          hx-post="{% url 'shopping:toggle_item' pk=item.pk %}"
+          hx-target="#item-{{ item.pk }}"
+          hx-swap="outerHTML">
+      {% csrf_token %}
+      <button type="submit"
+              style="width:20px; height:20px; border-radius:5px; cursor:pointer;
+                     border:2px solid {% if item.is_bought %}#4caf7d{% else %}rgba(240,237,232,0.25){% endif %};
+                     background:{% if item.is_bought %}#4caf7d{% else %}transparent{% endif %};
+                     display:flex; align-items:center; justify-content:center;">
+        {% if item.is_bought %}
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+          <path d="M1.5 5L4 7.5L8.5 2.5" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        {% endif %}
+      </button>
+    </form>
+  </td>
+  <td class="font-medium {% if item.is_bought %}line-through{% endif %}">
+    {{ item.ingredient.name }}
+  </td>
+  <td class="font-mono" style="color:#e8a444;">{{ item.amount|floatformat:"-1" }}</td>
+  <td style="color:rgba(240,237,232,0.5);">{{ item.unit }}</td>
+  <td style="color:rgba(240,237,232,0.4); font-size:0.75rem;">{{ item.notes }}</td>
+</tr>

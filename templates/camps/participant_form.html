@@ -1,0 +1,96 @@
+{% extends "base/base.html" %}
+
+{% block title %}Teilnehmer {{ action }} – rundballen25{% endblock %}
+{% block page_title %}Teilnehmer {{ action }}{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{% url 'camps:participant_list' camp_pk=camp.pk %}" class="btn btn-ghost">Abbrechen</a>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl">
+  <form method="post" novalidate>
+    {% csrf_token %}
+
+    <!-- Grunddaten -->
+    <div class="card p-6 mb-5">
+      <div class="section-mono mb-4">Grunddaten</div>
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <div>
+          <label class="section-mono block mb-1">Vorname</label>
+          {{ form.first_name }}
+          {% if form.first_name.errors %}
+            <div class="text-xs mt-1" style="color:#e07b54;">{{ form.first_name.errors.0 }}</div>
+          {% endif %}
+        </div>
+        <div>
+          <label class="section-mono block mb-1">Nachname</label>
+          {{ form.last_name }}
+          {% if form.last_name.errors %}
+            <div class="text-xs mt-1" style="color:#e07b54;">{{ form.last_name.errors.0 }}</div>
+          {% endif %}
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="section-mono block mb-1">Typ</label>
+          {{ form.person_type }}
+        </div>
+        <div>
+          <label class="section-mono block mb-1">Alter (optional)</label>
+          {{ form.age }}
+        </div>
+      </div>
+    </div>
+
+    <!-- Diaet -->
+    <div class="card p-6 mb-5">
+      <div class="section-mono mb-4">Diaet</div>
+      <div class="grid grid-cols-2 gap-3">
+        <label class="check-label">
+          {{ form.is_vegan }} Vegan
+        </label>
+        <label class="check-label">
+          {{ form.is_vegetarian }} Vegetarisch
+        </label>
+        <label class="check-label">
+          {{ form.is_halal }} Halal
+        </label>
+        <label class="check-label">
+          {{ form.is_kosher }} Koscher
+        </label>
+      </div>
+    </div>
+
+    <!-- Unvertraeglichkeiten -->
+    <div class="card p-6 mb-5">
+      <div class="section-mono mb-4">Allergien &amp; Unvertraeglichkeiten</div>
+      <div class="grid grid-cols-2 gap-y-2 gap-x-4 mb-4">
+        {% for checkbox in form.intolerances %}
+        <label class="check-label">
+          {{ checkbox.tag }} {{ checkbox.choice_label }}
+        </label>
+        {% endfor %}
+      </div>
+      <div class="mt-4">
+        <label class="section-mono block mb-1">Zusatzhinweise (Freitext)</label>
+        {{ form.intolerance_notes }}
+        <div class="text-xs mt-1" style="color:rgba(240,237,232,0.35);">
+          Fuer Besonderheiten die nicht in die Checkboxen passen
+        </div>
+      </div>
+    </div>
+
+    <!-- Notizen -->
+    <div class="card p-6 mb-6">
+      <div class="section-mono mb-4">Sonstige Notizen</div>
+      {{ form.notes }}
+    </div>
+
+    <div class="flex gap-3">
+      <button type="submit" class="btn btn-primary">{{ action }}</button>
+      <a href="{% url 'camps:participant_list' camp_pk=camp.pk %}" class="btn btn-ghost">Abbrechen</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

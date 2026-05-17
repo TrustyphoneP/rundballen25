@@ -1,0 +1,11 @@
+-r requirements.txt
+
+# Dev tools
+django-debug-toolbar==4.4.6
+factory-boy==3.3.1
+faker==33.1.0
+pytest-django==4.9.0
+pytest-cov==6.0.0
+black==24.10.0
+ruff==0.8.3
+pre-commit==4.0.1
