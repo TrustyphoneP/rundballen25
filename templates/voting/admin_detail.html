@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% block title %}{{ poll.title }} – Abstimmung{% endblock %}
+{% block title %}{{ poll.title }}{% endblock %}
 {% block page_title %}{{ poll.title }}{% endblock %}
 
 {% block topbar_actions %}
@@ -24,7 +24,7 @@
 
 {% block content %}
 
-<!-- Status + Abstimmungs-Link -->
+<!-- Status + Link -->
 <div class="card px-5 py-4 mb-5">
   <div class="flex items-center gap-4 flex-wrap">
     {% if poll.status == "open" %}
@@ -35,7 +35,7 @@
       <span class="badge badge-blue">Entwurf</span>
     {% endif %}
     <span class="text-sm" style="color:rgba(240,237,232,0.5);">
-      {{ total_voters }} Personen haben abgestimmt
+      {{ total_voters }} Person{% if total_voters != 1 %}en{% endif %} haben abgestimmt
     </span>
     <span class="section-mono ml-auto">
       {{ poll.min_votes }}–{{ poll.max_votes }} Gerichte waehlbar
@@ -58,7 +58,7 @@
   {% endif %}
 </div>
 
-<div class="grid gap-6" style="grid-template-columns: 1fr 300px;">
+<div class="grid gap-6" style="grid-template-columns: 1fr 280px;">
 
   <!-- Ergebnisse -->
   <div>
@@ -69,7 +69,7 @@
         <thead><tr>
           <th>Gericht</th>
           <th>Stimmen</th>
-          <th style="width:200px;">Verteilung</th>
+          <th style="width:180px;">Verteilung</th>
           <th></th>
         </tr></thead>
         <tbody>
@@ -95,11 +95,11 @@
                 <form method="post" action="{% url 'voting:toggle_recipe' pk=poll.pk recipe_pk=vr.pk %}">
                   {% csrf_token %}
                   <button type="submit" class="btn btn-ghost" style="padding:3px 8px; font-size:0.65rem;">
-                    {% if vr.is_active %}Deaktivieren{% else %}Aktivieren{% endif %}
+                    {% if vr.is_active %}Aus{% else %}Ein{% endif %}
                   </button>
                 </form>
                 <form method="post" action="{% url 'voting:delete_recipe' pk=poll.pk recipe_pk=vr.pk %}"
-                      onsubmit="return confirm('Wirklich loeschen?')">
+                      onsubmit="return confirm('Loeschen?')">
                   {% csrf_token %}
                   <button type="submit" class="btn btn-danger" style="padding:3px 8px; font-size:0.65rem;">x</button>
                 </form>
@@ -115,7 +115,7 @@
       {% endif %}
     </div>
 
-    <!-- Gericht manuell hinzufuegen -->
+    <!-- Gericht hinzufuegen -->
     <div class="section-mono mb-3">Gericht manuell hinzufuegen</div>
     <div class="card p-5 mb-5">
       <form method="post" action="{% url 'voting:add_recipe' pk=poll.pk %}" class="flex gap-3 flex-wrap">
@@ -127,17 +127,14 @@
       </form>
     </div>
 
-    <!-- Stimmen zuruecksetzen -->
     <form method="post" action="{% url 'voting:reset_votes' pk=poll.pk %}"
-          onsubmit="return confirm('Alle Stimmen wirklich loeschen? Kann nicht rueckgaengig gemacht werden.')">
+          onsubmit="return confirm('Alle Stimmen wirklich loeschen?')">
       {% csrf_token %}
-      <button type="submit" class="btn btn-danger" style="font-size:0.72rem;">
-        Alle Stimmen zuruecksetzen
-      </button>
+      <button type="submit" class="btn btn-danger" style="font-size:0.72rem;">Alle Stimmen zuruecksetzen</button>
     </form>
   </div>
 
-  <!-- Rechte Spalte: Info -->
+  <!-- Info -->
   <div>
     <div class="card p-5">
       <div class="section-mono mb-4">Info</div>
@@ -151,7 +148,7 @@
           <span style="color:rgba(240,237,232,0.5);">{{ poll.created_at|date:"d.m.Y H:i" }}</span>
         </div>
         <div>
-          <div class="section-mono mb-1">Gerichte gesamt</div>
+          <div class="section-mono mb-1">Gerichte</div>
           <span class="badge badge-blue">{{ poll.vote_recipes.count }}</span>
         </div>
         <div>
@@ -163,21 +160,4 @@
   </div>
 
 </div>
-
-{% if poll.status == "open" %}
-<script>
-// Ergebnisse alle 15 Sekunden aktualisieren
-setInterval(function() {
-  fetch("{% url 'voting:results_json' pk=poll.pk %}")
-    .then(r => r.json())
-    .then(data => {
-      document.querySelectorAll('[data-vr-name]').forEach(row => {
-        const name = row.dataset.vrName;
-        const r    = data.results.find(x => x.name === name);
-        if (r) row.querySelector('.vote-cnt').textContent = r.cnt;
-      });
-    });
-}, 15000);
-</script>
-{% endif %}
 {% endblock %}

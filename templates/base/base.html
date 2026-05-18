@@ -115,7 +115,7 @@
 
       {% if active_camp %}
       <div class="section-mono px-2 mb-2 mt-4">Planung</div>
-      <a href="{% url 'meals:index' %}" class="nav-link {% if 'meals' in request.resolver_match.app_name %}active{% endif %}">
+      <a href="{% if active_camp %}{% url 'meals:week_plan' camp_pk=active_camp.pk %}{% else %}{% url 'meals:index' %}{% endif %}" class="nav-link {% if 'meals' in request.resolver_match.app_name %}active{% endif %}">
         <div class="nav-dot"></div> Wochenplan
       </a>
       <a href="#" class="nav-link">
