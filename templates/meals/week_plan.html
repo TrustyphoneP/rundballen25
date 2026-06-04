@@ -114,7 +114,6 @@
 {% endblock %}
 
 {% block topbar_actions %}
-  <span class="badge badge-blue">{{ camp.name }}</span>
   <span class="badge badge-muted">{{ camp.start_date|date:"d.m." }} – {{ camp.end_date|date:"d.m.Y" }}</span>
   <a href="{% url 'shopping:create_from_plan' %}" class="btn btn-ghost">Einkaufsliste</a>
 {% endblock %}
@@ -129,7 +128,7 @@
 {% else %}
 
 <div class="mb-4 flex items-center gap-4">
-  <div class="section-mono">{{ days|length }} Tage · {{ camp.total_persons }} Personen</div>
+  <div class="section-mono">{{ days|length }} Tage · {{ camp.participants.count }} Personen</div>
   <div class="flex gap-3 ml-auto text-xs" style="color:rgba(240,237,232,0.4);">
     <span>Kategorie "Hauptgericht" / "Dessert" / "Salat" in der Rezeptverwaltung pflegen</span>
   </div>

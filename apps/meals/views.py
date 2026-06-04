@@ -26,12 +26,15 @@ SLOTS = [
 
 
 def _ensure_camp_days(camp):
-    """Legt CampDay-Objekte für jeden Tag der Freizeit an falls nicht vorhanden."""
+    """Legt CampDay-Objekte für jeden Tag der Freizeit an und löscht veraltete."""
+    # Veraltete Tage löschen
+    CampDay.objects.filter(camp=camp, date__lt=camp.start_date).delete()
+    CampDay.objects.filter(camp=camp, date__gt=camp.end_date).delete()
+    # Fehlende Tage anlegen
     current = camp.start_date
     while current <= camp.end_date:
         CampDay.objects.get_or_create(camp=camp, date=current)
         current += timedelta(days=1)
-
 
 def _ensure_day_meal(camp_day):
     """Legt DayMeal für einen CampDay an falls nicht vorhanden."""
