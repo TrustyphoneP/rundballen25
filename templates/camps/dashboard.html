@@ -16,13 +16,13 @@
 <div class="grid grid-cols-4 gap-4 mb-8">
   <div class="card px-5 py-5">
     <div class="section-mono mb-2">Teilnehmer</div>
-    <div class="font-display text-4xl mb-1">{{ active_camp.participant_count }}</div>
-    <div class="text-xs" style="color:rgba(240,237,232,0.4);">+ {{ active_camp.supervisor_count }} Betreuer</div>
+    <div class="font-display text-4xl mb-1">{{ stats.teilnehmer }}</div>
+    <div class="text-xs" style="color:rgba(240,237,232,0.4);">+ {{ stats.betreuer }} Betreuer</div>
   </div>
   <div class="card px-5 py-5">
     <div class="section-mono mb-2">Gesamt</div>
-    <div class="font-display text-4xl mb-1">{{ active_camp.total_persons }}</div>
-    <div class="text-xs" style="color:rgba(240,237,232,0.4);">Personen</div>
+    <div class="font-display text-4xl mb-1">{{ total }}</div>
+    <div class="text-xs" style="color:rgba(240,237,232,0.4);">erfasste Personen</div>
   </div>
   <div class="card px-5 py-5">
     <div class="section-mono mb-2">Unverträglichkeiten</div>

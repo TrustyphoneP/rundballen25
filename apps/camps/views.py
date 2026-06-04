@@ -47,8 +47,11 @@ def dashboard(request):
             "allergen_counts": allergen_counts,
         })
 
-    # active_camp already in ctx; also expose stats for sidebar badge
-    ctx["stats"] = {"mit_intol": ctx.get("with_intol", 0)}
+    ctx["stats"] = {
+        "mit_intol": ctx.get("with_intol", 0),
+        "teilnehmer": sum(1 for p in participants if p.person_type == "participant") if active_camp else 0,
+        "betreuer": sum(1 for p in participants if p.person_type == "supervisor") if active_camp else 0,
+    }
     return render(request, "camps/dashboard.html", ctx)
 
 
