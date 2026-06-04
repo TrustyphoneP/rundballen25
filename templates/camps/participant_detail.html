@@ -19,12 +19,12 @@
         <div class="section-mono mb-1">Typ</div>
         <span class="badge badge-muted">{{ person.get_person_type_display }}</span>
       </div>
-      {% if person.age %}
-      <div>
-        <div class="section-mono mb-1">Alter</div>
-        <span>{{ person.age }} Jahre</span>
-      </div>
-      {% endif %}
+     {% if person.age_at_camp %}
+<div>
+  <div class="section-mono mb-1">Alter</div>
+  <span>{{ person.age_at_camp }} Jahre</span>
+</div>
+{% endif %}
       <div>
         <div class="section-mono mb-1">Freizeit</div>
         <span>{{ person.camp }}</span>
