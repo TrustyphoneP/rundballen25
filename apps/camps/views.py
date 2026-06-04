@@ -24,13 +24,13 @@ def dashboard(request):
     ctx = {"camps": camps, "active_camp": active_camp}
 
     if active_camp:
-        participants = active_camp.participants.prefetch_related("intolerances")
-        total        = participants.count()
-        with_intol   = participants.filter(
-            Q(intolerances__isnull=False) |
-            Q(is_vegan=True) | Q(is_vegetarian=True) |
-            Q(is_halal=True) | Q(is_kosher=True)
-        ).distinct().count()
+        participants = list(active_camp.participants.prefetch_related("intolerances"))
+        total        = len(participants)
+        with_intol   = sum(
+            1 for p in participants
+            if p.is_vegan or p.is_vegetarian or p.is_halal or p.is_kosher
+            or p.intolerances.exists()
+        )
 
         # Allergen-Haeufigkeiten für Dashboard
         allergen_counts = (
@@ -90,13 +90,13 @@ def participant_list(request, camp_pk):
             ).distinct()
 
     # Statistiken für den Header
-    all_participants = camp.participants.prefetch_related("intolerances")
+    all_participants = list(camp.participants.prefetch_related("intolerances"))
     stats = {
-        "total":       all_participants.count(),
-        "teilnehmer":  all_participants.filter(person_type="participant").count(),
-        "betreuer":    all_participants.filter(person_type="supervisor").count(),
-        "mit_intol":   all_participants.filter(intolerances__isnull=False).distinct().count(),
-        "vegan":       all_participants.filter(is_vegan=True).count(),
+        "total":       len(all_participants),
+        "teilnehmer":  sum(1 for p in all_participants if p.person_type == "participant"),
+        "betreuer":    sum(1 for p in all_participants if p.person_type == "supervisor"),
+        "mit_intol":   sum(1 for p in all_participants if p.is_vegan or p.is_vegetarian or p.is_halal or p.is_kosher or p.intolerances.exists()),
+        "vegan":       sum(1 for p in all_participants if p.is_vegan),
     }
 
     stats_display = [
@@ -294,5 +294,3 @@ def allergen_overview(request, camp_pk):
         "camp": camp,
         "allergen_counts": allergen_counts,
     })
-
-
