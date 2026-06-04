@@ -33,6 +33,7 @@
         </div>
         <div class="text-right">
           <span class="badge badge-blue">{{ sl.items.count }} Pos.</span>
+          {% with bought=sl.items.filter(is_bought=True).count %}{% endwith %}
         </div>
       </div>
       <div class="text-xs mt-2" style="color:rgba(240,237,232,0.45);">{{ sd.description }}</div>
@@ -82,7 +83,7 @@
     <!-- Aktionen -->
     <div class="px-5 py-3 flex gap-2 border-t" style="border-color:rgba(240,237,232,0.08);">
       <a href="{% url 'shopping:detail' pk=sl.pk %}" class="btn btn-primary" style="flex:1; justify-content:center;">
-        Oeffnen
+        Öffnen
       </a>
       <a href="{% url 'shopping:export_csv' pk=sl.pk %}" class="btn btn-ghost">CSV</a>
     </div>

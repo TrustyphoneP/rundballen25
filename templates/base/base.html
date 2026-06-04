@@ -72,7 +72,7 @@
              font-size:0.58rem; padding:2px 7px; border-radius:999px; border:1px solid; white-space:nowrap; }
     .badge-warn { color:#e07b54; border-color:rgba(224,123,84,0.35); background:rgba(224,123,84,0.1); }
     .badge-ok   { color:#4caf7d; border-color:rgba(76,175,125,0.35); background:rgba(76,175,125,0.1); }
-    .badge-blue { color:#e8a444; border-color:rgba(232,164,68,0.3);  background:rgba(232,164,68,0.1); }
+    .badge-blü { color:#e8a444; border-color:rgba(232,164,68,0.3);  background:rgba(232,164,68,0.1); }
     .badge-muted{ color:rgba(240,237,232,0.45); border-color:rgba(240,237,232,0.12); background:transparent; }
     .card { background:rgba(255,255,255,0.04); border:1px solid rgba(240,237,232,0.09); border-radius:12px; }
     .section-mono { font-family:'DM Mono',monospace; font-size:0.58rem; letter-spacing:0.18em;
@@ -102,7 +102,7 @@
         <div class="font-display text-xl leading-none">
           rundballen<span style="color:#e8a444">24</span>
         </div>
-        <div class="section-mono mt-1">Freizeiten-Planung</div>
+        <div class="section-mono mt-1">Freizeit-Planung</div>
       </a>
     </div>
 
@@ -141,7 +141,7 @@
       </a>
       <a href="{% url 'camps:allergen_overview' camp_pk=active_camp.pk %}"
          class="nav-link {% if request.resolver_match.url_name == 'allergen_overview' %}active{% endif %}">
-        <div class="nav-dot"></div> Unvertraeglichkeiten
+        <div class="nav-dot"></div> Unverträglichkeiten
       </a>
 
       <div class="section-mono px-2 mb-2 mt-4">Weiteres</div>
@@ -162,8 +162,10 @@
           {{ request.user.get_role_display|default:"Benutzer" }}
         </div>
       </div>
-      <a href="{% url 'accounts:logout' %}" class="ml-auto text-xs"
-         style="color:rgba(240,237,232,0.3);">Abmelden</a>
+      <form method="post" action="{% url 'accounts:logout' %}" class="ml-auto">
+  {% csrf_token %}
+  <button type="submit" class="text-xs" style="color:rgba(240,237,232,0.3); background:none; border:none; cursor:pointer; padding:0;">Abmelden</button>
+</form>
     </div>
   </aside>
 

@@ -9,7 +9,7 @@ from django.db.models import Count, Q
 
 def active_camp(request):
     """
-    Gibt active_camp und stats fuer die Sidebar zurueck.
+    Gibt active_camp und stats für die Sidebar zurück.
     Laeuft bei jedem Request — deshalb minimal und gecacht.
     """
     if not request.user.is_authenticated:
@@ -22,7 +22,7 @@ def active_camp(request):
     if not camp:
         return {"active_camp": None, "stats": {}}
 
-    # Statistiken fuer Sidebar-Badge (Unvertraeglichkeiten)
+    # Statistiken für Sidebar-Badge (Unverträglichkeiten)
     from apps.recipes.models import Allergen
     mit_intol = (
         camp.participants

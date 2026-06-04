@@ -16,7 +16,7 @@
     <input type="text" name="q" value="{{ q }}" placeholder="Rezeptname...">
   </div>
   <div>
-    <div class="section-mono mb-1">Diaet</div>
+    <div class="section-mono mb-1">SKF</div>
     <select name="diet">
       <option value="">Alle</option>
       <option value="vegan"       {% if diet == "vegan" %}selected{% endif %}>Vegan</option>
@@ -35,7 +35,7 @@
     </select>
   </div>
   <button type="submit" class="btn btn-ghost">Filtern</button>
-  <a href="{% url 'recipes:list' %}" class="btn btn-ghost" style="color:rgba(240,237,232,0.4);">Zuruecksetzen</a>
+  <a href="{% url 'recipes:list' %}" class="btn btn-ghost" style="color:rgba(240,237,232,0.4);">Zurücksetzen</a>
 </form>
 
 <!-- Rezept-Karten -->
@@ -77,7 +77,7 @@
   </div>
   {% endfor %}
 </div>
-<div class="mt-5 section-mono">{{ recipes|length }} Rezept{{ recipes|length|pluralize:" ,e" }}</div>
+<div class="mt-5 section-mono">{{ recipes|length }} Rezepte</div>
 {% else %}
 <div class="card p-14 text-center" style="color:rgba(240,237,232,0.35);">
   <div class="font-display text-2xl mb-2">Keine Rezepte gefunden</div>

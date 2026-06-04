@@ -163,7 +163,7 @@ def _save_formset(formset):
 
 
 # ---------------------------------------------------------------------------
-# Rezept loeschen
+# Rezept löschen
 # ---------------------------------------------------------------------------
 
 @login_required
@@ -178,7 +178,7 @@ def recipe_delete(request, pk):
 
 
 # ---------------------------------------------------------------------------
-# Zutat-Autocomplete — gibt auch allergen_ids zurueck fuer JS-Autohaken
+# Zutat-Autocomplete — gibt auch allergen_ids zurück für JS-Autohaken
 # ---------------------------------------------------------------------------
 
 @login_required

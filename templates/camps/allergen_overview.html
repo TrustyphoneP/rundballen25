@@ -1,7 +1,7 @@
 {% extends "base/base.html" %}
 
-{% block title %}Unvertraeglichkeiten – {{ camp.name }}{% endblock %}
-{% block page_title %}Unvertraeglichkeiten{% endblock %}
+{% block title %}Unverträglichkeiten – {{ camp.name }}{% endblock %}
+{% block page_title %}Unverträglichkeiten{% endblock %}
 
 {% block topbar_actions %}
   <a href="{% url 'camps:participant_list' camp_pk=camp.pk %}" class="btn btn-ghost">Zur Teilnehmerliste</a>
@@ -22,7 +22,7 @@
       <div>
         <div class="font-medium text-sm mb-1">{{ allergen.name }}</div>
         <div class="text-xs" style="color:rgba(240,237,232,0.4);">
-          {{ allergen.cnt }} Person{{ allergen.cnt|pluralize:"","en" }} betroffen
+          {{ allergen.cnt }} Personen betroffen
         </div>
       </div>
     </div>
@@ -46,8 +46,8 @@
 </div>
 {% else %}
 <div class="card p-12 text-center" style="color:rgba(240,237,232,0.35);">
-  <div class="font-display text-2xl mb-2">Keine Unvertraeglichkeiten erfasst</div>
-  <div class="text-sm">Beim Erfassen von Teilnehmern koennen Allergien angegeben werden.</div>
+  <div class="font-display text-2xl mb-2">Keine Unverträglichkeiten erfasst</div>
+  <div class="text-sm">Beim Erfassen von Teilnehmern können Allergien angegeben werden.</div>
 </div>
 {% endif %}
 

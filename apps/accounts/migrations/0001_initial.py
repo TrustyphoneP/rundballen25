@@ -26,7 +26,7 @@ class Migration(migrations.Migration):
                 ("is_staff",     models.BooleanField(default=False)),
                 ("is_active",    models.BooleanField(default=True)),
                 ("date_joined",  models.DateTimeField(default=django.utils.timezone.now)),
-                ("role",         models.CharField(choices=[("admin","Leitung / Admin"),("supervisor","Betreuer"),("kitchen","Kueche"),("staff","Mitarbeiter")], default="staff", max_length=20)),
+                ("role",         models.CharField(choices=[("admin","Leitung / Admin"),("supervisor","Betreuer"),("kitchen","Küche"),("staff","Mitarbeiter")], default="staff", max_length=20)),
                 ("phone",        models.CharField(blank=True, max_length=30)),
                 ("bio",          models.TextField(blank=True)),
                 ("groups",       models.ManyToManyField(blank=True, related_name="user_set", related_query_name="user", to="auth.group", verbose_name="groups")),

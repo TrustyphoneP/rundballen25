@@ -35,7 +35,6 @@ class RecipeIngredientForm(forms.ModelForm):
         fields = ["ingredient", "amount", "unit", "note"]
         widgets = {
             "ingredient": forms.HiddenInput,
-            "amount":     forms.NumberInput(attrs={"placeholder": "Menge", "step": "0.001", "min": "0"}),
             "note":       forms.TextInput(attrs={"placeholder": "Hinweis (optional)"}),
         }
 
@@ -52,7 +51,7 @@ class RecipeIngredientForm(forms.ModelForm):
         ingredient = cleaned.get("ingredient")
 
         if name and not ingredient:
-            # Neue Zutat on-the-fly anlegen
+            # Neü Zutat on-the-fly anlegen
             obj, _ = Ingredient.objects.get_or_create(name=name)
             cleaned["ingredient"] = obj
 

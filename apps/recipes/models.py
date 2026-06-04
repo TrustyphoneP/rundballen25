@@ -7,8 +7,6 @@ Die Mengenberechnung erfolgt pro Person und skaliert automatisch.
 """
 from django.db import models
 
-from decimal import Decimal
-
 
 class Allergen(models.Model):
     """
@@ -87,7 +85,7 @@ class Recipe(models.Model):
 
     def get_scaled_ingredients(self, num_persons: int):
         """Gibt Zutaten skaliert auf num_persons zurück."""
-        factor = Decimal(num_persons) / Decimal(self.base_servings)
+        factor = num_persons / self.base_servings
         result = []
         for ri in self.recipe_ingredients.select_related("ingredient"):
             result.append({

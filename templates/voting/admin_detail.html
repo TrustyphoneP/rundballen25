@@ -6,7 +6,7 @@
   {% if poll.status == "draft" %}
     <form method="post" action="{% url 'voting:set_status' pk=poll.pk %}" style="display:inline;">
       {% csrf_token %}<input type="hidden" name="action" value="open">
-      <button type="submit" class="btn btn-primary">Abstimmung oeffnen</button>
+      <button type="submit" class="btn btn-primary">Abstimmung öffnen</button>
     </form>
   {% elif poll.status == "open" %}
     <form method="post" action="{% url 'voting:set_status' pk=poll.pk %}" style="display:inline;">
@@ -16,10 +16,10 @@
   {% else %}
     <form method="post" action="{% url 'voting:set_status' pk=poll.pk %}" style="display:inline;">
       {% csrf_token %}<input type="hidden" name="action" value="open">
-      <button type="submit" class="btn btn-ghost">Wieder oeffnen</button>
+      <button type="submit" class="btn btn-ghost">Wieder öffnen</button>
     </form>
   {% endif %}
-  <a href="{% url 'voting:index' %}" class="btn btn-ghost">Zurueck</a>
+  <a href="{% url 'voting:index' %}" class="btn btn-ghost">Zurück</a>
 {% endblock %}
 
 {% block content %}
@@ -99,7 +99,7 @@
                   </button>
                 </form>
                 <form method="post" action="{% url 'voting:delete_recipe' pk=poll.pk recipe_pk=vr.pk %}"
-                      onsubmit="return confirm('Loeschen?')">
+                      onsubmit="return confirm('Löschen?')">
                   {% csrf_token %}
                   <button type="submit" class="btn btn-danger" style="padding:3px 8px; font-size:0.65rem;">x</button>
                 </form>
@@ -115,22 +115,22 @@
       {% endif %}
     </div>
 
-    <!-- Gericht hinzufuegen -->
-    <div class="section-mono mb-3">Gericht manuell hinzufuegen</div>
+    <!-- Gericht hinzufügen -->
+    <div class="section-mono mb-3">Gericht manuell hinzufügen</div>
     <div class="card p-5 mb-5">
       <form method="post" action="{% url 'voting:add_recipe' pk=poll.pk %}" class="flex gap-3 flex-wrap">
         {% csrf_token %}
         <input type="text" name="name" placeholder="Gerichtsname..." style="flex:1; min-width:160px;">
         <input type="text" name="description" placeholder="Beschreibung (optional)" style="flex:1; min-width:160px;">
         <label class="check-label flex-shrink-0"><input type="checkbox" name="is_vegan"> Vegan</label>
-        <button type="submit" class="btn btn-ghost flex-shrink-0">Hinzufuegen</button>
+        <button type="submit" class="btn btn-ghost flex-shrink-0">Hinzufügen</button>
       </form>
     </div>
 
     <form method="post" action="{% url 'voting:reset_votes' pk=poll.pk %}"
-          onsubmit="return confirm('Alle Stimmen wirklich loeschen?')">
+          onsubmit="return confirm('Alle Stimmen wirklich löschen?')">
       {% csrf_token %}
-      <button type="submit" class="btn btn-danger" style="font-size:0.72rem;">Alle Stimmen zuruecksetzen</button>
+      <button type="submit" class="btn btn-danger" style="font-size:0.72rem;">Alle Stimmen zurücksetzen</button>
     </form>
   </div>
 

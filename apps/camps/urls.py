@@ -15,7 +15,7 @@ urlpatterns = [
     path("freizeit/<int:camp_pk>/allergene/",          views.allergen_overview,  name="allergen_overview"),
     path("teilnehmer/<int:pk>/",                       views.participant_detail, name="participant_detail"),
     path("teilnehmer/<int:pk>/bearbeiten/",            views.participant_edit,   name="participant_edit"),
-    path("teilnehmer/<int:pk>/loeschen/",              views.participant_delete, name="participant_delete"),
+    path("teilnehmer/<int:pk>/löschen/",              views.participant_delete, name="participant_delete"),
 
     # Hilfsmittel
     path("csv-vorlage/",                               views.csv_template,       name="csv_template"),

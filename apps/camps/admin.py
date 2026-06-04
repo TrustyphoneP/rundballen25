@@ -27,7 +27,7 @@ class CampAdmin(admin.ModelAdmin):
 
 
 class IntoleranceFilter(admin.SimpleListFilter):
-    title        = "Unvertraeglichkeit"
+    title        = "Unverträglichkeit"
     parameter_name = "intol"
 
     def lookups(self, request, model_admin):
@@ -53,12 +53,12 @@ class ParticipantAdmin(admin.ModelAdmin):
     fieldsets = [
         ("Person", {"fields": [
             ("first_name", "last_name"),
-            ("camp", "person_type", "age"),
+            ("camp", "person_type", "date_of_birth"),
         ]}),
         ("Diaet", {"fields": [
             ("is_vegan", "is_vegetarian", "is_halal", "is_kosher"),
         ]}),
-        ("Unvertraeglichkeiten", {"fields": [
+        ("Unverträglichkeiten", {"fields": [
             "intolerances", "intolerance_notes",
         ]}),
         ("Abwesenheiten", {"fields": ["absent_dates"], "classes": ["collapse"]}),

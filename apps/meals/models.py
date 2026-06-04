@@ -16,7 +16,7 @@ from django.conf import settings
 class DayMeal(models.Model):
     """
     Tagesplanung Abendessen: ein CampDay hat genau eine DayMeal-Instanz
-    mit je einem optionalen Rezept fuer Hauptgericht, Dessert und Salat.
+    mit je einem optionalen Rezept für Hauptgericht, Dessert und Salat.
     Ersetzt WarmMeal (war nur ein Rezept pro Tag).
     """
     day = models.OneToOneField(
@@ -86,7 +86,7 @@ class DayMeal(models.Model):
         return list(aggregated.values())
 
     def allergen_warning(self):
-        """Gibt alle Allergene aller Rezepte des Tages zurueck."""
+        """Gibt alle Allergene aller Rezepte des Tages zurück."""
         allergens = set()
         for recipe in self.recipes():
             for a in recipe.allergens.all():
@@ -105,12 +105,12 @@ class DayMeal(models.Model):
 
 
 # ---------------------------------------------------------------------------
-# Rueckwaertskompatibilitaet: WarmMeal als Alias fuer alte Referenzen
+# Rueckwaertskompatibilitaet: WarmMeal als Alias für alte Referenzen
 # ---------------------------------------------------------------------------
 class WarmMeal(models.Model):
     """
-    Legacy-Modell – bleibt in der DB fuer bestehende Datensaetze.
-    Neue Logik laeuft ueber DayMeal.
+    Legacy-Modell – bleibt in der DB für bestehende Datensaetze.
+    Neü Logik laeuft ueber DayMeal.
     """
     day    = models.OneToOneField(
         "camps.CampDay", on_delete=models.CASCADE, related_name="warm_meal"

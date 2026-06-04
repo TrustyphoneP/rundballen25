@@ -1,4 +1,5 @@
-# docker-compose.prod.yml  –  Produktion (Self-Hosted, HTTPS)
+# docker-compose.prod.yml – Produktion
+# Nginx und SSL laufen auf dem Host-Server, nicht im Container.
 # Starten: docker compose -f docker-compose.prod.yml up -d
 
 services:
@@ -10,10 +11,12 @@ services:
     command: >
       sh -c "python manage.py migrate --noinput &&
              python manage.py collectstatic --noinput &&
-             daphne -b 0.0.0.0 -p 8000 config.asgi:application"
+             gunicorn config.wsgi:application --bind 0.0.0.0:8001 --workers 3 --timeout 120"
     volumes:
       - static_data:/app/staticfiles
       - media_data:/app/media
+    ports:
+      - "127.0.0.1:8001:8001"
     env_file:
       - .env
     environment:
@@ -39,7 +42,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     restart: always
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -50,34 +53,8 @@ services:
       - redis_data:/data
     restart: always
 
-  nginx:
-    image: nginx:alpine
-    volumes:
-      - ./docker/nginx.prod.conf:/etc/nginx/conf.d/default.conf:ro
-      - static_data:/staticfiles:ro
-      - media_data:/media:ro
-      - certbot_data:/etc/letsencrypt:ro
-      - certbot_www:/var/www/certbot:ro
-    ports:
-      - "80:80"
-      - "443:443"
-    depends_on:
-      - web
-    restart: always
-
-  certbot:
-    image: certbot/certbot
-    volumes:
-      - certbot_data:/etc/letsencrypt
-      - certbot_www:/var/www/certbot
-    entrypoint: >
-      /bin/sh -c "trap exit TERM;
-      while :; do certbot renew; sleep 12h & wait $${!}; done;"
-
 volumes:
   postgres_data:
   redis_data:
   static_data:
   media_data:
-  certbot_data:
-  certbot_www:

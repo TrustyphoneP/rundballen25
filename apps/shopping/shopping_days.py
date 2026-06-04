@@ -4,13 +4,13 @@ shopping_days.py – Einkaufstag-Berechnung
 Drei Einkaufstage pro Freizeit:
   Tag 1: Einen Tag vor Freizeit-Beginn
           -> Alle trockenen Zutaten (gesamte Freizeit)
-          -> Frische Zutaten fuer Tag 1 + Tag 2
+          -> Frische Zutaten für Tag 1 + Tag 2
 
   Tag 2: Dritter Tag der Freizeit (index 2, also start + 2)
-          -> Frische Zutaten fuer Tag 3, 4, 5
+          -> Frische Zutaten für Tag 3, 4, 5
 
   Tag 3: Sechster Tag der Freizeit (index 5, also start + 5)
-          -> Frische Zutaten fuer Tag 6 bis Ende
+          -> Frische Zutaten für Tag 6 bis Ende
 
 Faellt ein Einkaufstag auf einen Sonntag (weekday() == 6),
 wird er um einen Tag vorgezogen (Samstag).
@@ -38,7 +38,7 @@ class ShoppingDay:
 
 def get_shopping_days(camp):
     """
-    Gibt drei ShoppingDay-Objekte fuer ein Camp zurueck.
+    Gibt drei ShoppingDay-Objekte für ein Camp zurück.
     day_indices sind 0-basiert (0 = erster Freizeit-Tag).
     """
     start = camp.start_date
@@ -61,7 +61,7 @@ def get_shopping_days(camp):
         ShoppingDay(
             label="Einkauf 1",
             date=day1_date,
-            description="Alle trockenen Zutaten + Frisches fuer Tag 1–2",
+            description="Alle trockenen Zutaten + Frisches für Tag 1–2",
             day_indices=list(range(min(2, duration))),
             include_dry=True,
         ),
@@ -71,7 +71,7 @@ def get_shopping_days(camp):
         days.append(ShoppingDay(
             label="Einkauf 2",
             date=day2_date,
-            description="Frische Zutaten fuer Tag 3–5",
+            description="Frische Zutaten für Tag 3–5",
             day_indices=list(range(2, min(5, duration))),
             include_dry=False,
         ))
@@ -80,7 +80,7 @@ def get_shopping_days(camp):
         days.append(ShoppingDay(
             label="Einkauf 3",
             date=day3_date,
-            description=f"Frische Zutaten fuer Tag 6–{duration}",
+            description=f"Frische Zutaten für Tag 6–{duration}",
             day_indices=list(range(5, duration)),
             include_dry=False,
         ))
@@ -90,7 +90,7 @@ def get_shopping_days(camp):
 
 def build_shopping_day_items(camp, shopping_day, all_day_meals):
     """
-    Aggregiert Zutaten fuer einen Einkaufstag.
+    Aggregiert Zutaten für einen Einkaufstag.
 
     all_day_meals: geordnete Liste von DayMeal-Objekten (nach Datum),
                    Index 0 = erster Freizeit-Tag.
@@ -110,9 +110,6 @@ def build_shopping_day_items(camp, shopping_day, all_day_meals):
         for item in meal.get_all_scaled_ingredients():
             ing    = item["ingredient"]
             is_fresh = ing.is_fresh
-
-            if shopping_day.include_dry and not is_fresh:
-                continue 
 
             # Trockene Zutaten nur bei Einkauf 1
             if not is_fresh and not shopping_day.include_dry:
@@ -136,7 +133,7 @@ def build_shopping_day_items(camp, shopping_day, all_day_meals):
             for item in meal.get_all_scaled_ingredients():
                 ing = item["ingredient"]
                 if ing.is_fresh:
-                    continue  # Frische bereits oben per day_indices erfasst
+                    continü  # Frische bereits oben per day_indices erfasst
                 key = (ing.id, item["unit"])
                 if key not in aggregated:
                     aggregated[key] = {

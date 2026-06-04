@@ -7,8 +7,6 @@ import environ
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-STATICFILES_DIRS = [BASE_DIR / "static"] if (BASE_DIR / "static").exists() else []
-
 env = environ.Env(
     DEBUG=(bool, False),
     ALLOWED_HOSTS=(list, ["localhost", "127.0.0.1"]),
@@ -18,8 +16,6 @@ environ.Env.read_env(BASE_DIR / ".env")
 SECRET_KEY = env("SECRET_KEY")
 DEBUG = env("DEBUG")
 ALLOWED_HOSTS = env("ALLOWED_HOSTS")
-
-CSRF_TRUSTED_ORIGINS = ["https://rundballen24.de", "https://www.rundballen24.de"]
 
 # ---------------------------------------------------------------------------
 # Apps
@@ -50,6 +46,7 @@ INSTALLED_APPS = [
     "apps.shopping.apps.ShoppingConfig",
     "apps.feedback.apps.FeedbackConfig",
     "apps.voting.apps.VotingConfig",
+    
 ]
 
 MIDDLEWARE = [
@@ -59,6 +56,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "apps.accounts.middleware.ForcePasswordChangeMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django_htmx.middleware.HtmxMiddleware",

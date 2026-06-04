@@ -1,6 +1,6 @@
 {% extends "base/base.html" %}
-{% block title %}Rezept loeschen{% endblock %}
-{% block page_title %}Rezept loeschen{% endblock %}
+{% block title %}Rezept löschen{% endblock %}
+{% block page_title %}Rezept löschen{% endblock %}
 {% block content %}
 <div class="max-w-md">
   <div class="card p-8 text-center">
@@ -11,7 +11,7 @@
     <div class="flex gap-3 justify-center">
       <form method="post">
         {% csrf_token %}
-        <button type="submit" class="btn btn-danger">Endgueltig loeschen</button>
+        <button type="submit" class="btn btn-danger">Endgültig löschen</button>
       </form>
       <a href="{% url 'recipes:detail' pk=recipe.pk %}" class="btn btn-ghost">Abbrechen</a>
     </div>

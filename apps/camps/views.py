@@ -32,7 +32,7 @@ def dashboard(request):
             Q(is_halal=True) | Q(is_kosher=True)
         ).distinct().count()
 
-        # Allergen-Haeufigkeiten fuer Dashboard
+        # Allergen-Haeufigkeiten für Dashboard
         allergen_counts = (
             Allergen.objects
             .filter(participants__camp=active_camp)
@@ -89,7 +89,7 @@ def participant_list(request, camp_pk):
                 Q(intolerances__isnull=False)
             ).distinct()
 
-    # Statistiken fuer den Header
+    # Statistiken für den Header
     all_participants = camp.participants.prefetch_related("intolerances")
     stats = {
         "total":       all_participants.count(),
@@ -103,7 +103,7 @@ def participant_list(request, camp_pk):
         ("Gesamt",              stats["total"],      ""),
         ("Teilnehmer",          stats["teilnehmer"], ""),
         ("Betreuer",            stats["betreuer"],   ""),
-        ("Mit Unvertraeglichkeit", stats["mit_intol"], "text-warn"),
+        ("Mit Unverträglichkeit", stats["mit_intol"], "text-warn"),
         ("Vegan",               stats["vegan"],      "text-ok"),
     ]
     return render(request, "camps/participant_list.html", {
@@ -144,12 +144,12 @@ def participant_create(request, camp_pk):
         form.save_m2m()
         messages.success(request, f"{person.full_name()} wurde hinzugefuegt.")
         if request.headers.get("HX-Request"):
-            # HTMX: Tabellenzeile zurueckgeben
+            # HTMX: Tabellenzeile zurückgeben
             return render(request, "camps/partials/participant_row.html", {"person": person})
         return redirect("camps:participant_list", camp_pk=camp.pk)
 
     return render(request, "camps/participant_form.html", {
-        "form": form, "camp": camp, "action": "Hinzufuegen"
+        "form": form, "camp": camp, "action": "Hinzufügen"
     })
 
 
@@ -169,7 +169,7 @@ def participant_edit(request, pk):
 
 
 # ---------------------------------------------------------------------------
-# Teilnehmer – Loeschen
+# Teilnehmer – Löschen
 # ---------------------------------------------------------------------------
 
 @login_required
@@ -198,7 +198,7 @@ def participant_csv_export(request, camp_pk):
     response["Content-Disposition"] = (
         f'attachment; filename="teilnehmer_{slugify(camp.name)}.csv"'
     )
-    response.write("\ufeff")  # BOM fuer Excel
+    response.write("\ufeff")  # BOM für Excel
 
     writer = csv.writer(response, delimiter=";")
     writer.writerow([

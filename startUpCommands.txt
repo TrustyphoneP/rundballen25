@@ -14,3 +14,7 @@ docker compose build
 docker compose up
 
 docker compose down
+
+# String finden
+
+Get-ChildItem -Recurse -Filter "*.html" | Select-String "Diaet"

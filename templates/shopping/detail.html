@@ -40,12 +40,12 @@
 <div class="flex gap-3 mb-5">
   <form method="post" action="{% url 'shopping:reset_list' pk=sl.pk %}">
     {% csrf_token %}
-    <button type="submit" class="btn btn-ghost" style="font-size:0.75rem;">Alle zuruecksetzen</button>
+    <button type="submit" class="btn btn-ghost" style="font-size:0.75rem;">Alle zurücksetzen</button>
   </form>
   <form method="post" action="{% url 'shopping:delete_list' pk=sl.pk %}"
-        onsubmit="return confirm('Einkaufsliste wirklich loeschen?')">
+        onsubmit="return confirm('Einkaufsliste wirklich löschen?')">
     {% csrf_token %}
-    <button type="submit" class="btn btn-danger" style="font-size:0.75rem;">Liste loeschen</button>
+    <button type="submit" class="btn btn-danger" style="font-size:0.75rem;">Liste löschen</button>
   </form>
 </div>
 

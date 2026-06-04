@@ -3,7 +3,7 @@ meals/views.py – Wochenplan
 
 Zeigt alle Tage der aktiven Freizeit als Kalender-Grid.
 Pro Tag: Hauptgericht, Dessert, Salat einzeln zuweisbar per HTMX-Modal.
-CampDays werden beim ersten Aufruf automatisch angelegt falls noetig.
+CampDays werden beim ersten Aufruf automatisch angelegt falls nötig.
 """
 from datetime import timedelta
 
@@ -26,7 +26,7 @@ SLOTS = [
 
 
 def _ensure_camp_days(camp):
-    """Legt CampDay-Objekte fuer jeden Tag der Freizeit an falls nicht vorhanden."""
+    """Legt CampDay-Objekte für jeden Tag der Freizeit an falls nicht vorhanden."""
     current = camp.start_date
     while current <= camp.end_date:
         CampDay.objects.get_or_create(camp=camp, date=current)
@@ -34,7 +34,7 @@ def _ensure_camp_days(camp):
 
 
 def _ensure_day_meal(camp_day):
-    """Legt DayMeal fuer einen CampDay an falls nicht vorhanden."""
+    """Legt DayMeal für einen CampDay an falls nicht vorhanden."""
     obj, _ = DayMeal.objects.get_or_create(day=camp_day)
     return obj
 
@@ -66,12 +66,12 @@ def week_plan(request, camp_pk=None):
         .order_by("date")
     )
 
-    # DayMeal fuer jeden Tag sicherstellen
+    # DayMeal für jeden Tag sicherstellen
     for day in days:
         if not hasattr(day, "day_meal") or day.day_meal is None:
             _ensure_day_meal(day)
 
-    # Rezepte nach Kategorie-Name gruppieren fuer die Auswahl-Dropdowns
+    # Rezepte nach Kategorie-Name gruppieren für die Auswahl-Dropdowns
     categories = {
         "main_course": Recipe.objects.filter(
             category__name__iexact="Hauptgericht"
@@ -123,7 +123,7 @@ def assign_recipe(request, day_pk, slot):
 
     day_meal.save(update_fields=[slot])
 
-    # Frische Instanz mit Prefetch fuer das Partial
+    # Frische Instanz mit Prefetch für das Partial
     day_meal = DayMeal.objects.prefetch_related(
         "main_course__allergens",
         "dessert__allergens",

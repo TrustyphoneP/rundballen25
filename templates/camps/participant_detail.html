@@ -32,9 +32,9 @@
     </div>
   </div>
 
-  <!-- Diaet -->
+  <!-- SKF -->
   <div class="card p-6">
-    <div class="section-mono mb-4">Diaet</div>
+    <div class="section-mono mb-4">SKF</div>
     {% with person.diet_flags as flags %}
     {% if flags %}
       <div class="flex flex-wrap gap-2">
@@ -43,14 +43,14 @@
         {% endfor %}
       </div>
     {% else %}
-      <div style="color:rgba(240,237,232,0.35); font-size:0.85rem;">Keine Einschraenkungen</div>
+      <div style="color:rgba(240,237,232,0.35); font-size:0.85rem;">Keine Einschränkungen</div>
     {% endif %}
     {% endwith %}
   </div>
 
-  <!-- Unvertraeglichkeiten -->
+  <!-- Unverträglichkeiten -->
   <div class="card p-6">
-    <div class="section-mono mb-4">Allergien &amp; Unvertraeglichkeiten</div>
+    <div class="section-mono mb-4">Allergien &amp; Unverträglichkeiten</div>
     {% if person.intolerances.all %}
       <div class="flex flex-wrap gap-2 mb-4">
         {% for a in person.intolerances.all %}

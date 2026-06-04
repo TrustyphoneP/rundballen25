@@ -19,7 +19,7 @@ class Migration(migrations.Migration):
                 ("icon",        models.CharField(blank=True, help_text="Emoji", max_length=10)),
                 ("sort_order",  models.PositiveSmallIntegerField(default=0)),
             ],
-            options={"ordering": ["sort_order", "name"], "verbose_name": "Allergen / Unvertraeglichkeit", "verbose_name_plural": "Allergene / Unvertraeglichkeiten"},
+            options={"ordering": ["sort_order", "name"], "verbose_name": "Allergen / Unverträglichkeit", "verbose_name_plural": "Allergene / Unverträglichkeiten"},
         ),
         migrations.CreateModel(
             name="RecipeCategory",
@@ -50,7 +50,7 @@ class Migration(migrations.Migration):
                 ("image",         models.ImageField(blank=True, null=True, upload_to="recipes/")),
                 ("is_vegan",      models.BooleanField(default=False, verbose_name="Vegan")),
                 ("is_vegetarian", models.BooleanField(default=False, verbose_name="Vegetarisch")),
-                ("base_servings", models.PositiveIntegerField(default=10, help_text="Fuer wie viele Personen sind die Zutatenmengen angegeben?", verbose_name="Basis-Portionen")),
+                ("base_servings", models.PositiveIntegerField(default=10, help_text="Für wie viele Personen sind die Zutatenmengen angegeben?", verbose_name="Basis-Portionen")),
                 ("prep_time_min", models.PositiveIntegerField(blank=True, null=True, verbose_name="Zubereitung (Min)")),
                 ("cook_time_min", models.PositiveIntegerField(blank=True, null=True, verbose_name="Kochzeit (Min)")),
                 ("notes",         models.TextField(blank=True, verbose_name="Notizen / Hinweise")),

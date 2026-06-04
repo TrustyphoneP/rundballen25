@@ -11,7 +11,7 @@ urlpatterns = [
     path("<int:pk>/",                             views.detail,              name="detail"),
     path("<int:pk>/export/",                      views.export_csv,          name="export_csv"),
     path("<int:pk>/regenerieren/",                views.regenerate,          name="regenerate"),
-    path("<int:pk>/zuruecksetzen/",               views.reset_list,          name="reset_list"),
-    path("<int:pk>/loeschen/",                    views.delete_list,         name="delete_list"),
+    path("<int:pk>/zurücksetzen/",               views.reset_list,          name="reset_list"),
+    path("<int:pk>/löschen/",                    views.delete_list,         name="delete_list"),
     path("item/<int:pk>/toggle/",                 views.toggle_item,         name="toggle_item"),
 ]

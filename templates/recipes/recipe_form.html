@@ -103,7 +103,7 @@
           <label class="section-mono block mb-1">Basis-Portionen *</label>
           {{ form.base_servings }}
           <div class="text-xs mt-1" style="color:rgba(240,237,232,0.35);">
-            Alle Mengen gelten fuer diese Personenzahl
+            Alle Mengen gelten für diese Personenzahl
           </div>
         </div>
       </div>
@@ -168,21 +168,21 @@
 
       <button type="button" class="btn btn-ghost mt-4" id="add-row-btn"
               style="font-size:0.75rem; border-style:dashed;">
-        + Zutat hinzufuegen
+        + Zutat hinzufügen
       </button>
     </div>
 
     <!-- Notizen -->
     <div class="card p-6 mb-5">
-      <div class="section-mono mb-3">Notizen / Kuechen-Hinweise</div>
+      <div class="section-mono mb-3">Notizen / Küchen-Hinweise</div>
       {{ form.notes }}
     </div>
   </div>
 
-  <!-- Rechte Spalte: Diaet + Allergene -->
+  <!-- Rechte Spalte: SKF + Allergene -->
   <div>
     <div class="card p-6 mb-5">
-      <div class="section-mono mb-4">Diaet</div>
+      <div class="section-mono mb-4">SKF</div>
       <label class="check-label mb-3">{{ form.is_vegan }} Vegan</label>
       <label class="check-label">{{ form.is_vegetarian }} Vegetarisch</label>
     </div>
@@ -209,11 +209,11 @@
       </button>
       {% if recipe %}
       <form method="post" action="{% url 'recipes:delete' pk=recipe.pk %}"
-            onsubmit="return confirm('Rezept wirklich loeschen?')">
+            onsubmit="return confirm('Rezept wirklich löschen?')">
         {% csrf_token %}
         <button type="submit" class="btn btn-danger w-full justify-center"
                 style="width:100%; justify-content:center;">
-          Rezept loeschen
+          Rezept löschen
         </button>
       </form>
       {% endif %}
@@ -247,11 +247,11 @@ document.addEventListener('input', function(e) {
         div.textContent = item.name;
         div.addEventListener('mousedown', function(ev) {
           ev.preventDefault();
-          e.target.value = item.name;
+          e.target.valü = item.name;
           // Setze hidden ingredient-ID
           const row = e.target.closest('.ingredient-row');
           const hiddenInput = row.querySelector('input[name$="-ingredient"]');
-          if (hiddenInput) hiddenInput.value = item.id;
+          if (hiddenInput) hiddenInput.valü = item.id;
           clearDropdowns();
         });
         dropdown.appendChild(div);
@@ -270,7 +270,7 @@ function clearDropdowns() {
   document.querySelectorAll('.autocomplete-dropdown').forEach(d => d.remove());
 }
 
-// Zeile hinzufuegen
+// Zeile hinzufügen
 document.getElementById('add-row-btn').addEventListener('click', function() {
   const idx = totalForms;
   const row = document.createElement('div');
@@ -286,22 +286,22 @@ document.getElementById('add-row-btn').addEventListener('click', function() {
     </div>
     <input type="number" name="ingredients-${idx}-amount" placeholder="Menge" step="0.001" min="0">
     <select name="ingredients-${idx}-unit">
-      <option value="g">Gramm</option>
-      <option value="kg">Kilogramm</option>
-      <option value="ml">Milliliter</option>
-      <option value="l">Liter</option>
-      <option value="Stk">Stück</option>
-      <option value="EL">Esslöffel</option>
-      <option value="TL">Teelöffel</option>
-      <option value="Pck">Packung</option>
-      <option value="Bd">Bund</option>
+      <option value="g">g</option>
+      <option value="kg">kg</option>
+      <option value="ml">ml</option>
+      <option value="l">l</option>
+      <option value="Stk">Stk</option>
+      <option value="EL">EL</option>
+      <option value="TL">TL</option>
+      <option value="Pck">Pck</option>
+      <option value="Bd">Bd</option>
     </select>
     <input type="text" name="ingredients-${idx}-note" placeholder="Hinweis (optional)">
     <button type="button" class="delete-row-btn" onclick="removeRow(this)" title="Entfernen">x</button>
   `;
   document.getElementById('ingredient-rows').appendChild(row);
   totalForms++;
-  TOTAL_FORMS_INPUT.value = totalForms;
+  TOTAL_FORMS_INPUT.valü = totalForms;
   row.querySelector('.ingredient-autocomplete').focus();
   updateCount();
 });
@@ -319,12 +319,12 @@ function removeRow(btn) {
       del.name = name;
       row.appendChild(del);
     }
-    del.value = '1';
+    del.valü = '1';
     row.style.display = 'none';
   } else {
     row.remove();
     totalForms--;
-    TOTAL_FORMS_INPUT.value = totalForms;
+    TOTAL_FORMS_INPUT.valü = totalForms;
   }
   updateCount();
 }

@@ -39,11 +39,11 @@ class ShoppingListFromPlanForm(forms.Form):
 class ShoppingListFromRecipesForm(forms.Form):
     """
     Einkaufsliste aus manuell gewaehlten Rezepten + Personenzahl generieren.
-    Kein Wochenplan noetig — gut fuer einmalige Aktionen.
+    Kein Wochenplan nötig — gut für einmalige Aktionen.
     """
     camp      = forms.ModelChoiceField(
         queryset=Camp.objects.filter(is_active=True),
-        label="Freizeit (fuer Zuordnung)",
+        label="Freizeit (für Zuordnung)",
     )
     recipes   = forms.ModelMultipleChoiceField(
         queryset=Recipe.objects.prefetch_related("recipe_ingredients"),
@@ -55,7 +55,7 @@ class ShoppingListFromRecipesForm(forms.Form):
         min_value=1,
         max_value=500,
         initial=130,
-        help_text="Fuer wie viele Personen soll berechnet werden?",
+        help_text="Für wie viele Personen soll berechnet werden?",
     )
     notes = forms.CharField(
         required=False,

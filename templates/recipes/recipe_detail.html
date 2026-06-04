@@ -21,7 +21,7 @@
           <span class="badge badge-muted">{{ recipe.base_servings }} Pers.</span>
         </div>
         <form method="get" class="flex items-center gap-2 ml-auto">
-          <label class="section-mono">Berechnen fuer</label>
+          <label class="section-mono">Berechnen für</label>
           <input type="number" name="persons" value="{{ persons }}" min="1" max="500"
                  style="width:70px; text-align:center;">
           <span class="section-mono">Personen</span>
@@ -42,7 +42,7 @@
     <!-- Zutatentabelle -->
     <div class="card overflow-hidden mb-5">
       <div class="px-5 py-4 border-b" style="border-color:rgba(240,237,232,0.07);">
-        <span class="section-mono">Zutaten fuer {{ persons }} Personen</span>
+        <span class="section-mono">Zutaten für {{ persons }} Personen</span>
       </div>
       {% if scaled %}
       <table>
@@ -88,14 +88,14 @@
       {% else %}
       <div class="p-10 text-center" style="color:rgba(240,237,232,0.35);">
         Noch keine Zutaten erfasst.
-        <a href="{% url 'recipes:edit' pk=recipe.pk %}" style="color:#e8a444;">Jetzt hinzufuegen</a>
+        <a href="{% url 'recipes:edit' pk=recipe.pk %}" style="color:#e8a444;">Jetzt hinzufügen</a>
       </div>
       {% endif %}
     </div>
 
     {% if recipe.notes %}
     <div class="card p-5">
-      <div class="section-mono mb-3">Kuechen-Hinweise</div>
+      <div class="section-mono mb-3">Küchen-Hinweise</div>
       <div class="text-sm leading-relaxed" style="color:rgba(240,237,232,0.7); white-space:pre-line;">{{ recipe.notes }}</div>
     </div>
     {% endif %}
@@ -113,12 +113,12 @@
         </div>
         {% endif %}
         <div>
-          <div class="section-mono mb-1">Diaet</div>
+          <div class="section-mono mb-1">SKF</div>
           <div class="flex gap-1 flex-wrap">
             {% if recipe.is_vegan %}<span class="badge badge-ok">Vegan</span>{% endif %}
             {% if recipe.is_vegetarian %}<span class="badge badge-ok">Vegetarisch</span>{% endif %}
             {% if not recipe.is_vegan and not recipe.is_vegetarian %}
-              <span style="color:rgba(240,237,232,0.3); font-size:0.75rem;">Keine Einschraenkung</span>
+              <span style="color:rgba(240,237,232,0.3); font-size:0.75rem;">Keine Einschränkung</span>
             {% endif %}
           </div>
         </div>

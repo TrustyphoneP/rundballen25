@@ -1,6 +1,6 @@
 {% extends "base/base.html" %}
-{% block title %}{% if ingredient %}{{ ingredient.name }} bearbeiten{% else %}Neue Zutat{% endif %}{% endblock %}
-{% block page_title %}{% if ingredient %}Zutat bearbeiten{% else %}Neue Zutat{% endif %}{% endblock %}
+{% block title %}{% if ingredient %}{{ ingredient.name }} bearbeiten{% else %}Neü Zutat{% endif %}{% endblock %}
+{% block page_title %}{% if ingredient %}Zutat bearbeiten{% else %}Neü Zutat{% endif %}{% endblock %}
 
 {% block topbar_actions %}
   <a href="{% url 'recipes:ingredient_list' %}" class="btn btn-ghost">Abbrechen</a>

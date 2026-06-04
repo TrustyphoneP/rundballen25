@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.urls import reverse
+from datetime import date
 
 
 class Camp(models.Model):
@@ -64,7 +65,7 @@ class CampDay(models.Model):
 class Participant(models.Model):
     """
     Teilnehmer oder Betreuer einer Freizeit.
-    Unvertraeglichkeiten werden zentral erfasst und
+    Unverträglichkeiten werden zentral erfasst und
     fliessen in Mahlzeiten- und Einkaufsplanung ein.
     """
 
@@ -72,15 +73,15 @@ class Participant(models.Model):
         PARTICIPANT = "participant", "Teilnehmer"
         SUPERVISOR  = "supervisor",  "Betreuer"
 
-    camp        = models.ForeignKey(Camp, on_delete=models.CASCADE, related_name="participants")
-    first_name  = models.CharField(max_length=100, verbose_name="Vorname")
-    last_name   = models.CharField(max_length=100, verbose_name="Nachname")
-    person_type = models.CharField(
+    camp          = models.ForeignKey(Camp, on_delete=models.CASCADE, related_name="participants")
+    first_name    = models.CharField(max_length=100, verbose_name="Vorname")
+    last_name     = models.CharField(max_length=100, verbose_name="Nachname")
+    person_type   = models.CharField(
         max_length=20, choices=PersonType.choices,
         default=PersonType.PARTICIPANT, verbose_name="Typ"
     )
-    age   = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="Alter")
-    notes = models.TextField(blank=True, verbose_name="Sonstige Hinweise")
+    date_of_birth = models.DateField(null=True, blank=True, verbose_name="Geburtsdatum")
+    notes         = models.TextField(blank=True, verbose_name="Sonstige Hinweise")
 
     # Diaet-Flags
     is_vegan      = models.BooleanField(default=False, verbose_name="Vegan")
@@ -92,12 +93,12 @@ class Participant(models.Model):
         "recipes.Allergen",
         blank=True,
         related_name="participants",
-        verbose_name="Allergien / Unvertraeglichkeiten",
+        verbose_name="Allergien / Unverträglichkeiten",
     )
     intolerance_notes = models.TextField(
         blank=True,
-        verbose_name="Zusatzhinweise Unvertraeglichkeiten",
-        help_text="Fuer alles, was nicht in die Checkboxen passt",
+        verbose_name="Zusatzhinweise Unverträglichkeiten",
+        help_text="Für alles, was nicht in die Checkboxen passt",
     )
 
     absent_dates = models.ManyToManyField(
@@ -115,8 +116,28 @@ class Participant(models.Model):
     def full_name(self):
         return f"{self.first_name} {self.last_name}"
 
+    def age_at_camp(self):
+        """Alter zum Zeitpunkt des Freizeit-Starts."""
+        if not self.date_of_birth:
+            return None
+        ref = self.camp.start_date
+        years = ref.year - self.date_of_birth.year
+        # Noch kein Geburtstag in diesem Jahr?
+        if (ref.month, ref.day) < (self.date_of_birth.month, self.date_of_birth.day):
+            years -= 1
+        return years
+
+    def age_today(self):
+        """Aktuelles Alter (heute)."""
+        if not self.date_of_birth:
+            return None
+        today = date.today()
+        years = today.year - self.date_of_birth.year
+        if (today.month, today.day) < (self.date_of_birth.month, self.date_of_birth.day):
+            years -= 1
+        return years
+
     def diet_flags(self):
-        """Gibt Liste der Diaet-Labels zurueck (ohne Emojis)."""
         flags = []
         if self.is_vegan:      flags.append("Vegan")
         if self.is_vegetarian: flags.append("Vegetarisch")
@@ -132,4 +153,6 @@ class Participant(models.Model):
         return reverse("camps:participant_detail", kwargs={"pk": self.pk})
 
     def __str__(self):
-        return f"{self.full_name()} ({self.get_person_type_display()}, {self.camp})"
+        age = self.age_at_camp()
+        age_str = f", {age} J." if age is not None else ""
+        return f"{self.full_name()} ({self.get_person_type_display()}{age_str}, {self.camp})"

@@ -6,7 +6,7 @@
 {% block topbar_actions %}
   <a href="{% url 'camps:csv_export' camp_pk=camp.pk %}" class="btn btn-ghost">CSV-Export</a>
   <a href="{% url 'camps:csv_import' camp_pk=camp.pk %}" class="btn btn-ghost">CSV-Import</a>
-  <a href="{% url 'camps:participant_create' camp_pk=camp.pk %}" class="btn btn-primary">+ Hinzufuegen</a>
+  <a href="{% url 'camps:participant_create' camp_pk=camp.pk %}" class="btn btn-primary">+ Hinzufügen</a>
 {% endblock %}
 
 {% block content %}
@@ -32,15 +32,15 @@
     {{ filter_form.person_type }}
   </div>
   <div>
-    <div class="section-mono mb-1">Unvertraeglichkeit</div>
+    <div class="section-mono mb-1">Unverträglichkeit</div>
     {{ filter_form.intolerance }}
   </div>
   <div>
-    <div class="section-mono mb-1">Diaet</div>
+    <div class="section-mono mb-1">SKF</div>
     {{ filter_form.diet }}
   </div>
   <button type="submit" class="btn btn-ghost">Filtern</button>
-  <a href="?" class="btn btn-ghost" style="color:rgba(240,237,232,0.4);">Zuruecksetzen</a>
+  <a href="?" class="btn btn-ghost" style="color:rgba(240,237,232,0.4);">Zurücksetzen</a>
 </form>
 
 <!-- Tabelle -->
@@ -51,8 +51,8 @@
       <tr>
         <th>Name</th>
         <th>Typ</th>
-        <th>Diaet</th>
-        <th>Unvertraeglichkeiten</th>
+        <th>SKF</th>
+        <th>Unverträglichkeiten</th>
         <th>Hinweise</th>
         <th></th>
       </tr>
@@ -109,7 +109,7 @@
   <div class="py-16 text-center" style="color:rgba(240,237,232,0.35);">
     <div class="font-display text-2xl mb-2">Keine Eintraege</div>
     <div class="text-sm">Filter anpassen oder
-      <a href="{% url 'camps:participant_create' camp_pk=camp.pk %}" style="color:#e8a444;">Teilnehmer hinzufuegen</a>
+      <a href="{% url 'camps:participant_create' camp_pk=camp.pk %}" style="color:#e8a444;">Teilnehmer hinzufügen</a>
     </div>
   </div>
   {% endif %}

@@ -37,15 +37,20 @@
           {{ form.person_type }}
         </div>
         <div>
-          <label class="section-mono block mb-1">Alter (optional)</label>
-          {{ form.age }}
-        </div>
+  <label class="section-mono block mb-1">Geburtsdatum</label>
+  {{ form.date_of_birth }}
+  {% if person.age_at_camp %}
+    <div class="text-xs mt-1" style="color:rgba(240,237,232,0.4);">
+      Alter bei Freizeit: {{ person.age_at_camp }} Jahre
+    </div>
+  {% endif %}
+</div>
       </div>
     </div>
 
-    <!-- Diaet -->
+    <!-- SKF -->
     <div class="card p-6 mb-5">
-      <div class="section-mono mb-4">Diaet</div>
+      <div class="section-mono mb-4">SKF</div>
       <div class="grid grid-cols-2 gap-3">
         <label class="check-label">
           {{ form.is_vegan }} Vegan
@@ -62,9 +67,9 @@
       </div>
     </div>
 
-    <!-- Unvertraeglichkeiten -->
+    <!-- Unverträglichkeiten -->
     <div class="card p-6 mb-5">
-      <div class="section-mono mb-4">Allergien &amp; Unvertraeglichkeiten</div>
+      <div class="section-mono mb-4">Allergien &amp; Unverträglichkeiten</div>
       <div class="grid grid-cols-2 gap-y-2 gap-x-4 mb-4">
         {% for checkbox in form.intolerances %}
         <label class="check-label">
@@ -76,7 +81,7 @@
         <label class="section-mono block mb-1">Zusatzhinweise (Freitext)</label>
         {{ form.intolerance_notes }}
         <div class="text-xs mt-1" style="color:rgba(240,237,232,0.35);">
-          Fuer Besonderheiten die nicht in die Checkboxen passen
+          Für Besonderheiten die nicht in die Checkboxen passen
         </div>
       </div>
     </div>

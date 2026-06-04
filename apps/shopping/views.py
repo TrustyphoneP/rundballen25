@@ -48,7 +48,7 @@ def create_from_plan(request):
 
 
 def _generate_from_plan(request, camp):
-    """Generiert drei Einkaufs-ShoppingLists fuer das Camp."""
+    """Generiert drei Einkaufs-ShoppingLists für das Camp."""
     from apps.meals.models import DayMeal
     from apps.camps.models import CampDay
 
@@ -72,7 +72,7 @@ def _generate_from_plan(request, camp):
 
     shopping_days = get_shopping_days(camp)
 
-    # Alte Listen fuer dieses Camp loeschen und neu generieren
+    # Alte Listen für dieses Camp löschen und neu generieren
     ShoppingList.objects.filter(camp=camp).delete()
 
     created = []
@@ -91,7 +91,8 @@ def _generate_from_plan(request, camp):
                 shopping_list=sl,
                 ingredient=v["ingredient"],
                 amount=v["amount"],
-                unit=v["unit"]
+                unit=v["unit"],
+                notes="frisch" if v["is_fresh"] else "trocken",
             )
             for v in items.values()
         ])
@@ -178,7 +179,7 @@ def create_from_recipes(request):
             for v in aggregated.values()
         ])
 
-        messages.success(request, f"Einkaufsliste: {sl.items.count()} Zutaten fuer {persons} Personen.")
+        messages.success(request, f"Einkaufsliste: {sl.items.count()} Zutaten für {persons} Personen.")
         return redirect("shopping:detail", pk=sl.pk)
 
     return render(request, "shopping/create_from_recipes.html", {"form": form})
@@ -224,7 +225,7 @@ def toggle_item(request, pk):
 
 
 # ---------------------------------------------------------------------------
-# Alle zuruecksetzen
+# Alle zurücksetzen
 # ---------------------------------------------------------------------------
 
 @login_required
@@ -232,7 +233,7 @@ def toggle_item(request, pk):
 def reset_list(request, pk):
     sl = get_object_or_404(ShoppingList, pk=pk)
     sl.items.update(is_bought=False)
-    messages.success(request, "Alle Positionen zurueckgesetzt.")
+    messages.success(request, "Alle Positionen zurückgesetzt.")
     return redirect("shopping:detail", pk=sl.pk)
 
 
@@ -276,7 +277,7 @@ def export_csv(request, pk):
 
 
 # ---------------------------------------------------------------------------
-# Loeschen
+# Löschen
 # ---------------------------------------------------------------------------
 
 @login_required
