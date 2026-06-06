@@ -121,7 +121,7 @@
         </div>
         {% endif %}
         <div>
-          <div class="section-mono mb-1">SKF</div>
+          <div class="section-mono mb-1">Diaet</div>
           <div class="flex gap-1 flex-wrap">
             {% if recipe.is_vegan %}<span class="badge badge-ok">Vegan</span>{% endif %}
             {% if recipe.is_vegetarian %}<span class="badge badge-ok">Vegetarisch</span>{% endif %}
@@ -143,11 +143,11 @@
       </div>
     </div>
 
-    {% if recipe.allergens.all %}
+    {% if all_allergens %}
     <div class="card p-5 mb-5">
       <div class="section-mono mb-3">Enthaltene Allergene</div>
       <div class="flex flex-wrap gap-1">
-        {% for a in recipe.allergens.all %}
+        {% for a in all_allergens %}
           <span class="badge badge-warn">{{ a.name }}</span>
         {% endfor %}
       </div>

@@ -65,28 +65,40 @@ def recipe_detail(request, pk):
     scaled = recipe.get_scaled_ingredients(persons)
 
     # Betroffene Teilnehmer aus aktiver Freizeit
+    # Allergen-IDs aus Zutaten UND aus Rezept-Ebene zusammenführen
     from apps.camps.models import Camp, Participant
     affected = []
     active_camp = Camp.objects.filter(is_active=True).first()
-    if active_camp and recipe.allergens.exists():
-        recipe_allergen_ids = set(recipe.allergens.values_list("pk", flat=True))
+
+    ingredient_allergen_ids = set(
+        Allergen.objects
+        .filter(ingredients__recipe_ingredients__recipe=recipe)
+        .values_list("pk", flat=True)
+    )
+    recipe_allergen_ids = set(recipe.allergens.values_list("pk", flat=True))
+    all_allergen_ids = ingredient_allergen_ids | recipe_allergen_ids
+
+    if active_camp and all_allergen_ids:
         participants = (
             Participant.objects
-            .filter(camp=active_camp, intolerances__in=recipe_allergen_ids)
+            .filter(camp=active_camp, intolerances__in=all_allergen_ids)
             .prefetch_related("intolerances")
             .distinct()
             .order_by("last_name", "first_name")
         )
         for p in participants:
-            matching = [a for a in p.intolerances.all() if a.pk in recipe_allergen_ids]
+            matching = [a for a in p.intolerances.all() if a.pk in all_allergen_ids]
             affected.append({"person": p, "allergens": matching})
 
+    all_allergens = Allergen.objects.filter(pk__in=all_allergen_ids).order_by("name")
+
     return render(request, "recipes/recipe_detail.html", {
-        "recipe":      recipe,
-        "persons":     persons,
-        "scaled":      scaled,
-        "affected":    affected,
-        "active_camp": active_camp,
+        "recipe":        recipe,
+        "persons":       persons,
+        "scaled":        scaled,
+        "affected":      affected,
+        "active_camp":   active_camp,
+        "all_allergens": all_allergens,
     })
 
 
