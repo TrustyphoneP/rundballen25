@@ -166,8 +166,10 @@
           {{ request.user.get_role_display|default:"Benutzer" }}
         </div>
       </div>
-      <a href="{% url 'accounts:logout' %}" class="ml-auto text-xs"
-         style="color:rgba(240,237,232,0.3);">Abmelden</a>
+      <form method="post" action="{% url 'accounts:logout' %}" class="ml-auto">
+  {% csrf_token %}
+  <button type="submit" class="text-xs" style="color:rgba(240,237,232,0.3); background:none; border:none; cursor:pointer; padding:0;">Abmelden</button>
+</form>
     </div>
   </aside>
 
