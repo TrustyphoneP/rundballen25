@@ -70,9 +70,10 @@ def recipe_detail(request, pk):
     affected = []
     active_camp = Camp.objects.filter(is_active=True).first()
 
+    ingredient_ids = RecipeIngredient.objects.filter(recipe=recipe).values_list("ingredient_id", flat=True)
     ingredient_allergen_ids = set(
         Allergen.objects
-        .filter(ingredients__recipe_ingredients__recipe=recipe)
+        .filter(ingredients__in=ingredient_ids)
         .values_list("pk", flat=True)
     )
     recipe_allergen_ids = set(recipe.allergens.values_list("pk", flat=True))
