@@ -35,6 +35,7 @@ class RecipeIngredientForm(forms.ModelForm):
         fields = ["ingredient", "amount", "unit", "note"]
         widgets = {
             "ingredient": forms.HiddenInput,
+            "amount":     forms.NumberInput(attrs={"placeholder": "Menge", "step": "0.001", "min": "0"}),
             "note":       forms.TextInput(attrs={"placeholder": "Hinweis (optional)"}),
         }
 

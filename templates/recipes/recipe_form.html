@@ -179,10 +179,10 @@
     </div>
   </div>
 
-  <!-- Rechte Spalte: Diaet + Allergene -->
+  <!-- Rechte Spalte: SKF + Allergene -->
   <div>
     <div class="card p-6 mb-5">
-      <div class="section-mono mb-4">Diaet</div>
+      <div class="section-mono mb-4">SKF</div>
       <label class="check-label mb-3">{{ form.is_vegan }} Vegan</label>
       <label class="check-label">{{ form.is_vegetarian }} Vegetarisch</label>
     </div>
@@ -229,10 +229,26 @@ const TOTAL_FORMS_INPUT = document.querySelector('[name="ingredients-TOTAL_FORMS
 let totalForms = parseInt(TOTAL_FORMS_INPUT.value);
 
 // Autocomplete
+let activeIndex = -1;
+
+function selectItem(input, item) {
+  input.value = item.name;
+  const row = input.closest('.ingredient-row');
+  const hiddenInput = row.querySelector('input[name$="-ingredient"]');
+  if (hiddenInput) hiddenInput.value = item.id;
+  // Auto-set allergen checkboxes if recipe form has them
+  clearDropdowns();
+  activeIndex = -1;
+  // Move focus to amount field
+  const amountInput = row.querySelector('input[type="number"], input[name$="-amount"]');
+  if (amountInput) amountInput.focus();
+}
+
 document.addEventListener('input', function(e) {
   if (!e.target.classList.contains('ingredient-autocomplete')) return;
   const val = e.target.value.trim();
   clearDropdowns();
+  activeIndex = -1;
   if (val.length < 2) return;
 
   fetch(`${AUTOCOMPLETE_URL}?q=${encodeURIComponent(val)}`)
@@ -241,23 +257,52 @@ document.addEventListener('input', function(e) {
       if (!data.results.length) return;
       const dropdown = document.createElement('div');
       dropdown.className = 'autocomplete-dropdown';
-      data.results.forEach(item => {
+      dropdown.dataset.items = JSON.stringify(data.results);
+      data.results.forEach((item, idx) => {
         const div = document.createElement('div');
         div.className = 'autocomplete-item';
         div.textContent = item.name;
+        div.dataset.idx = idx;
         div.addEventListener('mousedown', function(ev) {
           ev.preventDefault();
-          e.target.value = item.name;
-          // Setze hidden ingredient-ID
-          const row = e.target.closest('.ingredient-row');
-          const hiddenInput = row.querySelector('input[name$="-ingredient"]');
-          if (hiddenInput) hiddenInput.value = item.id;
-          clearDropdowns();
+          selectItem(e.target, item);
         });
         dropdown.appendChild(div);
       });
       e.target.parentElement.appendChild(dropdown);
     });
+});
+
+document.addEventListener('keydown', function(e) {
+  if (!e.target.classList.contains('ingredient-autocomplete')) return;
+  const dropdown = e.target.parentElement.querySelector('.autocomplete-dropdown');
+  if (!dropdown) return;
+  const items = dropdown.querySelectorAll('.autocomplete-item');
+  if (!items.length) return;
+
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    activeIndex = Math.min(activeIndex + 1, items.length - 1);
+    items.forEach((el, i) => el.style.background = i === activeIndex ? 'rgba(255,255,255,0.12)' : '');
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    activeIndex = Math.max(activeIndex - 1, 0);
+    items.forEach((el, i) => el.style.background = i === activeIndex ? 'rgba(255,255,255,0.12)' : '');
+  } else if (e.key === 'Tab' || e.key === 'Enter') {
+    if (activeIndex >= 0 && activeIndex < items.length) {
+      e.preventDefault();
+      const allItems = JSON.parse(dropdown.dataset.items);
+      selectItem(e.target, allItems[activeIndex]);
+    } else if (items.length === 1) {
+      // Only one result -- auto-select on Tab
+      e.preventDefault();
+      const allItems = JSON.parse(dropdown.dataset.items);
+      selectItem(e.target, allItems[0]);
+    }
+  } else if (e.key === 'Escape') {
+    clearDropdowns();
+    activeIndex = -1;
+  }
 });
 
 document.addEventListener('blur', function(e) {
@@ -268,6 +313,7 @@ document.addEventListener('blur', function(e) {
 
 function clearDropdowns() {
   document.querySelectorAll('.autocomplete-dropdown').forEach(d => d.remove());
+  activeIndex = -1;
 }
 
 // Zeile hinzufügen
