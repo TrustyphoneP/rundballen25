@@ -1,5 +1,3 @@
-{% load static %}
-
 <!DOCTYPE html>
 <html lang="de" class="h-full">
 <head>
@@ -7,10 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#1e4c59">
   <title>{% block title %}rundballen25{% endblock %}</title>
-
-  <link rel="icon" type="image/x-icon" href="{% static 'favicon.ico' %}">
-  <link rel="icon" type="image/png" sizes="32x32" href="{% static 'favicon-32x32.png' %}">
-  <link rel="apple-touch-icon" href="{% static 'apple-touch-icon.png' %}">
 
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -108,13 +102,13 @@
         <div class="font-display text-xl leading-none">
           rundballen<span style="color:#e8a444">24</span>
         </div>
-        <div class="section-mono mt-1">Freizeit-Planung</div>
+        <div class="section-mono mt-1">Freizeiten-Planung</div>
       </a>
     </div>
 
     <!-- Nav -->
     <nav class="flex-1 px-3 py-3 overflow-y-auto">
-      <div class="section-mono px-2 mb-2 mt-1">Übersicht</div>
+      <div class="section-mono px-2 mb-2 mt-1">Uebersicht</div>
       <a href="{% url 'camps:dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
         <div class="nav-dot"></div> Dashboard
       </a>
@@ -139,15 +133,19 @@
       <a href="{% url 'camps:participant_list' camp_pk=active_camp.pk %}"
          class="nav-link {% if 'participant' in request.resolver_match.url_name %}active{% endif %}">
         <div class="nav-dot"></div> Teilnehmer
+      </a>
+      <a href="{% url 'camps:allergen_overview' camp_pk=active_camp.pk %}"
+         class="nav-link {% if request.resolver_match.url_name == 'allergen_overview' %}active{% endif %}">
+        <div class="nav-dot"></div> Unverträglichkeiten
+      </a>
+      <a href="{% url 'camps:skf_list' camp_pk=active_camp.pk %}"
+         class="nav-link {% if request.resolver_match.url_name == 'skf_list' %}active{% endif %}">
+        <div class="nav-dot"></div> SKF-Teilis
         {% if stats.mit_intol %}
         <span class="ml-auto" style="background:#e07b54;color:#fff;font-family:'DM Mono',monospace;font-size:0.55rem;padding:1px 5px;border-radius:999px;">
           {{ stats.mit_intol }}
         </span>
         {% endif %}
-      </a>
-      <a href="{% url 'camps:allergen_overview' camp_pk=active_camp.pk %}"
-         class="nav-link {% if request.resolver_match.url_name == 'allergen_overview' %}active{% endif %}">
-        <div class="nav-dot"></div> Unverträglichkeiten
       </a>
 
       <div class="section-mono px-2 mb-2 mt-4">Weiteres</div>
@@ -168,10 +166,8 @@
           {{ request.user.get_role_display|default:"Benutzer" }}
         </div>
       </div>
-      <form method="post" action="{% url 'accounts:logout' %}" class="ml-auto">
-  {% csrf_token %}
-  <button type="submit" class="text-xs" style="color:rgba(240,237,232,0.3); background:none; border:none; cursor:pointer; padding:0;">Abmelden</button>
-</form>
+      <a href="{% url 'accounts:logout' %}" class="ml-auto text-xs"
+         style="color:rgba(240,237,232,0.3);">Abmelden</a>
     </div>
   </aside>
 

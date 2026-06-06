@@ -51,6 +51,7 @@
             <th>Zutat</th>
             <th>Menge</th>
             <th>Einheit</th>
+            <th>Allergene</th>
             <th>Hinweis</th>
           </tr>
         </thead>
@@ -73,6 +74,13 @@
               {% else %}
                 {{ item.unit }}
               {% endif %}
+            </td>
+            <td>
+              <div class="flex flex-wrap gap-1">
+                {% for a in item.ingredient.allergens.all %}
+                  <span class="badge badge-warn" style="font-size:0.58rem;">{{ a.short_code }}</span>
+                {% endfor %}
+              </div>
             </td>
             <td style="color:rgba(240,237,232,0.45); font-size:0.75rem;">{{ item.note }}</td>
           </tr>
@@ -113,7 +121,7 @@
         </div>
         {% endif %}
         <div>
-          <div class="section-mono mb-1">SKF</div>
+          <div class="section-mono mb-1">Diaet</div>
           <div class="flex gap-1 flex-wrap">
             {% if recipe.is_vegan %}<span class="badge badge-ok">Vegan</span>{% endif %}
             {% if recipe.is_vegetarian %}<span class="badge badge-ok">Vegetarisch</span>{% endif %}
@@ -145,14 +153,21 @@
       </div>
       <!-- Betroffene Teilnehmer -->
       {% if active_camp %}
-      {% with betroffene=recipe.allergens.all %}
       <div class="mt-4 pt-4" style="border-top:1px solid rgba(240,237,232,0.07);">
         <div class="section-mono mb-2">Betroffene Teilnehmer</div>
-        <div class="text-sm" style="color:#e07b54;">
-          Bitte vor dem Einsatz Teilnehmerliste pruefen.
-        </div>
+        {% if affected %}
+          <div class="flex flex-col gap-1">
+            {% for entry in affected %}
+              <a href="{% url 'camps:participant_detail' pk=entry.person.pk %}"
+                 style="color:#e07b54; font-size:0.82rem; text-decoration:none;">
+                {{ entry.person.full_name }}
+              </a>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="text-sm" style="color:rgba(240,237,232,0.35);">Keine betroffenen Teilnehmer.</div>
+        {% endif %}
       </div>
-      {% endwith %}
       {% endif %}
     </div>
     {% else %}

@@ -85,7 +85,8 @@ class Recipe(models.Model):
 
     def get_scaled_ingredients(self, num_persons: int):
         """Gibt Zutaten skaliert auf num_persons zurück."""
-        factor = num_persons / self.base_servings
+        from decimal import Decimal
+        factor = Decimal(str(num_persons)) / Decimal(str(self.base_servings))
         result = []
         for ri in self.recipe_ingredients.select_related("ingredient"):
             result.append({

@@ -1,0 +1,64 @@
+{% extends "base/base.html" %}
+
+{% block title %}SKF-Teilis – {{ camp.name }}{% endblock %}
+{% block page_title %}SKF-Teilis{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl">
+
+  <div class="section-mono mb-4">{{ participants|length }} Personen mit Einschränkungen</div>
+
+  {% if participants %}
+  <div class="card overflow-hidden">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>SKF</th>
+          <th>Unverträglichkeiten</th>
+          <th>Hinweise</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in participants %}
+        <tr>
+          <td>
+            <a href="{% url 'camps:participant_detail' pk=p.pk %}"
+               style="color:#e8a444; text-decoration:none; font-weight:500;">
+              {{ p.full_name }}
+            </a>
+          </td>
+          <td>
+            <div class="flex flex-wrap gap-1">
+              {% for flag in p.diet_flags %}
+                <span class="badge badge-ok" style="font-size:0.6rem;">{{ flag }}</span>
+              {% empty %}
+                <span style="color:rgba(240,237,232,0.3);">–</span>
+              {% endfor %}
+            </div>
+          </td>
+          <td>
+            <div class="flex flex-wrap gap-1">
+              {% for a in p.intolerances.all %}
+                <span class="badge badge-warn" style="font-size:0.6rem;">{{ a.name }}</span>
+              {% empty %}
+                <span style="color:rgba(240,237,232,0.3);">–</span>
+              {% endfor %}
+            </div>
+          </td>
+          <td style="color:rgba(240,237,232,0.5); font-size:0.8rem;">
+            {{ p.intolerance_notes|default:"" }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="card p-8 text-center" style="color:rgba(240,237,232,0.4);">
+    Keine Einschränkungen erfasst.
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

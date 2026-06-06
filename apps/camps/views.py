@@ -297,3 +297,25 @@ def allergen_overview(request, camp_pk):
         "camp": camp,
         "allergen_counts": allergen_counts,
     })
+
+
+
+
+@login_required
+def skf_list(request, camp_pk):
+    """Liste aller Teilnehmer mit SKF-Einschränkungen."""
+    camp = get_object_or_404(Camp, pk=camp_pk)
+    participants = list(
+        camp.participants
+        .prefetch_related("intolerances")
+        .order_by("last_name", "first_name")
+    )
+    skf_participants = [
+        p for p in participants
+        if p.is_vegan or p.is_vegetarian or p.is_halal or p.is_kosher
+        or p.intolerances.exists()
+    ]
+    return render(request, "camps/skf_list.html", {
+        "camp": camp,
+        "participants": skf_participants,
+    })

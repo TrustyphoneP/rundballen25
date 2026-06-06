@@ -13,6 +13,7 @@ urlpatterns = [
     path("freizeit/<int:camp_pk>/import/",             views.participant_csv_import, name="csv_import"),
     path("freizeit/<int:camp_pk>/export/",             views.participant_csv_export, name="csv_export"),
     path("freizeit/<int:camp_pk>/allergene/",          views.allergen_overview,  name="allergen_overview"),
+    path("freizeit/<int:camp_pk>/skf/",                views.skf_list,           name="skf_list"),
     path("teilnehmer/<int:pk>/",                       views.participant_detail, name="participant_detail"),
     path("teilnehmer/<int:pk>/bearbeiten/",            views.participant_edit,   name="participant_edit"),
     path("teilnehmer/<int:pk>/löschen/",              views.participant_delete, name="participant_delete"),

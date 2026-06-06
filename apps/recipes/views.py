@@ -50,7 +50,7 @@ def recipe_detail(request, pk):
         Recipe.objects.prefetch_related(
             "allergens",
             Prefetch("recipe_ingredients",
-                     queryset=RecipeIngredient.objects.select_related("ingredient"))
+                     queryset=RecipeIngredient.objects.select_related("ingredient").prefetch_related("ingredient__allergens"))
         ),
         pk=pk,
     )
@@ -64,10 +64,29 @@ def recipe_detail(request, pk):
 
     scaled = recipe.get_scaled_ingredients(persons)
 
+    # Betroffene Teilnehmer aus aktiver Freizeit
+    from apps.camps.models import Camp, Participant
+    affected = []
+    active_camp = Camp.objects.filter(is_active=True).first()
+    if active_camp and recipe.allergens.exists():
+        recipe_allergen_ids = set(recipe.allergens.values_list("pk", flat=True))
+        participants = (
+            Participant.objects
+            .filter(camp=active_camp, intolerances__in=recipe_allergen_ids)
+            .prefetch_related("intolerances")
+            .distinct()
+            .order_by("last_name", "first_name")
+        )
+        for p in participants:
+            matching = [a for a in p.intolerances.all() if a.pk in recipe_allergen_ids]
+            affected.append({"person": p, "allergens": matching})
+
     return render(request, "recipes/recipe_detail.html", {
-        "recipe":  recipe,
-        "persons": persons,
-        "scaled":  scaled,
+        "recipe":      recipe,
+        "persons":     persons,
+        "scaled":      scaled,
+        "affected":    affected,
+        "active_camp": active_camp,
     })
 
 
