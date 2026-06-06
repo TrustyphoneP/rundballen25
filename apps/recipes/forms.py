@@ -73,7 +73,7 @@ RecipeIngredientFormSet = inlineformset_factory(
 class IngredientForm(forms.ModelForm):
     class Meta:
         model  = Ingredient
-        fields = ["name", "allergens", "is_vegan", "is_fresh", "notes"]
+        fields = ["name", "allergens", "diet_type", "is_fresh", "notes"]
         widgets = {
             "allergens": forms.CheckboxSelectMultiple,
             "notes":     forms.TextInput(attrs={"placeholder": "Optionale Notiz"}),

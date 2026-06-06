@@ -117,9 +117,27 @@ class Ingredient(models.Model):
 
     name     = models.CharField(max_length=200, unique=True)
     allergens = models.ManyToManyField(Allergen, blank=True, related_name="ingredients")
-    is_vegan  = models.BooleanField(default=True)
+    class DietType(models.TextChoices):
+        VEGAN       = "vegan",       "Vegan"
+        VEGETARIAN  = "vegetarian",  "Vegetarisch"
+        MEAT        = "meat",        "Fleisch"
+
+    diet_type = models.CharField(
+        max_length=20,
+        choices=DietType.choices,
+        default=DietType.VEGAN,
+        verbose_name="SKF",
+    )
     is_fresh  = models.BooleanField(default=False, verbose_name="Frische Zutat", help_text="Frisch (z.B. Gemuese, Fleisch) oder trocken (z.B. Nudeln, Dosenware)")
     notes     = models.CharField(max_length=300, blank=True)
+
+    @property
+    def is_vegan(self):
+        return self.diet_type == self.DietType.VEGAN
+
+    @property
+    def is_vegetarian(self):
+        return self.diet_type in (self.DietType.VEGAN, self.DietType.VEGETARIAN)
 
     class Meta:
         ordering = ["name"]

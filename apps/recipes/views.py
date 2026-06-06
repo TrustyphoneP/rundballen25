@@ -4,6 +4,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
+from django.db import models
 from django.db.models import Q, Prefetch
 from django.views.decorators.http import require_GET
 
@@ -93,6 +94,28 @@ def recipe_detail(request, pk):
 
     all_allergens = Allergen.objects.filter(pk__in=all_allergen_ids).order_by("name")
 
+    # SKF-Warnung: Fleisch/Vegetarisch-Konflikt
+    from apps.camps.models import Participant
+    diet_types = set(
+        RecipeIngredient.objects
+        .filter(recipe=recipe)
+        .values_list("ingredient__diet_type", flat=True)
+    )
+    has_meat       = "meat" in diet_types
+    has_vegetarian = "vegetarian" in diet_types
+    is_fully_vegan = diet_types == {"vegan"} or diet_types == set()
+
+    skf_affected = []
+    if has_meat and active_camp:
+        skf_affected = list(
+            Participant.objects
+            .filter(camp=active_camp)
+            .filter(
+                models.Q(is_vegan=True) | models.Q(is_vegetarian=True)
+            )
+            .order_by("last_name", "first_name")
+        )
+
     return render(request, "recipes/recipe_detail.html", {
         "recipe":        recipe,
         "persons":       persons,
@@ -100,6 +123,10 @@ def recipe_detail(request, pk):
         "affected":      affected,
         "active_camp":   active_camp,
         "all_allergens": all_allergens,
+        "has_meat":      has_meat,
+        "has_vegetarian": has_vegetarian,
+        "is_fully_vegan": is_fully_vegan,
+        "skf_affected":  skf_affected,
     })
 
 

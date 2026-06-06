@@ -124,11 +124,82 @@ def participant_list(request, camp_pk):
 
 @login_required
 def participant_detail(request, pk):
+    from apps.meals.models import DayMeal
+    from apps.recipes.models import RecipeIngredient
+
     p = get_object_or_404(
         Participant.objects.prefetch_related("intolerances", "absent_dates"),
         pk=pk
     )
-    return render(request, "camps/participant_detail.html", {"person": p})
+
+    # Per-day meal conflict summary
+    person_allergen_ids = set(p.intolerances.values_list("pk", flat=True))
+    day_conflicts = []
+
+    day_meals = (
+        DayMeal.objects
+        .filter(day__camp=p.camp)
+        .select_related("day", "main_course", "dessert", "salad")
+        .order_by("day__date")
+    )
+
+    for dm in day_meals:
+        conflicts = []
+        slots = [
+            ("Hauptgericht", dm.main_course),
+            ("Dessert",      dm.dessert),
+            ("Salat",        dm.salad),
+        ]
+        for slot_name, recipe in slots:
+            if not recipe:
+                continue
+            issues = []
+
+            # Allergen conflicts
+            ingredient_ids = RecipeIngredient.objects.filter(recipe=recipe).values_list("ingredient_id", flat=True)
+            recipe_allergen_ids = set(
+                recipe.allergens.values_list("pk", flat=True)
+            ) | set(
+                type(p.intolerances.first()).objects.filter(
+                    ingredients__in=ingredient_ids
+                ).values_list("pk", flat=True)
+                if p.intolerances.exists() else []
+            )
+            matching_allergens = person_allergen_ids & recipe_allergen_ids
+            for allergen in p.intolerances.all():
+                if allergen.pk in matching_allergens:
+                    issues.append(f"enthält {allergen.name}")
+
+            # SKF conflicts
+            diet_types = set(
+                RecipeIngredient.objects
+                .filter(recipe=recipe)
+                .values_list("ingredient__diet_type", flat=True)
+            )
+            if p.is_vegan and "meat" in diet_types:
+                issues.append("enthält Fleisch (Teili ist Vegan)")
+            elif p.is_vegan and "vegetarian" in diet_types:
+                issues.append("enthält nicht-vegane Zutaten")
+            elif p.is_vegetarian and "meat" in diet_types:
+                issues.append("enthält Fleisch (Teili ist Vegetarisch)")
+
+            if issues:
+                conflicts.append({
+                    "slot": slot_name,
+                    "recipe": recipe.name,
+                    "issues": issues,
+                })
+
+        if conflicts:
+            day_conflicts.append({
+                "date": dm.day.date,
+                "conflicts": conflicts,
+            })
+
+    return render(request, "camps/participant_detail.html", {
+        "person":        p,
+        "day_conflicts": day_conflicts,
+    })
 
 
 # ---------------------------------------------------------------------------

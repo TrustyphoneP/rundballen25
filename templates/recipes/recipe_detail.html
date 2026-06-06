@@ -123,12 +123,34 @@
         <div>
           <div class="section-mono mb-1">SKF</div>
           <div class="flex gap-1 flex-wrap">
-            {% if recipe.is_vegan %}<span class="badge badge-ok">Vegan</span>{% endif %}
-            {% if recipe.is_vegetarian %}<span class="badge badge-ok">Vegetarisch</span>{% endif %}
-            {% if not recipe.is_vegan and not recipe.is_vegetarian %}
-              <span style="color:rgba(240,237,232,0.3); font-size:0.75rem;">Keine Einschränkung</span>
-            {% endif %}
+            {% if has_meat %}
+  <span class="badge badge-warn">Fleisch</span>
+{% endif %}
+{% if is_fully_vegan %}
+  <span class="badge badge-ok">Vegan</span>
+{% elif has_vegetarian %}
+  <span class="badge badge-ok">Vegetarisch</span>
+{% endif %}
+{% if not has_meat and not is_fully_vegan and not has_vegetarian %}
+  <span style="color:rgba(240,237,232,0.3); font-size:0.75rem;">Keine Einschränkung</span>
+{% endif %}
           </div>
+          {% if skf_affected %}
+          <div class="mt-3">
+            <div class="section-mono mb-1" style="color:#e07b54;">Betroffene SKF-Teilis</div>
+            <div class="flex flex-col gap-1">
+              {% for p in skf_affected %}
+                <a href="{% url 'camps:participant_detail' pk=p.pk %}"
+                   style="color:#e07b54; font-size:0.82rem; text-decoration:none;">
+                  {{ p.full_name }}
+                  <span style="color:rgba(240,237,232,0.35); font-size:0.7rem;">
+                    {% for flag in p.diet_flags %}{{ flag }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                  </span>
+                </a>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
         </div>
         {% if recipe.prep_time_min or recipe.cook_time_min %}
         <div>
@@ -154,7 +176,7 @@
       <!-- Betroffene Teilnehmer -->
       {% if active_camp %}
       <div class="mt-4 pt-4" style="border-top:1px solid rgba(240,237,232,0.07);">
-        <div class="section-mono mb-2">Betroffene Teilis</div>
+        <div class="section-mono mb-2">Betroffene Teilnehmer</div>
         {% if affected %}
           <div class="flex flex-col gap-1">
             {% for entry in affected %}
@@ -165,7 +187,7 @@
             {% endfor %}
           </div>
         {% else %}
-          <div class="text-sm" style="color:rgba(240,237,232,0.35);">Keine betroffenen Teilis.</div>
+          <div class="text-sm" style="color:rgba(240,237,232,0.35);">Keine betroffenen Teilnehmer.</div>
         {% endif %}
       </div>
       {% endif %}

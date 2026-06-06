@@ -19,12 +19,12 @@
         <div class="section-mono mb-1">Typ</div>
         <span class="badge badge-muted">{{ person.get_person_type_display }}</span>
       </div>
-     {% if person.age_at_camp %}
-<div>
-  <div class="section-mono mb-1">Alter</div>
-  <span>{{ person.age_at_camp }} Jahre</span>
-</div>
-{% endif %}
+      {% if person.age_at_camp %}
+      <div>
+        <div class="section-mono mb-1">Alter</div>
+        <span>{{ person.age_at_camp }} Jahre</span>
+      </div>
+      {% endif %}
       <div>
         <div class="section-mono mb-1">Freizeit</div>
         <span>{{ person.camp }}</span>
@@ -32,7 +32,7 @@
     </div>
   </div>
 
-  <!-- SKF -->
+  <!-- Diaet -->
   <div class="card p-6">
     <div class="section-mono mb-4">SKF</div>
     {% with person.diet_flags as flags %}
@@ -70,6 +70,36 @@
   <div class="card p-6">
     <div class="section-mono mb-4">Notizen</div>
     <div class="text-sm" style="color:rgba(240,237,232,0.7);">{{ person.notes }}</div>
+  </div>
+  {% endif %}
+
+  {% if day_conflicts %}
+  <div class="card p-6" style="border-color:rgba(224,123,84,0.25); background:rgba(224,123,84,0.04);">
+    <div class="section-mono mb-4" style="color:#e07b54;">Mahlzeiten-Konflikte</div>
+    <div class="grid gap-4">
+      {% for day in day_conflicts %}
+      <div>
+        <div class="text-xs font-mono mb-2" style="color:rgba(240,237,232,0.5);">
+          {{ day.date|date:"l, d. F Y" }}
+        </div>
+        {% for c in day.conflicts %}
+        <div class="mb-2 pl-3" style="border-left:2px solid rgba(224,123,84,0.4);">
+          <div class="text-sm font-medium mb-1" style="color:rgba(240,237,232,0.8);">
+            {{ c.slot }}: {{ c.recipe }}
+          </div>
+          {% for issue in c.issues %}
+          <div class="text-xs" style="color:#e07b54;">⚠ {{ issue }}</div>
+          {% endfor %}
+        </div>
+        {% endfor %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% elif person.has_restrictions %}
+  <div class="card p-6" style="border-color:rgba(76,175,125,0.2); background:rgba(76,175,125,0.04);">
+    <div class="section-mono mb-2" style="color:#4caf7d;">Mahlzeiten-Konflikte</div>
+    <div class="text-sm" style="color:rgba(240,237,232,0.4);">Keine Konflikte mit dem aktuellen Mahlzeitenplan.</div>
   </div>
   {% endif %}
 
