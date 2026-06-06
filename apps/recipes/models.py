@@ -105,15 +105,15 @@ class Ingredient(models.Model):
     """Zutat (Stammdaten)"""
 
     class Unit(models.TextChoices):
-        GRAM  = "g",   "Gramm"
-        KG    = "kg",  "Kilogramm"
-        ML    = "ml",  "Milliliter"
-        L     = "l",   "Liter"
-        PIECE = "Stk", "Stück"
-        TBL   = "EL",  "Esslöffel"
-        TSP   = "TL",  "Teelöffel"
-        PACK  = "Pck", "Packung"
-        BUNCH = "Bd",  "Bund"
+        GRAM  = "g",   "g"
+        KG    = "kg",  "kg"
+        ML    = "ml",  "ml"
+        L     = "l",   "l"
+        PIECE = "Stk", "Stk"
+        TBL   = "EL",  "EL"
+        TSP   = "TL",  "TL"
+        PACK  = "Pck", "Pck"
+        BUNCH = "Bd",  "Bd"
 
     name     = models.CharField(max_length=200, unique=True)
     allergens = models.ManyToManyField(Allergen, blank=True, related_name="ingredients")
