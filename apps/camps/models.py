@@ -10,7 +10,7 @@ class Camp(models.Model):
     start_date        = models.DateField(verbose_name="Beginn")
     end_date          = models.DateField(verbose_name="Ende")
     location          = models.CharField(max_length=200, blank=True, verbose_name="Ort")
-    participant_count = models.PositiveIntegerField(default=100, verbose_name="Teilnehmeranzahl (geplant)")
+    participant_count = models.PositiveIntegerField(default=100, verbose_name="Teilianzahl (geplant)")
     supervisor_count  = models.PositiveIntegerField(default=30,  verbose_name="Betreueranzahl")
     created_by        = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
@@ -70,7 +70,7 @@ class Participant(models.Model):
     """
 
     class PersonType(models.TextChoices):
-        PARTICIPANT = "participant", "Teilnehmer"
+        PARTICIPANT = "participant", "Teili"
         SUPERVISOR  = "supervisor",  "Betreuer"
 
     camp          = models.ForeignKey(Camp, on_delete=models.CASCADE, related_name="participants")
@@ -110,8 +110,8 @@ class Participant(models.Model):
 
     class Meta:
         ordering = ["last_name", "first_name"]
-        verbose_name = "Teilnehmer / Betreuer"
-        verbose_name_plural = "Teilnehmer / Betreuer"
+        verbose_name = "Teili / Betreuer"
+        verbose_name_plural = "Teili / Betreuer"
 
     def full_name(self):
         return f"{self.first_name} {self.last_name}"
