@@ -1,7 +1,7 @@
 {% extends "base/base.html" %}
 
-{% block title %}Teilnehmer – {{ camp.name }}{% endblock %}
-{% block page_title %}Teilnehmer &amp; Betreuer{% endblock %}
+{% block title %}Teilis – {{ camp.name }}{% endblock %}
+{% block page_title %}Teilis &amp; Betreuer{% endblock %}
 
 {% block topbar_actions %}
   <a href="{% url 'camps:csv_export' camp_pk=camp.pk %}" class="btn btn-ghost">CSV-Export</a>
@@ -109,7 +109,7 @@
   <div class="py-16 text-center" style="color:rgba(240,237,232,0.35);">
     <div class="font-display text-2xl mb-2">Keine Eintraege</div>
     <div class="text-sm">Filter anpassen oder
-      <a href="{% url 'camps:participant_create' camp_pk=camp.pk %}" style="color:#e8a444;">Teilnehmer hinzufügen</a>
+      <a href="{% url 'camps:participant_create' camp_pk=camp.pk %}" style="color:#e8a444;">Teili hinzufügen</a>
     </div>
   </div>
   {% endif %}

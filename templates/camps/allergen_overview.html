@@ -4,7 +4,7 @@
 {% block page_title %}Unverträglichkeiten{% endblock %}
 
 {% block topbar_actions %}
-  <a href="{% url 'camps:participant_list' camp_pk=camp.pk %}" class="btn btn-ghost">Zur Teilnehmerliste</a>
+  <a href="{% url 'camps:participant_list' camp_pk=camp.pk %}" class="btn btn-ghost">Zur Teililiste</a>
 {% endblock %}
 
 {% block content %}
@@ -47,7 +47,7 @@
 {% else %}
 <div class="card p-12 text-center" style="color:rgba(240,237,232,0.35);">
   <div class="font-display text-2xl mb-2">Keine Unverträglichkeiten erfasst</div>
-  <div class="text-sm">Beim Erfassen von Teilnehmern können Allergien angegeben werden.</div>
+  <div class="text-sm">Beim Erfassen von Teilis können Allergien angegeben werden.</div>
 </div>
 {% endif %}
 

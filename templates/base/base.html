@@ -132,7 +132,7 @@
       <div class="section-mono px-2 mb-2 mt-4">Personen</div>
       <a href="{% url 'camps:participant_list' camp_pk=active_camp.pk %}"
          class="nav-link {% if 'participant' in request.resolver_match.url_name %}active{% endif %}">
-        <div class="nav-dot"></div> Teilnehmer
+        <div class="nav-dot"></div> Teilis
       </a>
       <a href="{% url 'camps:allergen_overview' camp_pk=active_camp.pk %}"
          class="nav-link {% if request.resolver_match.url_name == 'allergen_overview' %}active{% endif %}">
