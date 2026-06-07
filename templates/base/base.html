@@ -161,6 +161,10 @@
            class="nav-link {% if 'shopping' in request.resolver_match.app_name %}active{% endif %}">
           <div class="nav-dot"></div> Einkaufsliste
         </a>
+        <a href="{% url 'camps:skf_briefing_days' camp_pk=active_camp.pk %}" @click="sidebarOpen = false"
+           class="nav-link {% if request.resolver_match.url_name == 'skf_briefing_days' or request.resolver_match.url_name == 'skf_briefing_day' %}active{% endif %}">
+          <div class="nav-dot"></div> SKF-Briefing
+        </a>
 
         <div class="section-mono px-2 mb-2 mt-4">Personen</div>
         <a href="{% url 'camps:participant_list' camp_pk=active_camp.pk %}" @click="sidebarOpen = false"

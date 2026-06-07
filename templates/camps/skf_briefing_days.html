@@ -1,0 +1,47 @@
+{% extends "base/base.html" %}
+
+{% block title %}SKF-Briefing – {{ camp.name }}{% endblock %}
+{% block page_title %}SKF-Briefing{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl">
+  <div class="section-mono mb-4">{{ skf_count }} Teilis mit Einschränkungen · Tage auswählen</div>
+
+  {% if days %}
+  <div class="card overflow-hidden">
+    {% for d in days %}
+    <a href="{% url 'camps:skf_briefing_day' camp_pk=camp.pk day_pk=d.day.pk %}"
+       style="display:flex; align-items:center; padding:14px 20px; border-bottom:1px solid rgba(240,237,232,0.06); text-decoration:none; transition:background 0.12s;"
+       onmouseover="this.style.background='rgba(255,255,255,0.03)'"
+       onmouseout="this.style.background=''">
+      <div class="flex-1">
+        <div style="font-size:0.85rem; color:rgba(240,237,232,0.85);">
+          {{ d.day.date|date:"l, d. F Y" }}
+        </div>
+        <div class="section-mono mt-1">
+          {% if d.dm.main_course %}{{ d.dm.main_course.name }}{% endif %}
+          {% if d.dm.dessert %} · {{ d.dm.dessert.name }}{% endif %}
+          {% if d.dm.salad %} · {{ d.dm.salad.name }}{% endif %}
+          {% if not d.dm.main_course and not d.dm.dessert and not d.dm.salad %}Kein Rezept geplant{% endif %}
+        </div>
+      </div>
+      {% if d.conflict_count %}
+      <span style="background:#e07b54;color:#fff;font-family:'DM Mono',monospace;font-size:0.6rem;padding:2px 8px;border-radius:999px;margin-left:12px;">
+        {{ d.conflict_count }} Konflikt{{ d.conflict_count|pluralize:",e" }}
+      </span>
+      {% else %}
+      <span style="color:rgba(76,175,125,0.7);font-family:'DM Mono',monospace;font-size:0.6rem;margin-left:12px;">✓</span>
+      {% endif %}
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 ml-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color:rgba(240,237,232,0.2);">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+      </svg>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="card p-8 text-center" style="color:rgba(240,237,232,0.4);">
+    Noch keine Tage im Mahlzeitenplan.
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

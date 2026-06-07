@@ -1,0 +1,96 @@
+{% extends "base/base.html" %}
+
+{% block title %}SKF-Briefing {{ day.date|date:"d.m." }} – {{ camp.name }}{% endblock %}
+{% block page_title %}SKF-Briefing · {{ day.date|date:"l, d. F" }}{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{% url 'camps:skf_briefing_days' camp_pk=camp.pk %}" class="btn btn-ghost">← Alle Tage</a>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl">
+
+  <!-- Meals overview -->
+  {% if dm %}
+  <div class="card p-4 mb-6">
+    <div class="section-mono mb-3">Mahlzeiten</div>
+    <div class="grid grid-cols-3 gap-3">
+      <div>
+        <div class="section-mono mb-1">Hauptgericht</div>
+        <div style="font-size:0.82rem; color:rgba(240,237,232,0.8);">
+          {{ dm.main_course.name|default:"–" }}
+        </div>
+      </div>
+      <div>
+        <div class="section-mono mb-1">Dessert</div>
+        <div style="font-size:0.82rem; color:rgba(240,237,232,0.8);">
+          {{ dm.dessert.name|default:"–" }}
+        </div>
+      </div>
+      <div>
+        <div class="section-mono mb-1">Salat</div>
+        <div style="font-size:0.82rem; color:rgba(240,237,232,0.8);">
+          {{ dm.salad.name|default:"–" }}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Briefing -->
+  {% if briefing %}
+  <div class="section-mono mb-3">{{ briefing|length }} Teili{{ briefing|length|pluralize:",s" }} mit Konflikten</div>
+  <div class="grid gap-4">
+    {% for entry in briefing %}
+    <div class="card p-5" style="border-color:rgba(224,123,84,0.2);">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-mono flex-shrink-0"
+             style="background:#2a6275; color:#e8a444;">
+          {{ entry.person.first_name|slice:":1" }}{{ entry.person.last_name|slice:":1" }}
+        </div>
+        <div>
+          <a href="{% url 'camps:participant_detail' pk=entry.person.pk %}"
+             style="color:#e8a444; text-decoration:none; font-size:0.9rem; font-weight:500;">
+            {{ entry.person.full_name }}
+          </a>
+          <div class="flex flex-wrap gap-1 mt-1">
+            {% for flag in entry.person.diet_flags %}
+              <span class="badge badge-ok">{{ flag }}</span>
+            {% endfor %}
+            {% for a in entry.person.intolerances.all %}
+              <span class="badge badge-warn">{{ a.short_code }}</span>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      {% for slot in entry.issues %}
+      <div class="mb-3 pl-3" style="border-left:2px solid rgba(224,123,84,0.35);">
+        <div class="section-mono mb-2">{{ slot.slot }}: {{ slot.recipe }}</div>
+        {% for issue in slot.issues %}
+        <div class="mb-2">
+          <div style="font-size:0.8rem; color:#e07b54; font-weight:500;">⚠ {{ issue.action }}</div>
+          {% if issue.ingredients %}
+          <div class="flex flex-wrap gap-1 mt-1">
+            {% for ing in issue.ingredients %}
+              <span style="font-size:0.7rem; background:rgba(224,123,84,0.1); border:1px solid rgba(224,123,84,0.25); border-radius:6px; padding:1px 7px; color:rgba(240,237,232,0.6);">{{ ing }}</span>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+
+  {% else %}
+  <div class="card p-8 text-center" style="color:rgba(76,175,125,0.7);">
+    <div style="font-size:1.2rem; margin-bottom:8px;">✓</div>
+    <div>Keine SKF-Konflikte für diesen Tag.</div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

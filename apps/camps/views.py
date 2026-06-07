@@ -390,3 +390,199 @@ def skf_list(request, camp_pk):
         "camp": camp,
         "participants": skf_participants,
     })
+
+
+@login_required
+def skf_briefing_days(request, camp_pk):
+    """Übersicht aller Tage mit SKF-Konflikten."""
+    from apps.meals.models import DayMeal
+    from apps.recipes.models import RecipeIngredient
+
+    camp = get_object_or_404(Camp, pk=camp_pk)
+
+    # All SKF participants
+    skf_participants = list(
+        camp.participants
+        .prefetch_related("intolerances")
+        .filter(
+            Q(is_vegan=True) | Q(is_vegetarian=True) |
+            Q(is_halal=True) | Q(is_kosher=True) |
+            Q(intolerances__isnull=False)
+        )
+        .distinct()
+    )
+    skf_allergen_ids = set()
+    for p in skf_participants:
+        for a in p.intolerances.all():
+            skf_allergen_ids.add(a.pk)
+
+    day_meals = (
+        DayMeal.objects
+        .filter(day__camp=camp)
+        .select_related("day", "main_course", "dessert", "salad")
+        .order_by("day__date")
+    )
+
+    days = []
+    for dm in day_meals:
+        conflict_count = 0
+        for recipe in [dm.main_course, dm.dessert, dm.salad]:
+            if not recipe:
+                continue
+            ingredient_ids = RecipeIngredient.objects.filter(recipe=recipe).values_list("ingredient_id", flat=True)
+            recipe_allergen_ids = set(
+                type(skf_participants[0].intolerances.first()).objects
+                .filter(ingredients__in=ingredient_ids)
+                .values_list("pk", flat=True)
+            ) if skf_participants and skf_participants[0].intolerances.exists() else set()
+            recipe_allergen_ids |= set(recipe.allergens.values_list("pk", flat=True))
+
+            diet_types = set(
+                RecipeIngredient.objects
+                .filter(recipe=recipe)
+                .values_list("ingredient__diet_type", flat=True)
+            )
+            has_meat = "meat" in diet_types
+            has_allergen = bool(skf_allergen_ids & recipe_allergen_ids)
+            if has_meat or has_allergen:
+                conflict_count += 1
+
+        days.append({
+            "day":            dm.day,
+            "dm":             dm,
+            "conflict_count": conflict_count,
+        })
+
+    return render(request, "camps/skf_briefing_days.html", {
+        "camp":              camp,
+        "days":              days,
+        "skf_count":         len(skf_participants),
+    })
+
+
+@login_required
+def skf_briefing_day(request, camp_pk, day_pk):
+    """SKF-Briefing für einen einzelnen Tag."""
+    from apps.meals.models import DayMeal
+    from apps.recipes.models import RecipeIngredient, Allergen
+    from apps.camps.models import CampDay
+
+    camp    = get_object_or_404(Camp, pk=camp_pk)
+    day     = get_object_or_404(CampDay, pk=day_pk, camp=camp)
+    dm      = getattr(day, "day_meal", None)
+
+    skf_participants = list(
+        camp.participants
+        .prefetch_related("intolerances")
+        .filter(
+            Q(is_vegan=True) | Q(is_vegetarian=True) |
+            Q(is_halal=True) | Q(is_kosher=True) |
+            Q(intolerances__isnull=False)
+        )
+        .distinct()
+        .order_by("last_name", "first_name")
+    )
+
+    briefing = []
+
+    for p in skf_participants:
+        person_allergen_ids = set(p.intolerances.values_list("pk", flat=True))
+        issues = []
+
+        if dm:
+            slots = [
+                ("Hauptgericht", dm.main_course),
+                ("Dessert",      dm.dessert),
+                ("Salat",        dm.salad),
+            ]
+            for slot_name, recipe in slots:
+                if not recipe:
+                    continue
+
+                ingredient_ids = list(
+                    RecipeIngredient.objects
+                    .filter(recipe=recipe)
+                    .values_list("ingredient_id", flat=True)
+                )
+                recipe_allergen_ids = set(
+                    Allergen.objects
+                    .filter(ingredients__in=ingredient_ids)
+                    .values_list("pk", flat=True)
+                ) | set(recipe.allergens.values_list("pk", flat=True))
+
+                diet_types = set(
+                    RecipeIngredient.objects
+                    .filter(recipe=recipe)
+                    .values_list("ingredient__diet_type", flat=True)
+                )
+
+                slot_issues = []
+
+                # Allergen conflicts
+                for allergen in p.intolerances.all():
+                    if allergen.pk in recipe_allergen_ids:
+                        # Find the specific ingredients causing the issue
+                        bad_ingredients = list(
+                            RecipeIngredient.objects
+                            .filter(recipe=recipe, ingredient__allergens=allergen)
+                            .select_related("ingredient")
+                            .values_list("ingredient__name", flat=True)
+                        )
+                        slot_issues.append({
+                            "type":        "allergen",
+                            "allergen":    allergen.name,
+                            "ingredients": bad_ingredients,
+                            "action":      f"Ersetze {', '.join(bad_ingredients)} durch {allergen.name}-freie Alternative",
+                        })
+
+                # SKF conflicts
+                if p.is_vegan and "meat" in diet_types:
+                    bad = list(RecipeIngredient.objects.filter(
+                        recipe=recipe, ingredient__diet_type="meat"
+                    ).values_list("ingredient__name", flat=True))
+                    slot_issues.append({
+                        "type":        "skf",
+                        "allergen":    "Fleisch",
+                        "ingredients": bad,
+                        "action":      f"Vegane Alternative für {', '.join(bad)}",
+                    })
+                elif p.is_vegan and "vegetarian" in diet_types:
+                    bad = list(RecipeIngredient.objects.filter(
+                        recipe=recipe, ingredient__diet_type="vegetarian"
+                    ).values_list("ingredient__name", flat=True))
+                    slot_issues.append({
+                        "type":        "skf",
+                        "allergen":    "Nicht vegan",
+                        "ingredients": bad,
+                        "action":      f"Vegane Alternative für {', '.join(bad)}",
+                    })
+                elif p.is_vegetarian and "meat" in diet_types:
+                    bad = list(RecipeIngredient.objects.filter(
+                        recipe=recipe, ingredient__diet_type="meat"
+                    ).values_list("ingredient__name", flat=True))
+                    slot_issues.append({
+                        "type":        "skf",
+                        "allergen":    "Fleisch",
+                        "ingredients": bad,
+                        "action":      f"Vegetarische Alternative für {', '.join(bad)}",
+                    })
+
+                if slot_issues:
+                    issues.append({
+                        "slot":   slot_name,
+                        "recipe": recipe.name,
+                        "issues": slot_issues,
+                    })
+
+        if issues:
+            briefing.append({
+                "person": p,
+                "issues": issues,
+            })
+
+    return render(request, "camps/skf_briefing_day.html", {
+        "camp":     camp,
+        "day":      day,
+        "dm":       dm,
+        "briefing": briefing,
+    })
