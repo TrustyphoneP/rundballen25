@@ -4,7 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#1e4c59">
-  <title>{% block title %}rundballen25{% endblock %}</title>
+  <title>{% block title %}rundballen24{% endblock %}</title>
+  {% load static %}
+  <link rel="icon" type="image/x-icon" href="{% static 'favicon.ico' %}?v=2">
+  <link rel="icon" type="image/png" sizes="32x32" href="{% static 'favicon-32x32.png' %}?v=2">
+  <link rel="apple-touch-icon" href="{% static 'apple-touch-icon.png' %}?v=2">
 
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -52,9 +56,7 @@
       outline:none !important;
       width:100%;
     }
-    input:focus, select:focus, textarea:focus {
-      border-color:#3a7a8f !important;
-    }
+    input:focus, select:focus, textarea:focus { border-color:#3a7a8f !important; }
     input::placeholder { color:rgba(240,237,232,0.35) !important; }
     select option { background:#122f38; }
     label.check-label { display:flex; align-items:center; gap:6px; cursor:pointer; font-size:0.8rem; }
@@ -72,7 +74,7 @@
              font-size:0.58rem; padding:2px 7px; border-radius:999px; border:1px solid; white-space:nowrap; }
     .badge-warn { color:#e07b54; border-color:rgba(224,123,84,0.35); background:rgba(224,123,84,0.1); }
     .badge-ok   { color:#4caf7d; border-color:rgba(76,175,125,0.35); background:rgba(76,175,125,0.1); }
-    .badge-blü { color:#e8a444; border-color:rgba(232,164,68,0.3);  background:rgba(232,164,68,0.1); }
+    .badge-blü  { color:#e8a444; border-color:rgba(232,164,68,0.3);  background:rgba(232,164,68,0.1); }
     .badge-muted{ color:rgba(240,237,232,0.45); border-color:rgba(240,237,232,0.12); background:transparent; }
     .card { background:rgba(255,255,255,0.04); border:1px solid rgba(240,237,232,0.09); border-radius:12px; }
     .section-mono { font-family:'DM Mono',monospace; font-size:0.58rem; letter-spacing:0.18em;
@@ -88,113 +90,158 @@
     .flash-success { background:rgba(76,175,125,0.1); border-color:rgba(76,175,125,0.3); color:#4caf7d; }
     .flash-warning { background:rgba(224,123,84,0.1); border-color:rgba(224,123,84,0.3); color:#e07b54; }
     .flash-error   { background:rgba(224,123,84,0.15); border-color:rgba(224,123,84,0.4); color:#e07b54; }
+    /* Mobile sidebar overlay */
+    .sidebar-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:40; }
+    .sidebar-drawer  { position:fixed; top:0; left:0; height:100%; width:224px; z-index:50;
+                       transition:transform 0.25s ease; }
   </style>
   {% block extra_head %}{% endblock %}
 </head>
-<body class="h-full bg-p-dark text-white font-sans antialiased flex overflow-hidden">
+<body class="h-full bg-p-dark text-white font-sans antialiased"
+      x-data="{ sidebarOpen: false }"
+      @keydown.escape.window="sidebarOpen = false">
 
-  <!-- SIDEBAR -->
-  <aside class="w-56 flex-shrink-0 flex flex-col border-r h-full overflow-hidden"
-         style="background:#1e4c59; border-color:rgba(240,237,232,0.09);">
-    <!-- Logo -->
-    <div class="px-5 py-4 border-b" style="border-color:rgba(240,237,232,0.09);">
-      <a href="{% url 'camps:dashboard' %}" class="block">
-        <div class="font-display text-xl leading-none">
-          rundballen<span style="color:#e8a444">24</span>
-        </div>
-        <div class="section-mono mt-1">Freizeit-Planung</div>
-      </a>
-    </div>
+  <!-- MOBILE OVERLAY -->
+  <div class="sidebar-overlay lg:hidden"
+       x-show="sidebarOpen"
+       x-transition:enter="transition-opacity duration-200"
+       x-transition:enter-start="opacity-0"
+       x-transition:enter-end="opacity-100"
+       x-transition:leave="transition-opacity duration-200"
+       x-transition:leave-start="opacity-100"
+       x-transition:leave-end="opacity-0"
+       @click="sidebarOpen = false"
+       style="display:none;">
+  </div>
 
-    <!-- Nav -->
-    <nav class="flex-1 px-3 py-3 overflow-y-auto">
-      <div class="section-mono px-2 mb-2 mt-1">Uebersicht</div>
-      <a href="{% url 'camps:dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
-        <div class="nav-dot"></div> Dashboard
-      </a>
+  <div class="flex h-full overflow-hidden">
 
-      {% if active_camp %}
-      <div class="section-mono px-2 mb-2 mt-4">Planung</div>
-      <a href="{% if active_camp %}{% url 'meals:week_plan' camp_pk=active_camp.pk %}{% else %}{% url 'meals:index' %}{% endif %}" class="nav-link {% if 'meals' in request.resolver_match.app_name %}active{% endif %}">
-        <div class="nav-dot"></div> Wochenplan
-      </a>
-      <a href="#" class="nav-link">
-        <div class="nav-dot"></div> Brotplanung
-      </a>
-      <a href="{% url 'recipes:list' %}"
-         class="nav-link {% if 'recipes' in request.resolver_match.app_name %}active{% endif %}">
-        <div class="nav-dot"></div> Rezepte
-      </a>
-      <a href="{% url 'shopping:create_from_plan' %}" class="nav-link {% if 'shopping' in request.resolver_match.app_name %}active{% endif %}">
-        <div class="nav-dot"></div> Einkaufsliste
-      </a>
+    <!-- SIDEBAR (desktop: always visible, mobile: drawer) -->
+    <aside class="sidebar-drawer lg:relative lg:translate-x-0 lg:flex lg:flex-col w-56 flex-shrink-0 border-r h-full overflow-hidden"
+           style="background:#1e4c59; border-color:rgba(240,237,232,0.09);"
+           :class="sidebarOpen ? 'flex flex-col translate-x-0' : '-translate-x-full lg:translate-x-0 lg:flex lg:flex-col'">
 
-      <div class="section-mono px-2 mb-2 mt-4">Personen</div>
-      <a href="{% url 'camps:participant_list' camp_pk=active_camp.pk %}"
-         class="nav-link {% if 'participant' in request.resolver_match.url_name %}active{% endif %}">
-        <div class="nav-dot"></div> Teilis
-      </a>
-      <a href="{% url 'camps:allergen_overview' camp_pk=active_camp.pk %}"
-         class="nav-link {% if request.resolver_match.url_name == 'allergen_overview' %}active{% endif %}">
-        <div class="nav-dot"></div> Unverträglichkeiten
-      </a>
-      <a href="{% url 'camps:skf_list' camp_pk=active_camp.pk %}"
-         class="nav-link {% if request.resolver_match.url_name == 'skf_list' %}active{% endif %}">
-        <div class="nav-dot"></div> SKF-Teilis
-        {% if stats.mit_intol %}
-        <span class="ml-auto" style="background:#e07b54;color:#fff;font-family:'DM Mono',monospace;font-size:0.55rem;padding:1px 5px;border-radius:999px;">
-          {{ stats.mit_intol }}
-        </span>
+      <!-- Logo -->
+      <div class="px-5 py-4 border-b flex items-center justify-between" style="border-color:rgba(240,237,232,0.09);">
+        <a href="{% url 'camps:dashboard' %}" class="block">
+          <div class="font-display text-xl leading-none">
+            rundballen<span style="color:#e8a444">24</span>
+          </div>
+          <div class="section-mono mt-1">Freizeit-Planung</div>
+        </a>
+        <!-- Close button (mobile only) -->
+        <button class="lg:hidden p-1 rounded" style="color:rgba(240,237,232,0.5);"
+                @click="sidebarOpen = false">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Nav -->
+      <nav class="flex-1 px-3 py-3 overflow-y-auto">
+        <div class="section-mono px-2 mb-2 mt-1">Übersicht</div>
+        <a href="{% url 'camps:dashboard' %}" @click="sidebarOpen = false"
+           class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+          <div class="nav-dot"></div> Dashboard
+        </a>
+
+        {% if active_camp %}
+        <div class="section-mono px-2 mb-2 mt-4">Planung</div>
+        <a href="{% url 'meals:week_plan' camp_pk=active_camp.pk %}" @click="sidebarOpen = false"
+           class="nav-link {% if 'meals' in request.resolver_match.app_name %}active{% endif %}">
+          <div class="nav-dot"></div> Wochenplan
+        </a>
+        <a href="#" class="nav-link"><div class="nav-dot"></div> Brotplanung</a>
+        <a href="{% url 'recipes:list' %}" @click="sidebarOpen = false"
+           class="nav-link {% if 'recipes' in request.resolver_match.app_name %}active{% endif %}">
+          <div class="nav-dot"></div> Rezepte
+        </a>
+        <a href="{% url 'shopping:create_from_plan' %}" @click="sidebarOpen = false"
+           class="nav-link {% if 'shopping' in request.resolver_match.app_name %}active{% endif %}">
+          <div class="nav-dot"></div> Einkaufsliste
+        </a>
+
+        <div class="section-mono px-2 mb-2 mt-4">Personen</div>
+        <a href="{% url 'camps:participant_list' camp_pk=active_camp.pk %}" @click="sidebarOpen = false"
+           class="nav-link {% if 'participant' in request.resolver_match.url_name %}active{% endif %}">
+          <div class="nav-dot"></div> Teilis
+        </a>
+        <a href="{% url 'camps:allergen_overview' camp_pk=active_camp.pk %}" @click="sidebarOpen = false"
+           class="nav-link {% if request.resolver_match.url_name == 'allergen_overview' %}active{% endif %}">
+          <div class="nav-dot"></div> Unverträglichkeiten
+        </a>
+        <a href="{% url 'camps:skf_list' camp_pk=active_camp.pk %}" @click="sidebarOpen = false"
+           class="nav-link {% if request.resolver_match.url_name == 'skf_list' %}active{% endif %}">
+          <div class="nav-dot"></div> SKF-Teilis
+          {% if stats.mit_intol %}
+          <span class="ml-auto" style="background:#e07b54;color:#fff;font-family:'DM Mono',monospace;font-size:0.55rem;padding:1px 5px;border-radius:999px;">
+            {{ stats.mit_intol }}
+          </span>
+          {% endif %}
+        </a>
+
+        <div class="section-mono px-2 mb-2 mt-4">Weiteres</div>
+        <a href="#" class="nav-link"><div class="nav-dot"></div> Feedback</a>
+        <a href="{% url 'voting:index' %}" @click="sidebarOpen = false"
+           class="nav-link {% if 'voting' in request.resolver_match.app_name %}active{% endif %}">
+          <div class="nav-dot"></div> Abstimmung
+        </a>
         {% endif %}
-      </a>
+      </nav>
 
-      <div class="section-mono px-2 mb-2 mt-4">Weiteres</div>
-      <a href="#" class="nav-link"><div class="nav-dot"></div> Feedback</a>
-      <a href="{% url 'voting:index' %}" class="nav-link {% if 'voting' in request.resolver_match.app_name %}active{% endif %}"><div class="nav-dot"></div> Abstimmung</a>
-      {% endif %}
-    </nav>
-
-    <!-- User -->
-    <div class="px-4 py-3 border-t flex items-center gap-3" style="border-color:rgba(240,237,232,0.09);">
-      <div class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-mono flex-shrink-0"
-           style="background:#2a6275; color:#e8a444;">
-        {{ request.user.get_initials|default:request.user.username|slice:":2"|upper }}
-      </div>
-      <div class="min-w-0">
-        <div class="text-sm font-medium truncate">{{ request.user.get_full_name|default:request.user.username }}</div>
-        <div class="text-xs truncate" style="color:rgba(240,237,232,0.4);">
-          {{ request.user.get_role_display|default:"Benutzer" }}
+      <!-- User -->
+      <div class="px-4 py-3 border-t flex items-center gap-3" style="border-color:rgba(240,237,232,0.09);">
+        <div class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-mono flex-shrink-0"
+             style="background:#2a6275; color:#e8a444;">
+          {{ request.user.get_initials|default:request.user.username|slice:":2"|upper }}
         </div>
+        <div class="min-w-0">
+          <div class="text-sm font-medium truncate">{{ request.user.get_full_name|default:request.user.username }}</div>
+          <div class="text-xs truncate" style="color:rgba(240,237,232,0.4);">
+            {{ request.user.get_role_display|default:"Benutzer" }}
+          </div>
+        </div>
+        <form method="post" action="{% url 'accounts:logout' %}" class="ml-auto">
+          {% csrf_token %}
+          <button type="submit" class="text-xs" style="color:rgba(240,237,232,0.3); background:none; border:none; cursor:pointer; padding:0;">Abmelden</button>
+        </form>
       </div>
-      <form method="post" action="{% url 'accounts:logout' %}" class="ml-auto">
-  {% csrf_token %}
-  <button type="submit" class="text-xs" style="color:rgba(240,237,232,0.3); background:none; border:none; cursor:pointer; padding:0;">Abmelden</button>
-</form>
+    </aside>
+
+    <!-- MAIN -->
+    <div class="flex-1 flex flex-col overflow-hidden min-w-0">
+
+      <!-- Topbar -->
+      <header class="flex items-center gap-3 px-4 lg:px-6 border-b flex-shrink-0"
+              style="height:52px; border-color:rgba(240,237,232,0.09); background:rgba(18,47,56,0.6); backdrop-filter:blur(8px);">
+        <!-- Hamburger (mobile only) -->
+        <button class="lg:hidden p-1 rounded flex-shrink-0" style="color:rgba(240,237,232,0.6);"
+                @click="sidebarOpen = true">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+          </svg>
+        </button>
+        <h1 class="font-display text-lg flex-1 truncate">{% block page_title %}{% endblock %}</h1>
+        {% if active_camp %}
+        <span class="badge badge-muted hidden sm:inline-flex">{{ active_camp.name }}</span>
+        {% endif %}
+        <div class="flex items-center gap-2 flex-shrink-0">
+          {% block topbar_actions %}{% endblock %}
+        </div>
+      </header>
+
+      <!-- Content -->
+      <main class="flex-1 overflow-y-auto p-4 lg:p-6">
+        {% if messages %}
+          {% for msg in messages %}
+          <div class="flash flash-{{ msg.tags }}">{{ msg }}</div>
+          {% endfor %}
+        {% endif %}
+        {% block content %}{% endblock %}
+      </main>
     </div>
-  </aside>
 
-  <!-- MAIN -->
-  <div class="flex-1 flex flex-col overflow-hidden min-w-0">
-
-    <!-- Topbar -->
-    <header class="flex items-center gap-4 px-6 border-b flex-shrink-0"
-            style="height:52px; border-color:rgba(240,237,232,0.09); background:rgba(18,47,56,0.6); backdrop-filter:blur(8px);">
-      <h1 class="font-display text-lg flex-1">{% block page_title %}{% endblock %}</h1>
-      {% if active_camp %}
-      <span class="badge badge-blue">{{ active_camp.name }}</span>
-      {% endif %}
-      {% block topbar_actions %}{% endblock %}
-    </header>
-
-    <!-- Content -->
-    <main class="flex-1 overflow-y-auto p-6">
-      {% if messages %}
-        {% for msg in messages %}
-        <div class="flash flash-{{ msg.tags }}">{{ msg }}</div>
-        {% endfor %}
-      {% endif %}
-      {% block content %}{% endblock %}
-    </main>
   </div>
 
 </body>
