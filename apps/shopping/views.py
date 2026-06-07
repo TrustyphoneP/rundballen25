@@ -34,11 +34,11 @@ def index(request):
 def create_from_plan(request):
     active_camp = Camp.objects.filter(is_active=True).first()
 
-    # GET: direkt generieren wenn aktives Camp vorhanden
-    if request.method == "GET" and active_camp:
+    # Always generate for active camp on GET or POST
+    if active_camp:
         return _generate_from_plan(request, active_camp)
 
-    # Mehrere Camps: Auswahl anzeigen
+    # No active camp: show selection form
     form = ShoppingListFromPlanForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         camp = form.cleaned_data["camp"]
@@ -77,7 +77,7 @@ def _generate_from_plan(request, camp):
 
     created = []
     for sd in shopping_days:
-        items = build_shopping_day_items(camp, sd, all_day_meals)
+        items, fruehstueck_extras = build_shopping_day_items(camp, sd, all_day_meals)
 
         sl = ShoppingList.objects.create(
             camp=camp,
@@ -92,10 +92,16 @@ def _generate_from_plan(request, camp):
                 ingredient=v["ingredient"],
                 amount=v["amount"],
                 unit=v["unit"],
-                notes="frisch" if v["is_fresh"] else "trocken",
+                notes=v.get("source", "frisch" if v["is_fresh"] else "trocken"),
             )
             for v in items.values()
         ])
+        # Store Frühstück extras in list notes for display
+        if fruehstueck_extras:
+            sl.notes += "\n__fruehstueck__:" + "|".join(
+                f"{e['name']}:{e['amount']}:{e['unit']}" for e in fruehstueck_extras
+            )
+            sl.save(update_fields=["notes"])
         created.append((sd, sl))
 
     if not any(sl.items.count() > 0 for _, sl in created):
@@ -127,11 +133,27 @@ def plan_overview(request, camp_pk):
     # Listen und Einkaufstage zusammenfuehren
     paired = list(zip(shopping_days, lists)) if lists else []
 
+    # Parse fruehstueck extras from notes for display
+    paired_with_extras = []
+    for sd, sl in paired:
+        extras = []
+        if "__fruehstueck__:" in sl.notes:
+            raw = sl.notes.split("__fruehstueck__:")[1]
+            for entry in raw.split("|"):
+                parts = entry.split(":")
+                if len(parts) == 3:
+                    try:
+                        extras.append({"name": parts[0], "amount": float(parts[1]), "unit": parts[2]})
+                    except ValueError:
+                        pass
+        paired_with_extras.append((sd, sl, extras))
+
     return render(request, "shopping/plan_overview.html", {
-        "camp":          camp,
-        "lists":         lists,
-        "shopping_days": shopping_days,
-        "paired":        paired,
+        "camp":               camp,
+        "lists":              lists,
+        "shopping_days":      shopping_days,
+        "paired":             paired,
+        "paired_with_extras": paired_with_extras,
     })
 
 
@@ -263,7 +285,7 @@ def export_csv(request, pk):
     )
     response.write("\ufeff")
     writer = csv.writer(response, delimiter=";")
-    writer.writerow(["Zutat", "Menge", "Einheit", "Typ", "Notiz", "Gekauft"])
+    writer.writerow(["Zutat", "Menge", "Einheit", "Typ", "Kategorie", "Zutaten-Notiz", "Gekauft"])
     for item in sl.items.select_related("ingredient").order_by("ingredient__is_fresh", "ingredient__name"):
         writer.writerow([
             item.ingredient.name,
@@ -271,6 +293,7 @@ def export_csv(request, pk):
             item.unit,
             "frisch" if item.ingredient.is_fresh else "trocken",
             item.notes,
+            item.ingredient.notes,
             "Ja" if item.is_bought else "Nein",
         ])
     return response
@@ -288,3 +311,63 @@ def delete_list(request, pk):
     sl.delete()
     messages.success(request, "Einkaufsliste geloescht.")
     return redirect("shopping:plan_overview", camp_pk=camp_pk)
+
+
+# ---------------------------------------------------------------------------
+# Kombinierter CSV-Export (alle Listen eines Camps)
+# ---------------------------------------------------------------------------
+
+@login_required
+def export_csv_combined(request, camp_pk):
+    camp  = get_object_or_404(Camp, pk=camp_pk)
+    lists = ShoppingList.objects.filter(camp=camp).order_by("from_date").prefetch_related("items__ingredient")
+
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = (
+        f'attachment; filename="einkauf_{slugify(camp.name)}_gesamt.csv"'
+    )
+    response.write("\ufeff")
+    writer = csv.writer(response, delimiter=";")
+    writer.writerow(["Lieferung", "Datum", "Kategorie", "Artikel", "Menge", "Einheit", "Typ", "Zutaten-Notiz", "Gekauft"])
+
+    shopping_days = get_shopping_days(camp)
+
+    for i, sl in enumerate(lists):
+        sd = shopping_days[i] if i < len(shopping_days) else None
+        label = sd.label if sd else f"Lieferung {i+1}"
+        datum = sl.from_date.strftime("%d.%m.%Y")
+
+        for item in sl.items.select_related("ingredient").order_by("notes", "ingredient__name"):
+            writer.writerow([
+                label,
+                datum,
+                item.notes,
+                item.ingredient.name,
+                str(item.amount).replace(".", ","),
+                item.unit,
+                "frisch" if item.ingredient.is_fresh else "trocken",
+                item.ingredient.notes,
+                "Ja" if item.is_bought else "Nein",
+            ])
+
+        # Frühstück extras from notes
+        if "__fruehstueck__:" in sl.notes:
+            raw = sl.notes.split("__fruehstueck__:")[1]
+            for entry in raw.split("|"):
+                parts = entry.split(":")
+                if len(parts) == 3:
+                    try:
+                        writer.writerow([
+                            label,
+                            datum,
+                            "Frühstück",
+                            parts[0],
+                            str(float(parts[1])).replace(".", ","),
+                            parts[2],
+                            "trocken",
+                            "Nein",
+                        ])
+                    except ValueError:
+                        pass
+
+    return response

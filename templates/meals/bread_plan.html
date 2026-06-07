@@ -1,0 +1,71 @@
+{% extends "base/base.html" %}
+
+{% block title %}Brotplanung – {{ camp.name }}{% endblock %}
+{% block page_title %}Brotplanung{% endblock %}
+
+{% block content %}
+<div class="max-w-xl">
+
+  <!-- Summary cards -->
+  <div class="grid grid-cols-3 gap-4 mb-6">
+    <div class="card px-5 py-4">
+      <div class="section-mono mb-1">Personen</div>
+      <div class="font-display text-3xl">{{ persons }}</div>
+      <div class="text-xs mt-1" style="color:rgba(240,237,232,0.4);">Teilis + Betreuer</div>
+    </div>
+    <div class="card px-5 py-4">
+      <div class="section-mono mb-1">Brote gesamt</div>
+      <div class="font-display text-3xl">{{ totals.loaves }}</div>
+      <div class="text-xs mt-1" style="color:rgba(240,237,232,0.4);">à 25 Scheiben</div>
+    </div>
+    <div class="card px-5 py-4">
+      <div class="section-mono mb-1">Doppelweck gesamt</div>
+      <div class="font-display text-3xl">{{ totals.doppelweck }}</div>
+    </div>
+  </div>
+
+  <!-- Per-day table -->
+  <div class="card overflow-hidden">
+    <table>
+      <thead>
+        <tr>
+          <th>Tag</th>
+          <th>Doppelweck</th>
+          <th>Brote</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr {% if row.is_last %}style="opacity:0.65;"{% endif %}>
+          <td>
+            <div style="font-size:0.82rem; color:rgba(240,237,232,0.85);">
+              {{ row.date|date:"D, d.m." }}
+            </div>
+            {% if row.is_extra %}
+              <span class="badge badge-muted" style="font-size:0.5rem; margin-top:3px;">nach Freizeit</span>
+            {% endif %}
+            {% if row.is_last %}
+              <span class="badge badge-muted" style="font-size:0.5rem; margin-top:3px;">−40 %</span>
+            {% endif %}
+          </td>
+          <td class="font-mono" style="color:#e8a444;">{{ row.doppelweck }}</td>
+          <td class="font-mono" style="color:#e8a444;">{{ row.loaves }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr style="border-top:1px solid rgba(240,237,232,0.12);">
+          <td style="color:rgba(240,237,232,0.4); font-size:0.7rem; font-family:'DM Mono',monospace; letter-spacing:0.1em;">GESAMT</td>
+          <td class="font-mono" style="color:#e8a444; font-weight:500;">{{ totals.doppelweck }}</td>
+          <td class="font-mono" style="color:#e8a444; font-weight:500;">{{ totals.loaves }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <div class="mt-4 text-xs" style="color:rgba(240,237,232,0.3);">
+    Berechnung: 1 Doppelweck / Person · 2 Scheiben / Person · 25 Scheiben / Brot · letzter Tag −40 % · kein Brot am ersten und letzten Freizeit-Tag
+  </div>
+
+</div>
+{% endblock %}

@@ -149,15 +149,22 @@
         {% if active_camp %}
         <div class="section-mono px-2 mb-2 mt-4">Planung</div>
         <a href="{% url 'meals:week_plan' camp_pk=active_camp.pk %}" @click="sidebarOpen = false"
-           class="nav-link {% if 'meals' in request.resolver_match.app_name %}active{% endif %}">
+           class="nav-link {% if 'meals' in request.resolver_match.app_name and request.resolver_match.url_name == 'week_plan' or request.resolver_match.url_name == 'index' %}active{% endif %}">
           <div class="nav-dot"></div> Wochenplan
         </a>
-        <a href="#" class="nav-link"><div class="nav-dot"></div> Brotplanung</a>
+        <a href="{% url 'meals:bread_plan_default' %}" @click="sidebarOpen = false"
+           class="nav-link {% if request.resolver_match.url_name == 'bread_plan' or request.resolver_match.url_name == 'bread_plan_default' %}active{% endif %}">
+          <div class="nav-dot"></div> Brotplanung
+        </a>
+        <a href="{% url 'meals:fruehstueck_default' %}" @click="sidebarOpen = false"
+           class="nav-link {% if request.resolver_match.url_name == 'fruehstueck' or request.resolver_match.url_name == 'fruehstueck_default' %}active{% endif %}">
+          <div class="nav-dot"></div> Frühstück / Mittagessen
+        </a>
         <a href="{% url 'recipes:list' %}" @click="sidebarOpen = false"
            class="nav-link {% if 'recipes' in request.resolver_match.app_name %}active{% endif %}">
           <div class="nav-dot"></div> Rezepte
         </a>
-        <a href="{% url 'shopping:create_from_plan' %}" @click="sidebarOpen = false"
+        <a href="{% if active_camp %}{% url 'shopping:plan_overview' camp_pk=active_camp.pk %}{% else %}{% url 'shopping:create_from_plan' %}{% endif %}" @click="sidebarOpen = false"
            class="nav-link {% if 'shopping' in request.resolver_match.app_name %}active{% endif %}">
           <div class="nav-dot"></div> Einkaufsliste
         </a>

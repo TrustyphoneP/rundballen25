@@ -179,3 +179,33 @@ class BreadPlan(models.Model):
 
     def __str__(self):
         return f"Brot {self.day.date}: {self.breakfast_loaves}+{self.evening_loaves} Laibe"
+
+
+class FruehstueckConfig(models.Model):
+    """Gespeicherte Konfiguration für Frühstück/Mittagessen pro Freizeit."""
+    camp = models.OneToOneField(
+        "camps.Camp", on_delete=models.CASCADE,
+        related_name="fruehstueck_config"
+    )
+    loaves_cheese       = models.PositiveIntegerField(default=0)
+    loaves_salami       = models.PositiveIntegerField(default=0)
+    loaves_fleischkaese = models.PositiveIntegerField(default=0)
+    loaves_fleischwurst = models.PositiveIntegerField(default=0)
+
+    weight_cheese       = models.FloatField(default=23.0)
+    weight_salami       = models.FloatField(default=15.0)
+    weight_fleischkaese = models.FloatField(default=20.0)
+    weight_fleischwurst = models.FloatField(default=15.0)
+
+    spb_cheese       = models.FloatField(default=1.0)
+    spb_salami       = models.FloatField(default=1.5)
+    spb_fleischkaese = models.FloatField(default=1.0)
+    spb_fleischwurst = models.FloatField(default=2.0)
+
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Frühstück Konfiguration"
+
+    def __str__(self):
+        return f"Frühstück Konfig: {self.camp}"
