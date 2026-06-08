@@ -6,6 +6,31 @@
 {% block content %}
 <div class="max-w-xl">
 
+  <!-- Config form -->
+  <form method="post" class="card p-5 mb-6">
+    {% csrf_token %}
+    <div class="section-mono mb-4">Konfiguration</div>
+    <div class="grid grid-cols-3 gap-4 mb-5">
+      <div>
+        <label class="section-mono block mb-1">Doppelweck / Person</label>
+        <input type="number" name="doppelweck_per_person" value="{{ doppelweck_per_person }}" min="0" step="0.1">
+      </div>
+      <div>
+        <label class="section-mono block mb-1">Scheiben Brot / Person</label>
+        <input type="number" name="scheiben_per_person" value="{{ scheiben_per_person }}" min="0" step="0.1">
+      </div>
+      <div>
+        <label class="section-mono block mb-1">Scheiben / Laib</label>
+        <input type="number" name="scheiben_per_laib" value="{{ scheiben_per_laib }}" min="1" step="1">
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <button type="submit" name="recalc" class="btn btn-ghost">Berechnen</button>
+      <button type="submit" name="save" class="btn btn-primary">Speichern</button>
+      {% if saved_at %}<span style="font-size:0.7rem; color:rgba(240,237,232,0.3);">Gespeichert: {{ saved_at|date:"d.m.Y H:i" }}</span>{% endif %}
+    </div>
+  </form>
+
   <!-- Summary cards -->
   <div class="grid grid-cols-3 gap-4 mb-6">
     <div class="card px-5 py-4">
@@ -16,7 +41,7 @@
     <div class="card px-5 py-4">
       <div class="section-mono mb-1">Brote gesamt</div>
       <div class="font-display text-3xl">{{ totals.loaves }}</div>
-      <div class="text-xs mt-1" style="color:rgba(240,237,232,0.4);">à 25 Scheiben</div>
+      <div class="text-xs mt-1" style="color:rgba(240,237,232,0.4);">à {{ scheiben_per_laib }} Scheiben</div>
     </div>
     <div class="card px-5 py-4">
       <div class="section-mono mb-1">Doppelweck gesamt</div>
@@ -36,20 +61,15 @@
       </thead>
       <tbody>
         {% for row in rows %}
-        <tr {% if row.is_last %}style="opacity:0.65;"{% endif %}>
+        <tr>
           <td>
-            <div style="font-size:0.82rem; color:rgba(240,237,232,0.85);">
-              {{ row.date|date:"D, d.m." }}
-            </div>
-            {% if row.is_extra %}
-              <span class="badge badge-muted" style="font-size:0.5rem; margin-top:3px;">nach Freizeit</span>
-            {% endif %}
-            {% if row.is_last %}
-              <span class="badge badge-muted" style="font-size:0.5rem; margin-top:3px;">−40 %</span>
-            {% endif %}
+            <div style="font-size:0.82rem; color:rgba(240,237,232,0.85);">{{ row.date|date:"D, d.m." }}</div>
+            {% if row.is_extra %}<span class="badge badge-muted" style="font-size:0.5rem; margin-top:3px;">nach Freizeit</span>{% endif %}
           </td>
           <td class="font-mono" style="color:#e8a444;">{{ row.doppelweck }}</td>
-          <td class="font-mono" style="color:#e8a444;">{{ row.loaves }}</td>
+          <td class="font-mono" style="color:{% if row.has_bread %}#e8a444{% else %}rgba(240,237,232,0.2){% endif %};">
+            {% if row.has_bread %}{{ row.loaves }}{% else %}–{% endif %}
+          </td>
         </tr>
         {% endfor %}
       </tbody>
@@ -64,7 +84,7 @@
   </div>
 
   <div class="mt-4 text-xs" style="color:rgba(240,237,232,0.3);">
-    Berechnung: 1 Doppelweck / Person · 2 Scheiben / Person · 25 Scheiben / Brot · letzter Tag −40 % · kein Brot am ersten und letzten Freizeit-Tag
+    Berechnung: {{ doppelweck_per_person }} Doppelweck / Person · {{ scheiben_per_person }} Scheiben / Person · {{ scheiben_per_laib }} Scheiben / Laib · kein Brot am ersten Freizeit-Tag · Doppelweck auch am Tag nach der Freizeit (−40 %)
   </div>
 
 </div>

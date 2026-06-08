@@ -209,3 +209,21 @@ class FruehstueckConfig(models.Model):
 
     def __str__(self):
         return f"Frühstück Konfig: {self.camp}"
+
+
+class BrotConfig(models.Model):
+    """Gespeicherte Konfiguration für Brotplanung pro Freizeit."""
+    camp = models.OneToOneField(
+        "camps.Camp", on_delete=models.CASCADE,
+        related_name="brot_config"
+    )
+    doppelweck_per_person  = models.FloatField(default=1.0, verbose_name="Doppelweck pro Person")
+    scheiben_per_person    = models.FloatField(default=2.0, verbose_name="Scheiben Brot pro Person")
+    scheiben_per_laib      = models.FloatField(default=25.0, verbose_name="Scheiben pro Laib")
+    updated_at             = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Brot Konfiguration"
+
+    def __str__(self):
+        return f"Brot Konfig: {self.camp}"

@@ -208,15 +208,8 @@ def clear_slot(request, day_pk, slot):
 
 @login_required
 def bread_plan(request, camp_pk=None):
-    """
-    Brotplanung:
-    - Kein Brot am ersten Tag
-    - Brot an allen anderen Tagen + einem Tag nach dem letzten Abendessen
-    - Doppelweck: 1 pro Person pro Tag
-    - Brot: 2 Scheiben pro Person, 25 Scheiben pro Laib, aufrunden
-    - Am letzten Tag 40% weniger
-    """
     import math
+    from .models import BrotConfig
 
     if camp_pk:
         camp = get_object_or_404(Camp, pk=camp_pk)
@@ -231,16 +224,32 @@ def bread_plan(request, camp_pk=None):
     if not days:
         return render(request, "meals/bread_plan.html", {"camp": camp, "rows": [], "totals": {}})
 
-    # Real person count: actual participants + supervisors from DB
     teilis   = camp.participants.filter(person_type="participant").count()
     betreuer = camp.participants.filter(person_type="supervisor").count()
     persons  = teilis + betreuer or camp.participant_count + camp.supervisor_count
 
-    SLICES_PER_LOAF   = 25
-    SLICES_PER_PERSON = 2
+    # Load or create config
+    cfg, _ = BrotConfig.objects.get_or_create(camp=camp)
 
-    # Bread: skip first camp day only (include last)
-    # Doppelweck: same days + one extra day after last camp day
+    def get_float(key, default):
+        if request.method == "POST":
+            try:
+                return float(request.POST.get(key, default))
+            except (ValueError, TypeError):
+                return default
+        return default
+
+    doppelweck_per_person = get_float("doppelweck_per_person", cfg.doppelweck_per_person)
+    scheiben_per_person   = get_float("scheiben_per_person",   cfg.scheiben_per_person)
+    scheiben_per_laib     = get_float("scheiben_per_laib",     cfg.scheiben_per_laib)
+
+    # Save if Speichern clicked
+    if request.method == "POST" and "save" in request.POST:
+        cfg.doppelweck_per_person = doppelweck_per_person
+        cfg.scheiben_per_person   = scheiben_per_person
+        cfg.scheiben_per_laib     = scheiben_per_laib
+        cfg.save()
+
     from datetime import timedelta
     bread_dates      = [d.date for d in days[1:]]
     extra_date       = days[-1].date + timedelta(days=1)
@@ -253,8 +262,8 @@ def bread_plan(request, camp_pk=None):
     for date in doppelweck_dates:
         has_bread  = date in bread_dates
         factor     = 0.6 if date == extra_date else 1.0
-        loaves     = math.ceil(persons * SLICES_PER_PERSON / SLICES_PER_LOAF) if has_bread else 0
-        doppelweck = math.ceil(persons * factor)
+        loaves     = math.ceil(persons * scheiben_per_person * factor / scheiben_per_laib) if has_bread else 0
+        doppelweck = math.ceil(persons * doppelweck_per_person * factor)
 
         total_loaves     += loaves
         total_doppelweck += doppelweck
@@ -273,10 +282,15 @@ def bread_plan(request, camp_pk=None):
     }
 
     return render(request, "meals/bread_plan.html", {
-        "camp":   camp,
-        "rows":   rows,
-        "totals": totals,
-        "persons": persons,
+        "camp":                  camp,
+        "rows":                  rows,
+        "totals":                totals,
+        "persons":               persons,
+        "cfg":                   cfg,
+        "doppelweck_per_person": str(doppelweck_per_person),
+        "scheiben_per_person":   str(scheiben_per_person),
+        "scheiben_per_laib":     str(scheiben_per_laib),
+        "saved_at":              cfg.updated_at,
     })
 
 
@@ -303,8 +317,11 @@ def fruehstueck(request, camp_pk=None):
     betreuer = camp.participants.filter(person_type="supervisor").count()
     persons  = teilis + betreuer or camp.participant_count + camp.supervisor_count
 
-    SLICES_PER_LOAF   = 25
-    SLICES_PER_PERSON = 2
+    # Read bread config
+    from .models import BrotConfig
+    brot_cfg, _ = BrotConfig.objects.get_or_create(camp=camp)
+    SLICES_PER_LOAF   = int(brot_cfg.scheiben_per_laib)
+    SLICES_PER_PERSON = brot_cfg.scheiben_per_person
 
     # Load saved config or create with defaults
     saved, _ = FruehstueckConfig.objects.get_or_create(camp=camp)
