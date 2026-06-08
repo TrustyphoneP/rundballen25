@@ -37,6 +37,30 @@
 </div>
 {% endif %}
 
+{% if recipe_days %}
+<div class="card overflow-hidden mb-5">
+  <div class="px-5 py-3 border-b" style="border-color:rgba(240,237,232,0.07);">
+    <div class="section-mono">Mahlzeiten dieser Lieferung</div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Tag</th>
+        <th>Rezepte</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for rd in recipe_days %}
+      <tr>
+        <td style="white-space:nowrap; color:rgba(240,237,232,0.6); font-size:0.78rem;">{{ rd.date|date:"D, d.m." }}</td>
+        <td style="font-size:0.82rem;">{{ rd.recipes }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
 <div class="flex gap-3 mb-5">
   <form method="post" action="{% url 'shopping:reset_list' pk=sl.pk %}">
     {% csrf_token %}

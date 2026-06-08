@@ -220,14 +220,42 @@ def detail(request, pk):
     total   = items.count()
     bought  = items.filter(is_bought=True).count()
 
+    # Build recipe-day info for this delivery
+    from apps.meals.models import DayMeal
+    from apps.camps.models import CampDay
+    from .shopping_days import get_shopping_days
+
+    recipe_days = []  # list of {date, recipes}
+    try:
+        shopping_days = get_shopping_days(sl.camp)
+        # Find which delivery this is by matching date
+        matching_sd = next((sd for sd in shopping_days if sd.date == sl.from_date), None)
+        if matching_sd:
+            for idx in matching_sd.dinner_indices:
+                try:
+                    day = CampDay.objects.filter(camp=sl.camp).order_by("date")[idx]
+                    dm  = DayMeal.objects.filter(day=day).first()
+                    if dm:
+                        recipes = [r.name for r in [dm.main_course, dm.dessert, dm.salad] if r]
+                        if recipes:
+                            recipe_days.append({
+                                "date":    day.date,
+                                "recipes": ", ".join(recipes),
+                            })
+                except (IndexError, Exception):
+                    pass
+    except Exception:
+        pass
+
     return render(request, "shopping/detail.html", {
-        "sl":     sl,
-        "items":  items,
-        "fresh":  fresh,
-        "dry":    dry,
-        "total":  total,
-        "bought": bought,
-        "open":   total - bought,
+        "sl":          sl,
+        "items":       items,
+        "fresh":       fresh,
+        "dry":         dry,
+        "total":       total,
+        "bought":      bought,
+        "open":        total - bought,
+        "recipe_days": recipe_days,
     })
 
 
@@ -278,15 +306,43 @@ def regenerate(request, pk):
 
 @login_required
 def export_csv(request, pk):
+    from apps.meals.models import DayMeal
+    from apps.camps.models import CampDay
+    from apps.recipes.models import RecipeIngredient
+
     sl = get_object_or_404(ShoppingList, pk=pk)
+
+    # Build ingredient -> {day_numbers, recipe_names} map
+    ing_info = {}  # ingredient_id -> {"days": set, "recipes": set}
+    camp_days = list(CampDay.objects.filter(camp=sl.camp).order_by("date"))
+    day_meals = DayMeal.objects.filter(day__camp=sl.camp).select_related(
+        "day", "main_course", "dessert", "salad"
+    )
+    for dm in day_meals:
+        try:
+            day_num = next(i+1 for i, d in enumerate(camp_days) if d.pk == dm.day.pk)
+        except StopIteration:
+            continue
+        for recipe in [dm.main_course, dm.dessert, dm.salad]:
+            if not recipe:
+                continue
+            for ri in RecipeIngredient.objects.filter(recipe=recipe).values_list("ingredient_id", flat=True):
+                if ri not in ing_info:
+                    ing_info[ri] = {"days": set(), "recipes": set()}
+                ing_info[ri]["days"].add(day_num)
+                ing_info[ri]["recipes"].add(recipe.name)
+
     response = HttpResponse(content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = (
         f'attachment; filename="einkauf_{slugify(sl.camp.name)}_{sl.from_date}.csv"'
     )
     response.write("\ufeff")
     writer = csv.writer(response, delimiter=";")
-    writer.writerow(["Zutat", "Menge", "Einheit", "Typ", "Kategorie", "Zutaten-Notiz", "Gekauft"])
+    writer.writerow(["Zutat", "Menge", "Einheit", "Typ", "Kategorie", "Zutaten-Notiz", "Tag", "Rezept"])
     for item in sl.items.select_related("ingredient").order_by("ingredient__is_fresh", "ingredient__name"):
+        info = ing_info.get(item.ingredient.pk, {})
+        days_str    = ", ".join(str(d) for d in sorted(info.get("days", [])))
+        recipes_str = ", ".join(sorted(info.get("recipes", [])))
         writer.writerow([
             item.ingredient.name,
             str(item.amount).replace(".", ","),
@@ -294,7 +350,8 @@ def export_csv(request, pk):
             "frisch" if item.ingredient.is_fresh else "trocken",
             item.notes,
             item.ingredient.notes,
-            "Ja" if item.is_bought else "Nein",
+            days_str,
+            recipes_str,
         ])
     return response
 
@@ -319,8 +376,30 @@ def delete_list(request, pk):
 
 @login_required
 def export_csv_combined(request, camp_pk):
+    from apps.meals.models import DayMeal
+    from apps.camps.models import CampDay
+    from apps.recipes.models import RecipeIngredient
+
     camp  = get_object_or_404(Camp, pk=camp_pk)
     lists = ShoppingList.objects.filter(camp=camp).order_by("from_date").prefetch_related("items__ingredient")
+
+    # Build ingredient -> {day_numbers, recipe_names} map
+    ing_info = {}
+    camp_days = list(CampDay.objects.filter(camp=camp).order_by("date"))
+    day_meals = DayMeal.objects.filter(day__camp=camp).select_related("day", "main_course", "dessert", "salad")
+    for dm in day_meals:
+        try:
+            day_num = next(i+1 for i, d in enumerate(camp_days) if d.pk == dm.day.pk)
+        except StopIteration:
+            continue
+        for recipe in [dm.main_course, dm.dessert, dm.salad]:
+            if not recipe:
+                continue
+            for ri in RecipeIngredient.objects.filter(recipe=recipe).values_list("ingredient_id", flat=True):
+                if ri not in ing_info:
+                    ing_info[ri] = {"days": set(), "recipes": set()}
+                ing_info[ri]["days"].add(day_num)
+                ing_info[ri]["recipes"].add(recipe.name)
 
     response = HttpResponse(content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = (
@@ -328,7 +407,7 @@ def export_csv_combined(request, camp_pk):
     )
     response.write("\ufeff")
     writer = csv.writer(response, delimiter=";")
-    writer.writerow(["Lieferung", "Datum", "Kategorie", "Artikel", "Menge", "Einheit", "Typ", "Zutaten-Notiz", "Gekauft"])
+    writer.writerow(["Lieferung", "Datum", "Kategorie", "Artikel", "Menge", "Einheit", "Typ", "Zutaten-Notiz", "Tag", "Rezept"])
 
     shopping_days = get_shopping_days(camp)
 
@@ -338,6 +417,9 @@ def export_csv_combined(request, camp_pk):
         datum = sl.from_date.strftime("%d.%m.%Y")
 
         for item in sl.items.select_related("ingredient").order_by("notes", "ingredient__name"):
+            info = ing_info.get(item.ingredient.pk, {})
+            days_str    = ", ".join(str(d) for d in sorted(info.get("days", [])))
+            recipes_str = ", ".join(sorted(info.get("recipes", [])))
             writer.writerow([
                 label,
                 datum,
@@ -347,7 +429,8 @@ def export_csv_combined(request, camp_pk):
                 item.unit,
                 "frisch" if item.ingredient.is_fresh else "trocken",
                 item.ingredient.notes,
-                "Ja" if item.is_bought else "Nein",
+                days_str,
+                recipes_str,
             ])
 
         # Frühstück extras from notes
@@ -358,14 +441,10 @@ def export_csv_combined(request, camp_pk):
                 if len(parts) == 3:
                     try:
                         writer.writerow([
-                            label,
-                            datum,
-                            "Frühstück",
+                            label, datum, "Frühstück",
                             parts[0],
                             str(float(parts[1])).replace(".", ","),
-                            parts[2],
-                            "trocken",
-                            "Nein",
+                            parts[2], "trocken", "", "", "",
                         ])
                     except ValueError:
                         pass
