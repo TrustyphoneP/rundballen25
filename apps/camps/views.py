@@ -109,9 +109,26 @@ def participant_list(request, camp_pk):
         ("Mit Unverträglichkeit", stats["mit_intol"], "text-warn"),
         ("Vegan",               stats["vegan"],      "text-ok"),
     ]
+    # Custom sort: SKF/Allergie first, then "Kain" first name, then alphabetical
+    participants = list(qs.prefetch_related("intolerances"))
+
+    def sort_key(p):
+        has_restriction = (
+            p.is_vegan or p.is_vegetarian or p.is_halal or p.is_kosher
+            or p.intolerances.exists()
+        )
+        is_kain = p.first_name.lower() == "kain"
+        return (
+            0 if has_restriction else (1 if is_kain else 2),
+            p.last_name.lower(),
+            p.first_name.lower(),
+        )
+
+    participants.sort(key=sort_key)
+
     return render(request, "camps/participant_list.html", {
         "camp":          camp,
-        "participants":  qs,
+        "participants":  participants,
         "filter_form":   form,
         "stats":         stats,
         "stats_display": stats_display,
