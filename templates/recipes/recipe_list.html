@@ -24,6 +24,17 @@
     </select>
   </div>
   <div>
+    <div class="section-mono mb-1">Kategorie</div>
+    <select name="category">
+      <option value="">Alle Kategorien</option>
+      {% for c in categories %}
+      <option value="{{ c.pk }}" {% if category_id == c.pk|stringformat:"s" %}selected{% endif %}>
+        {{ c.name }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
     <div class="section-mono mb-1">Ohne Allergen</div>
     <select name="allergen">
       <option value="">Alle Rezepte</option>

@@ -263,7 +263,7 @@ def bread_plan(request, camp_pk=None):
         has_bread  = date in bread_dates
         factor     = 0.6 if date == extra_date else 1.0
         loaves     = math.ceil(persons * scheiben_per_person * factor / scheiben_per_laib) if has_bread else 0
-        doppelweck = math.ceil(persons * doppelweck_per_person * factor)
+        doppelweck = math.ceil(teilis * doppelweck_per_person * factor)
 
         total_loaves     += loaves
         total_doppelweck += doppelweck
@@ -449,4 +449,55 @@ def fruehstueck(request, camp_pk=None):
         "saved_at":        saved.updated_at,
         "extras":          extras,
         "num_bread_days":  num_bread_days,
+    })
+
+
+@login_required
+def allgemein(request, camp_pk=None):
+    """Allgemeine Zutaten die keinem Rezept zugehören."""
+    from .models import GeneralIngredient
+    from apps.recipes.models import Ingredient
+
+    if camp_pk:
+        camp = get_object_or_404(Camp, pk=camp_pk)
+    else:
+        camp = Camp.objects.filter(is_active=True).first()
+        if not camp:
+            return redirect("camps:dashboard")
+
+    if request.method == "POST":
+        action = request.POST.get("action")
+
+        if action == "add":
+            ing_name = request.POST.get("ingredient_name", "").strip()
+            ing_id   = request.POST.get("ingredient_id", "").strip()
+            amount   = request.POST.get("amount", "").strip()
+            unit     = request.POST.get("unit", "g").strip()
+            notes    = request.POST.get("notes", "").strip()
+
+            if ing_id and amount:
+                try:
+                    ing = Ingredient.objects.get(pk=ing_id)
+                    GeneralIngredient.objects.create(
+                        camp=camp, ingredient=ing,
+                        amount=amount, unit=unit, notes=notes
+                    )
+                    messages.success(request, f"{ing.name} hinzugefügt.")
+                except (Ingredient.DoesNotExist, ValueError):
+                    messages.error(request, "Ungültige Zutat oder Menge.")
+
+        elif action == "delete":
+            pk = request.POST.get("pk")
+            GeneralIngredient.objects.filter(pk=pk, camp=camp).delete()
+
+    items = GeneralIngredient.objects.filter(camp=camp).select_related("ingredient")
+
+    # Autocomplete URL for ingredient search
+    from django.urls import reverse
+    autocomplete_url = reverse("recipes:ingredient_autocomplete")
+
+    return render(request, "meals/allgemein.html", {
+        "camp":             camp,
+        "items":            items,
+        "autocomplete_url": autocomplete_url,
     })

@@ -32,12 +32,17 @@ def recipe_list(request):
     if allergen_id:
         qs = qs.exclude(allergens__pk=allergen_id)
 
+    category_id = request.GET.get("category", "")
+    if category_id:
+        qs = qs.filter(category__pk=category_id)
+
     return render(request, "recipes/recipe_list.html", {
-        "recipes":    qs,
-        "allergens":  Allergen.objects.all(),
-        "categories": RecipeCategory.objects.all(),
-        "q":          q,
-        "diet":       diet,
+        "recipes":     qs,
+        "allergens":   Allergen.objects.all(),
+        "categories":  RecipeCategory.objects.all(),
+        "q":           q,
+        "diet":        diet,
+        "category_id": category_id,
     })
 
 
@@ -101,9 +106,7 @@ def recipe_detail(request, pk):
         .filter(recipe=recipe)
         .values_list("ingredient__diet_type", flat=True)
     )
-    has_meat       = "meat" in diet_types
-    has_vegetarian = "vegetarian" in diet_types
-    is_fully_vegan = diet_types == {"vegan"} or diet_types == set()
+    has_meat = "meat" in diet_types
 
     skf_affected = []
     if has_meat and active_camp:
@@ -124,8 +127,6 @@ def recipe_detail(request, pk):
         "active_camp":   active_camp,
         "all_allergens": all_allergens,
         "has_meat":      has_meat,
-        "has_vegetarian": has_vegetarian,
-        "is_fully_vegan": is_fully_vegan,
         "skf_affected":  skf_affected,
     })
 

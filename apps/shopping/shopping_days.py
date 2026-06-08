@@ -180,8 +180,8 @@ def build_shopping_day_items(camp, shopping_day, all_day_meals):
             if bread_days_this_delivery == 0 and not shopping_day.include_dry:
                 return aggregated, fruehstueck_extras
 
-            total_loaves     = loaves_per_day * bread_days_this_delivery
-            total_slices     = total_loaves * SLICES_PER_LOAF
+            total_loaves = loaves_per_day * bread_days_this_delivery
+            total_slices = total_loaves * SLICES_PER_LOAF
 
             # Fresh Aufschnitt -- split by delivery, use DB ingredient
             topping_defs = [
@@ -221,5 +221,14 @@ def build_shopping_day_items(camp, shopping_day, all_day_meals):
 
     except Exception:
         pass
+
+    # --- Allgemeine Zutaten (nur Lieferung 1) ---
+    if shopping_day.include_dry:
+        try:
+            from apps.meals.models import GeneralIngredient
+            for gi in GeneralIngredient.objects.filter(camp=camp).select_related("ingredient"):
+                add(gi.ingredient, gi.unit, gi.amount, gi.ingredient.is_fresh, "Allgemein")
+        except Exception:
+            pass
 
     return aggregated, fruehstueck_extras

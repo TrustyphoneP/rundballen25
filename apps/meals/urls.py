@@ -13,4 +13,6 @@ urlpatterns = [
     path("brot/",                               views.bread_plan,     name="bread_plan_default"),
     path("freizeit/<int:camp_pk>/fruehstueck/", views.fruehstueck,    name="fruehstueck"),
     path("fruehstueck/",                        views.fruehstueck,    name="fruehstueck_default"),
+    path("freizeit/<int:camp_pk>/allgemein/",   views.allgemein,      name="allgemein"),
+    path("allgemein/",                          views.allgemein,      name="allgemein_default"),
 ]

@@ -164,6 +164,10 @@
            class="nav-link {% if 'recipes' in request.resolver_match.app_name %}active{% endif %}">
           <div class="nav-dot"></div> Rezepte
         </a>
+        <a href="{% url 'meals:allgemein_default' %}" @click="sidebarOpen = false"
+           class="nav-link {% if request.resolver_match.url_name == 'allgemein' or request.resolver_match.url_name == 'allgemein_default' %}active{% endif %}">
+          <div class="nav-dot"></div> Allgemein
+        </a>
         <a href="{% if active_camp %}{% url 'shopping:plan_overview' camp_pk=active_camp.pk %}{% else %}{% url 'shopping:create_from_plan' %}{% endif %}" @click="sidebarOpen = false"
            class="nav-link {% if 'shopping' in request.resolver_match.app_name %}active{% endif %}">
           <div class="nav-dot"></div> Einkaufsliste

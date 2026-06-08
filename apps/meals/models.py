@@ -227,3 +227,21 @@ class BrotConfig(models.Model):
 
     def __str__(self):
         return f"Brot Konfig: {self.camp}"
+
+
+class GeneralIngredient(models.Model):
+    """Allgemeine Zutaten die keinem Rezept zugehören (z.B. Gewürze, Putzmittel)."""
+    camp       = models.ForeignKey("camps.Camp", on_delete=models.CASCADE, related_name="general_ingredients")
+    ingredient = models.ForeignKey("recipes.Ingredient", on_delete=models.CASCADE, related_name="general_uses")
+    amount     = models.DecimalField(max_digits=10, decimal_places=2)
+    unit       = models.CharField(max_length=20)
+    notes      = models.CharField(max_length=300, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["ingredient__name"]
+        verbose_name = "Allgemeine Zutat"
+        verbose_name_plural = "Allgemeine Zutaten"
+
+    def __str__(self):
+        return f"{self.ingredient.name} ({self.amount} {self.unit})"
