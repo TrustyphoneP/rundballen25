@@ -475,16 +475,29 @@ def allgemein(request, camp_pk=None):
             unit     = request.POST.get("unit", "g").strip()
             notes    = request.POST.get("notes", "").strip()
 
-            if ing_id and amount:
+            if amount:
                 try:
-                    ing = Ingredient.objects.get(pk=ing_id)
-                    GeneralIngredient.objects.create(
-                        camp=camp, ingredient=ing,
-                        amount=amount, unit=unit, notes=notes
-                    )
-                    messages.success(request, f"{ing.name} hinzugefügt.")
-                except (Ingredient.DoesNotExist, ValueError):
-                    messages.error(request, "Ungültige Zutat oder Menge.")
+                    # Try by ID first, then exact name, else create new
+                    if ing_id:
+                        ing = Ingredient.objects.get(pk=ing_id)
+                    elif ing_name:
+                        ing = Ingredient.objects.filter(name__iexact=ing_name).first()
+                        if not ing:
+                            ing = Ingredient.objects.create(name=ing_name)
+                            messages.success(request, f"Neue Zutat '{ing_name}' angelegt.")
+                    else:
+                        ing = None
+
+                    if ing:
+                        GeneralIngredient.objects.create(
+                            camp=camp, ingredient=ing,
+                            amount=amount, unit=unit, notes=notes
+                        )
+                        messages.success(request, f"{ing.name} hinzugefügt.")
+                except (Ingredient.DoesNotExist, ValueError) as e:
+                    messages.error(request, f"Fehler: {e}")
+            else:
+                messages.error(request, "Bitte Menge eingeben.")
 
         elif action == "delete":
             pk = request.POST.get("pk")
