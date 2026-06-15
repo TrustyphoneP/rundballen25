@@ -10,7 +10,7 @@ class Camp(models.Model):
     start_date        = models.DateField(verbose_name="Beginn")
     end_date          = models.DateField(verbose_name="Ende")
     location          = models.CharField(max_length=200, blank=True, verbose_name="Ort")
-    participant_count = models.PositiveIntegerField(default=100, verbose_name="Teilianzahl (geplant)")
+    participant_count = models.PositiveIntegerField(default=100, verbose_name="Teilnehmeranzahl (geplant)")
     supervisor_count  = models.PositiveIntegerField(default=30,  verbose_name="Betreueranzahl")
     created_by        = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
@@ -54,8 +54,10 @@ class CampDay(models.Model):
 
     @property
     def persons_present(self):
-        p = self.participants_present if self.participants_present is not None else self.camp.participant_count
-        s = self.supervisors_present  if self.supervisors_present  is not None else self.camp.supervisor_count
+        actual_participants = self.camp.participants.filter(person_type="participant").count()
+        actual_supervisors  = self.camp.participants.filter(person_type="supervisor").count()
+        p = self.participants_present if self.participants_present is not None else (actual_participants or self.camp.participant_count)
+        s = self.supervisors_present  if self.supervisors_present  is not None else (actual_supervisors  or self.camp.supervisor_count)
         return p + s
 
     def __str__(self):
@@ -70,7 +72,7 @@ class Participant(models.Model):
     """
 
     class PersonType(models.TextChoices):
-        PARTICIPANT = "participant", "Teili"
+        PARTICIPANT = "participant", "Teilnehmer"
         SUPERVISOR  = "supervisor",  "Betreuer"
 
     camp          = models.ForeignKey(Camp, on_delete=models.CASCADE, related_name="participants")
@@ -110,8 +112,8 @@ class Participant(models.Model):
 
     class Meta:
         ordering = ["last_name", "first_name"]
-        verbose_name = "Teili / Betreuer"
-        verbose_name_plural = "Teili / Betreuer"
+        verbose_name = "Teilnehmer / Betreuer"
+        verbose_name_plural = "Teilnehmer / Betreuer"
 
     def full_name(self):
         return f"{self.first_name} {self.last_name}"
