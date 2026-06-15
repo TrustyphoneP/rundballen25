@@ -15,6 +15,7 @@ urlpatterns = [
     path("api/v1/camps/",   include("apps.camps.api_urls")),
     path("api/v1/meals/",   include("apps.meals.api_urls")),
     path("api/v1/recipes/", include("apps.recipes.api_urls")),
+    path("api/mobile/", include("apps.mobile_api.urls")),
 ]
 
 if settings.DEBUG:

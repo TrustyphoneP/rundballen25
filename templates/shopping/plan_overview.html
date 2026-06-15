@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load shopping_tags %}
 {% block title %}Einkaufsplan – {{ camp.name }}{% endblock %}
 {% block page_title %}Einkaufsplan{% endblock %}
 
@@ -44,7 +45,7 @@
         {% for item in group.list %}
         <div class="flex justify-between py-1" style="border-bottom:1px solid rgba(240,237,232,0.04); font-size:0.78rem;">
           <span>{{ item.ingredient.name }}</span>
-          <span class="font-mono" style="color:#e8a444;">{{ item.amount|floatformat:"-1" }} {{ item.unit }}</span>
+          <span class="font-mono" style="color:#e8a444;">{{ item.amount|smart_amount:item.unit }}</span>
         </div>
         {% endfor %}
       </div>
@@ -60,14 +61,7 @@
         {% for e in extras %}
         <div class="flex justify-between py-1" style="border-bottom:1px solid rgba(240,237,232,0.04); font-size:0.78rem;">
           <span>{{ e.name }}</span>
-          <span class="font-mono" style="color:#e8a444;">
-            {% if e.amount == e.amount|floatformat:"0"|add:"0" %}
-              {{ e.amount|floatformat:"0" }}
-            {% else %}
-              {{ e.amount|floatformat:"1" }}
-            {% endif %}
-            {{ e.unit }}
-          </span>
+          <span class="font-mono" style="color:#e8a444;">{{ e.amount|smart_amount:e.unit }}</span>
         </div>
         {% endfor %}
       </div>

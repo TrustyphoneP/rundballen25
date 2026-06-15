@@ -3,6 +3,8 @@ rundballen25 – Django Settings
 Umgebungsabhängige Konfiguration via .env (django-environ)
 """
 from pathlib import Path
+from datetime import timedelta
+
 import environ
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -27,6 +29,10 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "rest_framework",
+    "rest_framework_simplejwt",
+    "corsheaders",
+    "apps.mobile_api",
 
     # Third-party
     "channels",
@@ -50,6 +56,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",

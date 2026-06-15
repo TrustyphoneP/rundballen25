@@ -34,11 +34,9 @@ def index(request):
 def create_from_plan(request):
     active_camp = Camp.objects.filter(is_active=True).first()
 
-    # Always generate for active camp on GET or POST
     if active_camp:
         return _generate_from_plan(request, active_camp)
 
-    # No active camp: show selection form
     form = ShoppingListFromPlanForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         camp = form.cleaned_data["camp"]
@@ -48,31 +46,21 @@ def create_from_plan(request):
 
 
 def _generate_from_plan(request, camp):
-    """Generiert drei Einkaufs-ShoppingLists für das Camp."""
     from apps.meals.models import DayMeal
     from apps.camps.models import CampDay
 
-    # Alle Tage geordnet laden
-    camp_days = list(
-        CampDay.objects.filter(camp=camp).order_by("date")
-    )
-
-    # DayMeal pro Tag (None wenn kein Plan)
+    camp_days = list(CampDay.objects.filter(camp=camp).order_by("date"))
     day_meal_map = {
         dm.day_id: dm
-        for dm in DayMeal.objects.filter(
-            day__camp=camp
-        ).prefetch_related(
+        for dm in DayMeal.objects.filter(day__camp=camp).prefetch_related(
             "main_course__recipe_ingredients__ingredient__allergens",
             "dessert__recipe_ingredients__ingredient__allergens",
             "salad__recipe_ingredients__ingredient__allergens",
         )
     }
     all_day_meals = [day_meal_map.get(cd.id) for cd in camp_days]
-
     shopping_days = get_shopping_days(camp)
 
-    # Alte Listen für dieses Camp löschen und neu generieren
     ShoppingList.objects.filter(camp=camp).delete()
 
     created = []
@@ -96,7 +84,6 @@ def _generate_from_plan(request, camp):
             )
             for v in items.values()
         ])
-        # Store Frühstück extras in list notes for display
         if fruehstueck_extras:
             sl.notes += "\n__fruehstueck__:" + "|".join(
                 f"{e['name']}:{e['amount']}:{e['unit']}" for e in fruehstueck_extras
@@ -105,23 +92,16 @@ def _generate_from_plan(request, camp):
         created.append((sd, sl))
 
     if not any(sl.items.count() > 0 for _, sl in created):
-        messages.warning(
-            request,
-            "Keine Rezepte im Wochenplan gefunden. "
-            "Bitte zuerst den Wochenplan befuellen."
-        )
+        messages.warning(request, "Keine Rezepte im Wochenplan gefunden.")
     else:
         total_items = sum(sl.items.count() for _, sl in created)
-        messages.success(
-            request,
-            f"{len(created)} Einkaufslisten generiert ({total_items} Positionen gesamt)."
-        )
+        messages.success(request, f"{len(created)} Einkaufslisten generiert ({total_items} Positionen gesamt).")
 
     return redirect("shopping:plan_overview", camp_pk=camp.pk)
 
 
 # ---------------------------------------------------------------------------
-# Einkaufsplan-Uebersicht (alle 3 Listen eines Camps)
+# Einkaufsplan-Uebersicht
 # ---------------------------------------------------------------------------
 
 @login_required
@@ -129,11 +109,8 @@ def plan_overview(request, camp_pk):
     camp  = get_object_or_404(Camp, pk=camp_pk)
     lists = ShoppingList.objects.filter(camp=camp).order_by("from_date").prefetch_related("items__ingredient")
     shopping_days = get_shopping_days(camp)
-
-    # Listen und Einkaufstage zusammenfuehren
     paired = list(zip(shopping_days, lists)) if lists else []
 
-    # Parse fruehstueck extras from notes for display
     paired_with_extras = []
     for sd, sl in paired:
         extras = []
@@ -158,7 +135,7 @@ def plan_overview(request, camp_pk):
 
 
 # ---------------------------------------------------------------------------
-# Aus Rezepten generieren (manuell)
+# Aus Rezepten generieren
 # ---------------------------------------------------------------------------
 
 @login_required
@@ -176,11 +153,7 @@ def create_from_recipes(request):
             for item in recipe.get_scaled_ingredients(persons):
                 key = (item["ingredient"].id, item["unit"])
                 if key not in aggregated:
-                    aggregated[key] = {
-                        "ingredient": item["ingredient"],
-                        "unit":       item["unit"],
-                        "amount":     Decimal("0"),
-                    }
+                    aggregated[key] = {"ingredient": item["ingredient"], "unit": item["unit"], "amount": Decimal("0")}
                 aggregated[key]["amount"] += Decimal(str(item["amount"]))
 
         sl = ShoppingList.objects.create(
@@ -188,16 +161,10 @@ def create_from_recipes(request):
             from_date=date.today(),
             to_date=date.today(),
             generated_by=request.user,
-            notes=f"{persons} Personen | {', '.join(r.name for r in recipes)}"
-                  + (f" | {notes}" if notes else ""),
+            notes=f"{persons} Personen | {', '.join(r.name for r in recipes)}" + (f" | {notes}" if notes else ""),
         )
         ShoppingItem.objects.bulk_create([
-            ShoppingItem(
-                shopping_list=sl,
-                ingredient=v["ingredient"],
-                amount=v["amount"],
-                unit=v["unit"],
-            )
+            ShoppingItem(shopping_list=sl, ingredient=v["ingredient"], amount=v["amount"], unit=v["unit"])
             for v in aggregated.values()
         ])
 
@@ -208,27 +175,52 @@ def create_from_recipes(request):
 
 
 # ---------------------------------------------------------------------------
+# Helper: ingredient -> day/recipe map
+# ---------------------------------------------------------------------------
+
+def _build_ing_info(camp):
+    from apps.meals.models import DayMeal
+    from apps.camps.models import CampDay
+    from apps.recipes.models import RecipeIngredient
+
+    ing_info = {}
+    camp_days = list(CampDay.objects.filter(camp=camp).order_by("date"))
+    day_meals = DayMeal.objects.filter(day__camp=camp).select_related("day", "main_course", "dessert", "salad")
+    for dm in day_meals:
+        try:
+            day_num = next(i+1 for i, d in enumerate(camp_days) if d.pk == dm.day.pk)
+        except StopIteration:
+            continue
+        for recipe in [dm.main_course, dm.dessert, dm.salad]:
+            if not recipe:
+                continue
+            for ri in RecipeIngredient.objects.filter(recipe=recipe).values_list("ingredient_id", flat=True):
+                if ri not in ing_info:
+                    ing_info[ri] = {"days": set(), "recipes": set()}
+                ing_info[ri]["days"].add(day_num)
+                ing_info[ri]["recipes"].add(recipe.name)
+    return ing_info
+
+
+# ---------------------------------------------------------------------------
 # Detail
 # ---------------------------------------------------------------------------
 
 @login_required
 def detail(request, pk):
+    from apps.meals.models import DayMeal
+    from apps.camps.models import CampDay
+
     sl    = get_object_or_404(ShoppingList.objects.select_related("camp"), pk=pk)
     items = sl.items.select_related("ingredient").order_by("ingredient__is_fresh", "ingredient__name")
     fresh = items.filter(ingredient__is_fresh=True)
     dry   = items.filter(ingredient__is_fresh=False)
-    total   = items.count()
-    bought  = items.filter(is_bought=True).count()
+    total  = items.count()
+    bought = items.filter(is_bought=True).count()
 
-    # Build recipe-day info for this delivery
-    from apps.meals.models import DayMeal
-    from apps.camps.models import CampDay
-    from .shopping_days import get_shopping_days
-
-    recipe_days = []  # list of {date, recipes}
+    recipe_days = []
     try:
         shopping_days = get_shopping_days(sl.camp)
-        # Find which delivery this is by matching date
         matching_sd = next((sd for sd in shopping_days if sd.date == sl.from_date), None)
         if matching_sd:
             for idx in matching_sd.dinner_indices:
@@ -238,23 +230,15 @@ def detail(request, pk):
                     if dm:
                         recipes = [r.name for r in [dm.main_course, dm.dessert, dm.salad] if r]
                         if recipes:
-                            recipe_days.append({
-                                "date":    day.date,
-                                "recipes": ", ".join(recipes),
-                            })
+                            recipe_days.append({"date": day.date, "recipes": ", ".join(recipes)})
                 except (IndexError, Exception):
                     pass
     except Exception:
         pass
 
     return render(request, "shopping/detail.html", {
-        "sl":          sl,
-        "items":       items,
-        "fresh":       fresh,
-        "dry":         dry,
-        "total":       total,
-        "bought":      bought,
-        "open":        total - bought,
+        "sl": sl, "items": items, "fresh": fresh, "dry": dry,
+        "total": total, "bought": bought, "open": total - bought,
         "recipe_days": recipe_days,
     })
 
@@ -306,47 +290,28 @@ def regenerate(request, pk):
 
 @login_required
 def export_csv(request, pk):
-    from apps.meals.models import DayMeal
-    from apps.camps.models import CampDay
-    from apps.recipes.models import RecipeIngredient
-
-    sl = get_object_or_404(ShoppingList, pk=pk)
-
-    # Build ingredient -> {day_numbers, recipe_names} map
-    ing_info = {}  # ingredient_id -> {"days": set, "recipes": set}
-    camp_days = list(CampDay.objects.filter(camp=sl.camp).order_by("date"))
-    day_meals = DayMeal.objects.filter(day__camp=sl.camp).select_related(
-        "day", "main_course", "dessert", "salad"
-    )
-    for dm in day_meals:
-        try:
-            day_num = next(i+1 for i, d in enumerate(camp_days) if d.pk == dm.day.pk)
-        except StopIteration:
-            continue
-        for recipe in [dm.main_course, dm.dessert, dm.salad]:
-            if not recipe:
-                continue
-            for ri in RecipeIngredient.objects.filter(recipe=recipe).values_list("ingredient_id", flat=True):
-                if ri not in ing_info:
-                    ing_info[ri] = {"days": set(), "recipes": set()}
-                ing_info[ri]["days"].add(day_num)
-                ing_info[ri]["recipes"].add(recipe.name)
+    from apps.shopping.templatetags.shopping_tags import format_amount
+    sl       = get_object_or_404(ShoppingList, pk=pk)
+    ing_info = _build_ing_info(sl.camp)
 
     response = HttpResponse(content_type="text/csv; charset=utf-8")
-    response["Content-Disposition"] = (
-        f'attachment; filename="einkauf_{slugify(sl.camp.name)}_{sl.from_date}.csv"'
-    )
+    response["Content-Disposition"] = f'attachment; filename="einkauf_{slugify(sl.camp.name)}_{sl.from_date}.csv"'
     response.write("\ufeff")
     writer = csv.writer(response, delimiter=";")
     writer.writerow(["Zutat", "Menge", "Einheit", "Typ", "Kategorie", "Zutaten-Notiz", "Tag", "Rezept"])
     for item in sl.items.select_related("ingredient").order_by("ingredient__is_fresh", "ingredient__name"):
-        info = ing_info.get(item.ingredient.pk, {})
+        info        = ing_info.get(item.ingredient.pk, {})
         days_str    = ", ".join(str(d) for d in sorted(info.get("days", [])))
         recipes_str = ", ".join(sorted(info.get("recipes", [])))
+        fmt = format_amount(item.amount, item.unit)
+        # Split formatted "12,8 kg" into number and unit
+        parts_fmt = fmt.rsplit(" ", 1)
+        menge = parts_fmt[0] if len(parts_fmt) == 2 else fmt
+        einheit = parts_fmt[1] if len(parts_fmt) == 2 else ""
         writer.writerow([
             item.ingredient.name,
-            str(item.amount).replace(".", ","),
-            item.unit,
+            menge,
+            einheit,
             "frisch" if item.ingredient.is_fresh else "trocken",
             item.notes,
             item.ingredient.notes,
@@ -376,35 +341,13 @@ def delete_list(request, pk):
 
 @login_required
 def export_csv_combined(request, camp_pk):
-    from apps.meals.models import DayMeal
-    from apps.camps.models import CampDay
-    from apps.recipes.models import RecipeIngredient
-
-    camp  = get_object_or_404(Camp, pk=camp_pk)
-    lists = ShoppingList.objects.filter(camp=camp).order_by("from_date").prefetch_related("items__ingredient")
-
-    # Build ingredient -> {day_numbers, recipe_names} map
-    ing_info = {}
-    camp_days = list(CampDay.objects.filter(camp=camp).order_by("date"))
-    day_meals = DayMeal.objects.filter(day__camp=camp).select_related("day", "main_course", "dessert", "salad")
-    for dm in day_meals:
-        try:
-            day_num = next(i+1 for i, d in enumerate(camp_days) if d.pk == dm.day.pk)
-        except StopIteration:
-            continue
-        for recipe in [dm.main_course, dm.dessert, dm.salad]:
-            if not recipe:
-                continue
-            for ri in RecipeIngredient.objects.filter(recipe=recipe).values_list("ingredient_id", flat=True):
-                if ri not in ing_info:
-                    ing_info[ri] = {"days": set(), "recipes": set()}
-                ing_info[ri]["days"].add(day_num)
-                ing_info[ri]["recipes"].add(recipe.name)
+    from apps.shopping.templatetags.shopping_tags import format_amount
+    camp     = get_object_or_404(Camp, pk=camp_pk)
+    lists    = ShoppingList.objects.filter(camp=camp).order_by("from_date").prefetch_related("items__ingredient")
+    ing_info = _build_ing_info(camp)
 
     response = HttpResponse(content_type="text/csv; charset=utf-8")
-    response["Content-Disposition"] = (
-        f'attachment; filename="einkauf_{slugify(camp.name)}_gesamt.csv"'
-    )
+    response["Content-Disposition"] = f'attachment; filename="einkauf_{slugify(camp.name)}_gesamt.csv"'
     response.write("\ufeff")
     writer = csv.writer(response, delimiter=";")
     writer.writerow(["Lieferung", "Datum", "Kategorie", "Artikel", "Menge", "Einheit", "Typ", "Zutaten-Notiz", "Tag", "Rezept"])
@@ -412,28 +355,27 @@ def export_csv_combined(request, camp_pk):
     shopping_days = get_shopping_days(camp)
 
     for i, sl in enumerate(lists):
-        sd = shopping_days[i] if i < len(shopping_days) else None
+        sd    = shopping_days[i] if i < len(shopping_days) else None
         label = sd.label if sd else f"Lieferung {i+1}"
         datum = sl.from_date.strftime("%d.%m.%Y")
 
         for item in sl.items.select_related("ingredient").order_by("notes", "ingredient__name"):
-            info = ing_info.get(item.ingredient.pk, {})
+            info        = ing_info.get(item.ingredient.pk, {})
             days_str    = ", ".join(str(d) for d in sorted(info.get("days", [])))
             recipes_str = ", ".join(sorted(info.get("recipes", [])))
+            fmt = format_amount(item.amount, item.unit)
+            parts_fmt = fmt.rsplit(" ", 1)
+            menge = parts_fmt[0] if len(parts_fmt) == 2 else fmt
+            einheit = parts_fmt[1] if len(parts_fmt) == 2 else ""
             writer.writerow([
-                label,
-                datum,
-                item.notes,
-                item.ingredient.name,
-                str(item.amount).replace(".", ","),
-                item.unit,
+                label, datum, item.notes, item.ingredient.name,
+                menge, einheit,
                 "frisch" if item.ingredient.is_fresh else "trocken",
                 item.ingredient.notes,
                 days_str,
                 recipes_str,
             ])
 
-        # Frühstück extras from notes
         if "__fruehstueck__:" in sl.notes:
             raw = sl.notes.split("__fruehstueck__:")[1]
             for entry in raw.split("|"):
@@ -441,8 +383,7 @@ def export_csv_combined(request, camp_pk):
                 if len(parts) == 3:
                     try:
                         writer.writerow([
-                            label, datum, "Frühstück",
-                            parts[0],
+                            label, datum, "Frühstück", parts[0],
                             str(float(parts[1])).replace(".", ","),
                             parts[2], "trocken", "", "", "",
                         ])
