@@ -36,8 +36,6 @@ INSTALLED_APPS = [
 
     # Third-party
     "channels",
-    "rest_framework",
-    "rest_framework_simplejwt",
     "drf_spectacular",
     "django_htmx",
     "crispy_forms",
@@ -214,4 +212,25 @@ RUNDBALLEN = {
     "SLICES_PER_LOAF": 17,   # Standard 500g Mischbrot
     "ROLLS_PER_PERSON_BREAKFAST": 2,  # Brötchen als Alternative
 }
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+    ),
+}
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=8),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=30),
+    "ROTATE_REFRESH_TOKENS": True,
+}
+
+# Fuer Entwicklung alle Origins erlauben.
+# In Produktion auf die App-Domain einschraenken:
+CORS_ALLOW_ALL_ORIGINS = True
+# CORS_ALLOWED_ORIGINS = ["https://deine-domain.de"]
+
 
