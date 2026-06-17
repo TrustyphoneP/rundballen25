@@ -19,6 +19,11 @@ SECRET_KEY = env("SECRET_KEY")
 DEBUG = env("DEBUG")
 ALLOWED_HOSTS = env("ALLOWED_HOSTS")
 
+CSRF_TRUSTED_ORIGINS = [
+    "https://rundballen24.de",
+    "https://www.rundballen24.de",
+]
+
 # ---------------------------------------------------------------------------
 # Apps
 # ---------------------------------------------------------------------------
