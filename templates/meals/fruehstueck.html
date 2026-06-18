@@ -130,6 +130,44 @@
     </div>
     {% endif %}
 
+    <div class="card overflow-hidden mb-6">
+      <div class="px-5 py-3 border-b" style="border-color:rgba(240,237,232,0.07);">
+        <div class="section-mono">Obst (grobe Schätzung, optional)</div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Sorte</th>
+            <th>Menge (Stück)</th>
+            <th>Gewicht (kg)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for fruit in fruits %}
+          <tr>
+            <td>{{ fruit.name }}</td>
+            <td style="max-width:140px;">
+              <input type="number" min="0" step="1"
+                     name="amount_{{ fruit.key }}"
+                     value="{{ fruit.amount|default_if_none:'' }}"
+                     placeholder="z.B. 50">
+            </td>
+            <td style="max-width:140px;">
+              <input type="number" min="0" step="0.1"
+                     name="weight_{{ fruit.key }}"
+                     value="{{ fruit.weight|default_if_none:'' }}"
+                     placeholder="z.B. 7.5">
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="text-xs px-5 py-3" style="color:rgba(240,237,232,0.4);">
+        Beide Felder sind optional. Was hier eingetragen wird, wird wie der Aufschnitt
+        proportional über alle Liefertage der Einkaufsliste verteilt.
+      </div>
+    </div>
+
     <div class="flex items-center gap-3">
       <button type="submit" name="recalc" class="btn btn-ghost">Berechnen</button>
       <button type="submit" name="save" class="btn btn-primary">Speichern</button>

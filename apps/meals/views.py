@@ -326,6 +326,9 @@ def fruehstueck(request, camp_pk=None):
     # Load saved config or create with defaults
     saved, _ = FruehstueckConfig.objects.get_or_create(camp=camp)
 
+    from .models import FruitConfig
+    saved_fruit, _ = FruitConfig.objects.get_or_create(camp=camp)
+
     # Bread days: skip first camp day only
     bread_dates = [d.date for d in days[1:]] if len(days) >= 2 else []
 
@@ -353,6 +356,30 @@ def fruehstueck(request, camp_pk=None):
                 return default
         return default
 
+    def get_optional_int(key, default):
+        """Wie get_int, aber leeres Feld -> None (Obst-Mengen sind optionale Schätzwerte)."""
+        if request.method == "POST":
+            raw = request.POST.get(key, "")
+            if raw in ("", None):
+                return None
+            try:
+                return int(raw)
+            except (ValueError, TypeError):
+                return default
+        return default
+
+    def get_optional_float(key, default):
+        """Wie get_float, aber leeres Feld -> None (Obst-Gewichte sind optionale Schätzwerte)."""
+        if request.method == "POST":
+            raw = request.POST.get(key, "")
+            if raw in ("", None):
+                return None
+            try:
+                return float(raw)
+            except (ValueError, TypeError):
+                return default
+        return default
+
     # Read from POST or fall back to saved DB values
     t_cheese        = get_int("loaves_cheese",       saved.loaves_cheese)
     t_salami        = get_int("loaves_salami",       saved.loaves_salami)
@@ -369,6 +396,16 @@ def fruehstueck(request, camp_pk=None):
     spb_fleischkaese = get_float("spb_fleischkaese", saved.spb_fleischkaese)
     spb_fleischwurst = get_float("spb_fleischwurst", saved.spb_fleischwurst)
 
+    # Obst: Menge (Stück) und Gewicht (kg), beide optional, für die ganze Freizeit
+    fruit_amount_apfel     = get_optional_int("amount_apfel",     saved_fruit.amount_apfel)
+    fruit_weight_apfel     = get_optional_float("weight_apfel",   saved_fruit.weight_apfel)
+    fruit_amount_banane    = get_optional_int("amount_banane",    saved_fruit.amount_banane)
+    fruit_weight_banane    = get_optional_float("weight_banane",  saved_fruit.weight_banane)
+    fruit_amount_birne     = get_optional_int("amount_birne",     saved_fruit.amount_birne)
+    fruit_weight_birne     = get_optional_float("weight_birne",   saved_fruit.weight_birne)
+    fruit_amount_nektarine = get_optional_int("amount_nektarine", saved_fruit.amount_nektarine)
+    fruit_weight_nektarine = get_optional_float("weight_nektarine", saved_fruit.weight_nektarine)
+
     # Save if Speichern button clicked
     if request.method == "POST" and "save" in request.POST:
         saved.loaves_cheese       = t_cheese
@@ -384,6 +421,16 @@ def fruehstueck(request, camp_pk=None):
         saved.spb_fleischkaese    = spb_fleischkaese
         saved.spb_fleischwurst    = spb_fleischwurst
         saved.save()
+
+        saved_fruit.amount_apfel       = fruit_amount_apfel
+        saved_fruit.weight_apfel       = fruit_weight_apfel
+        saved_fruit.amount_banane      = fruit_amount_banane
+        saved_fruit.weight_banane      = fruit_weight_banane
+        saved_fruit.amount_birne       = fruit_amount_birne
+        saved_fruit.weight_birne       = fruit_weight_birne
+        saved_fruit.amount_nektarine   = fruit_amount_nektarine
+        saved_fruit.weight_nektarine   = fruit_weight_nektarine
+        saved_fruit.save()
 
     def calc(loaves, weight_per_slice, slices_per_bread):
         total_slices = loaves * SLICES_PER_LOAF * slices_per_bread
@@ -438,6 +485,20 @@ def fruehstueck(request, camp_pk=None):
     extras[3]["per_day"] = f"{muesli_per_day} Stk"
     extras[3]["total"]   = f"{muesli_total} Stk"
 
+    def fmt_optional(value):
+        """Wandelt None/Zahl in str um, ohne deutsche Komma-Lokalisierung
+        (sonst zeigt <input type="number"> den Wert wegen value="5,0" nicht an)."""
+        if value is None:
+            return ""
+        return str(value)
+
+    fruits = [
+        {"name": "Äpfel",      "key": "apfel",     "amount": fmt_optional(fruit_amount_apfel),     "weight": fmt_optional(fruit_weight_apfel)},
+        {"name": "Bananen",    "key": "banane",    "amount": fmt_optional(fruit_amount_banane),    "weight": fmt_optional(fruit_weight_banane)},
+        {"name": "Birnen",     "key": "birne",     "amount": fmt_optional(fruit_amount_birne),     "weight": fmt_optional(fruit_weight_birne)},
+        {"name": "Nektarinen", "key": "nektarine", "amount": fmt_optional(fruit_amount_nektarine), "weight": fmt_optional(fruit_weight_nektarine)},
+    ]
+
     return render(request, "meals/fruehstueck.html", {
         "camp":            camp,
         "persons":         persons,
@@ -449,6 +510,7 @@ def fruehstueck(request, camp_pk=None):
         "saved_at":        saved.updated_at,
         "extras":          extras,
         "num_bread_days":  num_bread_days,
+        "fruits":          fruits,
     })
 
 

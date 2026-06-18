@@ -206,6 +206,42 @@ def build_shopping_day_items(camp, shopping_day, all_day_meals):
                     except Ingredient.DoesNotExist:
                         fruehstueck_extras.append({"name": ing_name, "amount": weight_g, "unit": "g"})
 
+            # --- Obst aus FruitConfig -- proportional über alle Liefertage,
+            #     analog zum Aufschnitt anhand der Brot-Tage in dieser Lieferung ---
+            try:
+                from apps.meals.models import FruitConfig
+
+                fruit_cfg = FruitConfig.objects.get(camp=camp)
+                fruit_defs = [
+                    ("amount_apfel",     "weight_apfel",     "Äpfel"),
+                    ("amount_banane",    "weight_banane",    "Bananen"),
+                    ("amount_birne",     "weight_birne",     "Birnen"),
+                    ("amount_nektarine", "weight_nektarine", "Nektarinen"),
+                ]
+                for amount_key, weight_key, fruit_name in fruit_defs:
+                    total_amount_camp = getattr(fruit_cfg, amount_key, None)
+                    total_weight_camp = getattr(fruit_cfg, weight_key, None)
+
+                    if total_amount_camp:
+                        amount_these_days = round(total_amount_camp * bread_days_this_delivery / total_bread_days)
+                        if amount_these_days > 0:
+                            try:
+                                ing = Ingredient.objects.get(name=fruit_name)
+                                add(ing, "Stk", amount_these_days, True, "Obst")
+                            except Ingredient.DoesNotExist:
+                                fruehstueck_extras.append({"name": fruit_name, "amount": amount_these_days, "unit": "Stk"})
+
+                    if total_weight_camp:
+                        weight_these_days = round(total_weight_camp * bread_days_this_delivery / total_bread_days, 2)
+                        if weight_these_days > 0:
+                            try:
+                                ing = Ingredient.objects.get(name=fruit_name)
+                                add(ing, "kg", weight_these_days, True, "Obst")
+                            except Ingredient.DoesNotExist:
+                                fruehstueck_extras.append({"name": f"{fruit_name} (Gewicht)", "amount": weight_these_days, "unit": "kg"})
+            except Exception:
+                pass
+
             # Dry items -- only on first delivery (include_dry)
             if shopping_day.include_dry:
                 # Total over all bread days

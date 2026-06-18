@@ -245,3 +245,37 @@ class GeneralIngredient(models.Model):
 
     def __str__(self):
         return f"{self.ingredient.name} ({self.amount} {self.unit})"
+
+
+class FruitConfig(models.Model):
+    """
+    Gespeicherte Obst-Schätzung pro Freizeit (Äpfel/Bananen/Birnen/Nektarinen).
+    Menge (Stück, grobe Schätzung für die ganze Freizeit) und/oder Gewicht (kg,
+    grobe Schätzung für die ganze Freizeit) -- beide optional.
+    Wird wie Aufschnitt proportional über alle Liefertage verteilt.
+    """
+    camp = models.OneToOneField(
+        "camps.Camp", on_delete=models.CASCADE,
+        related_name="fruit_config"
+    )
+
+    amount_apfel       = models.PositiveIntegerField(null=True, blank=True, verbose_name="Äpfel (Stück)")
+    weight_apfel        = models.FloatField(null=True, blank=True, verbose_name="Äpfel (kg)")
+
+    amount_banane       = models.PositiveIntegerField(null=True, blank=True, verbose_name="Bananen (Stück)")
+    weight_banane        = models.FloatField(null=True, blank=True, verbose_name="Bananen (kg)")
+
+    amount_birne        = models.PositiveIntegerField(null=True, blank=True, verbose_name="Birnen (Stück)")
+    weight_birne         = models.FloatField(null=True, blank=True, verbose_name="Birnen (kg)")
+
+    amount_nektarine    = models.PositiveIntegerField(null=True, blank=True, verbose_name="Nektarinen (Stück)")
+    weight_nektarine     = models.FloatField(null=True, blank=True, verbose_name="Nektarinen (kg)")
+
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Obst Konfiguration"
+        verbose_name_plural = "Obst Konfigurationen"
+
+    def __str__(self):
+        return f"Obst Konfig: {self.camp}"
