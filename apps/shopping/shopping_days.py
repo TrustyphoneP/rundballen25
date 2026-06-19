@@ -258,13 +258,40 @@ def build_shopping_day_items(camp, shopping_day, all_day_meals):
     except Exception:
         pass
 
-    # --- Allgemeine Zutaten (nur Lieferung 1) ---
+    # --- Allgemeine Zutaten (freizeitweit, nur Lieferung 1) ---
     if shopping_day.include_dry:
         try:
             from apps.meals.models import GeneralIngredient
-            for gi in GeneralIngredient.objects.filter(camp=camp).select_related("ingredient"):
+            for gi in GeneralIngredient.objects.filter(
+                camp=camp, category=GeneralIngredient.Category.ALLGEMEIN
+            ).select_related("ingredient"):
                 add(gi.ingredient, gi.unit, gi.amount, gi.ingredient.is_fresh, "Allgemein")
         except Exception:
             pass
+
+    # --- Betreueressen-Zutaten: gebunden an den Tag des Bezugsrezepts,
+    #     landen im Liefertag, der diesen Tag in dinner_indices abdeckt
+    #     (gleiche Logik wie Abendessen: Lieferung kommt am selben Tag) ---
+    try:
+        from apps.meals.models import GeneralIngredient
+
+        # Camp-Tage in Datums-Reihenfolge, um den 0-basierten Index eines
+        # CampDay zu bestimmen (entspricht der Reihenfolge von all_day_meals)
+        camp_days_ordered = list(camp.days.order_by("date"))
+        day_to_index = {d.pk: i for i, d in enumerate(camp_days_ordered)}
+
+        be_items = GeneralIngredient.objects.filter(
+            camp=camp, category=GeneralIngredient.Category.BETREUERESSEN,
+            day__isnull=False,
+        ).select_related("ingredient", "day")
+
+        for gi in be_items:
+            day_index = day_to_index.get(gi.day_id)
+            if day_index is None:
+                continue
+            if day_index in shopping_day.dinner_indices:
+                add(gi.ingredient, gi.unit, gi.amount, gi.ingredient.is_fresh, "Betreueressen")
+    except Exception:
+        pass
 
     return aggregated, fruehstueck_extras

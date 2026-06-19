@@ -15,4 +15,9 @@ urlpatterns = [
     path("fruehstueck/",                        views.fruehstueck,    name="fruehstueck_default"),
     path("freizeit/<int:camp_pk>/allgemein/",   views.allgemein,      name="allgemein"),
     path("allgemein/",                          views.allgemein,      name="allgemein_default"),
+
+    # Betreueressen: Resteverwertung pro Tag
+    path("freizeit/<int:camp_pk>/betreueressen/",                 views.betreueressen, name="betreueressen"),
+    path("freizeit/<int:camp_pk>/betreueressen/tag/<int:day_pk>/", views.betreueressen, name="betreueressen_day"),
+    path("betreueressen/",                                        views.betreueressen, name="betreueressen_default"),
 ]

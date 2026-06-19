@@ -164,6 +164,10 @@
            class="nav-link {% if 'recipes' in request.resolver_match.app_name %}active{% endif %}">
           <div class="nav-dot"></div> Rezepte
         </a>
+        <a href="{% url 'meals:betreueressen' camp_pk=active_camp.pk %}" @click="sidebarOpen = false"
+           class="nav-link {% if request.resolver_match.url_name == 'betreueressen' or request.resolver_match.url_name == 'betreueressen_day' or request.resolver_match.url_name == 'betreueressen_default' %}active{% endif %}">
+          <div class="nav-dot"></div> Betreueressen
+        </a>
         <a href="{% url 'meals:allgemein_default' %}" @click="sidebarOpen = false"
            class="nav-link {% if request.resolver_match.url_name == 'allgemein' or request.resolver_match.url_name == 'allgemein_default' %}active{% endif %}">
           <div class="nav-dot"></div> Allgemein

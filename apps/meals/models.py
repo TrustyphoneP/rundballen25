@@ -230,13 +230,38 @@ class BrotConfig(models.Model):
 
 
 class GeneralIngredient(models.Model):
-    """Allgemeine Zutaten die keinem Rezept zugehören (z.B. Gewürze, Putzmittel)."""
+    """
+    Allgemeine Zutaten die keinem Rezept zugehören (z.B. Gewürze, Putzmittel),
+    ODER zusätzliche Zutaten für "Betreueressen" (Resteverwertung eines
+    Hauptgerichts an einem bestimmten Tag, z.B. Eier für Eierreis aus Restreis).
+
+    - category="allgemein" (Standard): freizeitweit, day=None, landet wie bisher
+      in Lieferung 1 der Einkaufsliste.
+    - category="betreueressen": an einen Tag (day) gebunden, landet im
+      Liefertag, der den Tag des Bezugsrezepts (dinner_indices) abdeckt.
+    """
+
+    class Category(models.TextChoices):
+        ALLGEMEIN      = "allgemein",      "Allgemein"
+        BETREUERESSEN  = "betreueressen",  "Betreueressen"
+
     camp       = models.ForeignKey("camps.Camp", on_delete=models.CASCADE, related_name="general_ingredients")
     ingredient = models.ForeignKey("recipes.Ingredient", on_delete=models.CASCADE, related_name="general_uses")
     amount     = models.DecimalField(max_digits=10, decimal_places=2)
     unit       = models.CharField(max_length=20)
     notes      = models.CharField(max_length=300, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    category   = models.CharField(
+        max_length=20, choices=Category.choices, default=Category.ALLGEMEIN,
+        verbose_name="Kategorie"
+    )
+    day        = models.ForeignKey(
+        "camps.CampDay", on_delete=models.CASCADE, null=True, blank=True,
+        related_name="general_ingredients",
+        verbose_name="Tag (nur Betreueressen)",
+        help_text="Nur für category='betreueressen': Tag, an dessen Liefertag die Zutat ankommen soll.",
+    )
 
     class Meta:
         ordering = ["ingredient__name"]
