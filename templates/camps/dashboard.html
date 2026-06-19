@@ -40,6 +40,16 @@
     font-size: 0.78rem;
     color: rgba(240,237,232,0.45);
   }
+  .kitchen-tile-featured {
+    background: rgba(232,164,68,0.08);
+    border-color: rgba(232,164,68,0.35);
+  }
+  .kitchen-tile-featured .kitchen-tile-title {
+    color: #e8a444;
+  }
+  .kitchen-tile-featured:hover {
+    background: rgba(232,164,68,0.14);
+  }
 </style>
 {% endblock %}
 
@@ -79,8 +89,9 @@
 </div>
 
 <!-- Küche -- große, handyfreundliche Kacheln -->
+<div class="section-mono mb-3">Küche</div>
 <div class="kitchen-tile-grid mb-8">
-  <a href="{% url 'camps:skf_briefing_days' camp_pk=active_camp.pk %}" class="kitchen-tile">
+  <a href="{% url 'camps:skf_briefing_days' camp_pk=active_camp.pk %}" class="kitchen-tile kitchen-tile-featured">
     <div class="kitchen-tile-title">SKF-Briefing</div>
     <div class="kitchen-tile-desc">Tagesbriefing für SKF-Teilis</div>
   </a>
