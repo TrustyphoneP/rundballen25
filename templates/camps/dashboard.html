@@ -65,7 +65,7 @@
     <div class="text-xs" style="color:rgba(240,237,232,0.4);">erfasste Personen</div>
   </div>
   <div class="card px-5 py-5">
-    <div class="section-mono mb-2">SKF</div>
+    <div class="section-mono mb-2">Unverträglichkeiten</div>
     <div class="font-display text-4xl mb-1" style="color:#e07b54;">{{ with_intol }}</div>
     <div class="text-xs" style="color:rgba(240,237,232,0.4);">von {{ total }} erfassten Personen</div>
   </div>
@@ -79,8 +79,11 @@
 </div>
 
 <!-- Küche -- große, handyfreundliche Kacheln -->
-<div class="section-mono mb-3">Küche</div>
 <div class="kitchen-tile-grid mb-8">
+  <a href="{% url 'camps:skf_briefing_days' camp_pk=active_camp.pk %}" class="kitchen-tile">
+    <div class="kitchen-tile-title">SKF-Briefing</div>
+    <div class="kitchen-tile-desc">Tagesbriefing für SKF-Teilis</div>
+  </a>
   <a href="{% url 'recipes:list' %}" class="kitchen-tile">
     <div class="kitchen-tile-title">Rezepte</div>
     <div class="kitchen-tile-desc">Rezeptverwaltung & Zutaten</div>
