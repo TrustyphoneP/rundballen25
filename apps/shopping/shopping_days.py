@@ -129,7 +129,10 @@ def build_shopping_day_items(camp, shopping_day, all_day_meals):
             }
         aggregated[key]["amount"] += Decimal(str(amount))
 
-    # --- Abendessen (dinner) ---
+    # --- Abendessen (dinner): NUR frische Zutaten ---
+    # Trockene Zutaten werden separat unten für die GESAMTE Freizeit
+    # aggregiert (nicht nur für die Tage dieser Lieferung), sonst würden
+    # sie hier UND im "Alle trockenen Zutaten"-Block doppelt gezählt.
     for idx in shopping_day.dinner_indices:
         if idx >= len(all_day_meals):
             continue
@@ -139,7 +142,7 @@ def build_shopping_day_items(camp, shopping_day, all_day_meals):
         for item in meal.get_all_scaled_ingredients():
             ing      = item["ingredient"]
             is_fresh = ing.is_fresh
-            if not is_fresh and not shopping_day.include_dry:
+            if not is_fresh:
                 continue
             add(ing, item["unit"], item["amount"], is_fresh, "Abendessen")
 
