@@ -117,17 +117,36 @@ def build_shopping_day_items(camp, shopping_day, all_day_meals):
 
     aggregated = {}
 
+    # Einheiten, die sich gegenseitig umrechnen lassen, werden auf eine
+    # gemeinsame Basis normalisiert, bevor sie aggregiert werden. Sonst
+    # werden z.B. "130 g" aus einem Rezept und "1,2 kg" aus einem anderen
+    # Rezept für dieselbe Zutat NICHT zusammengeführt, weil (ingredient_id, unit)
+    # zwei unterschiedliche Schlüssel wären ("g" vs "kg").
+    _WEIGHT_TO_G = {"g": Decimal("1"), "kg": Decimal("1000")}
+    _VOLUME_TO_ML = {"ml": Decimal("1"), "l": Decimal("1000")}
+
+    def _normalize_unit(unit, amount):
+        """Gibt (normalisierte_einheit, normalisierte_menge) zurück.
+        Gewicht -> g, Volumen -> ml, alles andere (Stk/Pck/EL/TL/Bd) bleibt."""
+        amount = Decimal(str(amount))
+        if unit in _WEIGHT_TO_G:
+            return "g", amount * _WEIGHT_TO_G[unit]
+        if unit in _VOLUME_TO_ML:
+            return "ml", amount * _VOLUME_TO_ML[unit]
+        return unit, amount
+
     def add(ing, unit, amount, is_fresh, source="Abendessen"):
-        key = (ing.id, unit)
+        norm_unit, norm_amount = _normalize_unit(unit, amount)
+        key = (ing.id, norm_unit)
         if key not in aggregated:
             aggregated[key] = {
                 "ingredient": ing,
-                "unit":       unit,
+                "unit":       norm_unit,
                 "amount":     Decimal("0"),
                 "is_fresh":   is_fresh,
                 "source":     source,
             }
-        aggregated[key]["amount"] += Decimal(str(amount))
+        aggregated[key]["amount"] += norm_amount
 
     # --- Abendessen (dinner): NUR frische Zutaten ---
     # Trockene Zutaten werden separat unten für die GESAMTE Freizeit
