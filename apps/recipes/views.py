@@ -232,7 +232,7 @@ def recipe_delete(request, pk):
     if request.method == "POST":
         name = recipe.name
         recipe.delete()
-        messages.success(request, f"Rezept \"{name}\" geloescht.")
+        messages.success(request, f"Rezept \"{name}\" gelöscht.")
         return redirect("recipes:list")
     return render(request, "recipes/recipe_confirm_delete.html", {"recipe": recipe})
 

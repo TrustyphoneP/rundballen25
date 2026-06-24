@@ -368,7 +368,7 @@ def csv_template(request):
 
 
 # ---------------------------------------------------------------------------
-# Allergen-Uebersicht (HTMX-Panel)
+# Allergen-Übersicht (HTMX-Panel)
 # ---------------------------------------------------------------------------
 
 @login_required

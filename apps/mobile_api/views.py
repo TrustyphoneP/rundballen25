@@ -200,18 +200,18 @@ class AktionDetailView(generics.RetrieveUpdateDestroyAPIView):
 @api_view(["GET"])
 def mein_tagesplan(request, camp_id, wochentag):
     """
-    Gibt den personalisierten Tagesplan fuer den eingeloggten Betreuer zurueck:
-    - Alle Aktionen ohne Verantwortlichen (= fuer alle)
+    Gibt den personalisierten Tagesplan für den eingeloggten Betreuer zurück:
+    - Alle Aktionen ohne Verantwortlichen (= für alle)
     - Plus Aktionen, bei denen dieser Betreuer explizit eingetragen ist
     """
-    # Aktionen ohne zugeordneten Betreuer (Pflichtprogramm fuer alle)
+    # Aktionen ohne zugeordneten Betreuer (Pflichtprogramm für alle)
     alle = Aktion.objects.filter(
         wochenplan__camp_id=camp_id,
         wochentag=wochentag,
         verantwortlich__isnull=True,
     )
 
-    # Aktionen explizit fuer diesen Betreuer
+    # Aktionen explizit für diesen Betreuer
     meine = Aktion.objects.filter(
         wochenplan__camp_id=camp_id,
         wochentag=wochentag,
