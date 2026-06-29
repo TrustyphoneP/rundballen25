@@ -149,6 +149,9 @@
            class="nav-link {% if request.resolver_match.url_name == 'skf_briefing_days' or request.resolver_match.url_name == 'skf_briefing_day' %}active{% endif %}">
           <div class="nav-dot"></div> SKF-Briefing
         </a>
+        <a href="{% url 'admin:index' %}" @click="sidebarOpen = false" class="nav-link">
+          <div class="nav-dot"></div> Admin
+        </a>
 
         {% if active_camp %}
         <div class="section-mono px-2 mb-2 mt-4">Küche</div>
@@ -157,7 +160,7 @@
           <div class="nav-dot"></div> Rezepte
         </a>
         <a href="{% url 'meals:week_plan' camp_pk=active_camp.pk %}" @click="sidebarOpen = false"
-           class="nav-link {% if 'meals' in request.resolver_match.app_name and request.resolver_match.url_name == 'week_plan' or request.resolver_match.url_name == 'index' %}active{% endif %}">
+           class="nav-link {% if request.resolver_match.app_name == 'meals' and request.resolver_match.url_name == 'week_plan' or request.resolver_match.app_name == 'meals' and request.resolver_match.url_name == 'index' %}active{% endif %}">
           <div class="nav-dot"></div> Wochenplan
         </a>
         <a href="{% url 'meals:allgemein_default' %}" @click="sidebarOpen = false"

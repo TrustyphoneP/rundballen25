@@ -5,6 +5,7 @@ Alle 14 EU-Pflichtallergene sind vorinstalliert.
 Jedes Rezept kann beliebige Allergene und Diäteigenschaften tragen.
 Die Mengenberechnung erfolgt pro Person und skaliert automatisch.
 """
+from decimal import Decimal
 from django.db import models
 
 
@@ -147,30 +148,50 @@ class Ingredient(models.Model):
     def has_price(self):
         return self.price is not None and self.price_unit
 
+    _WEIGHT_TO_G = {"g": Decimal("1"), "kg": Decimal("1000")}
+    _VOLUME_TO_ML = {"ml": Decimal("1"), "l": Decimal("1000")}
+
     def derive_price_unit(self):
         """
         Ermittelt die Einheit für den Preis direkt aus den tatsächlichen
         Rezept-Verwendungen dieser Zutat (RecipeIngredient.unit), statt sie
         manuell auswählen zu lassen.
 
+        Einheiten derselben Dimension werden zusammengefasst, statt als
+        Konflikt behandelt zu werden: g/kg sind beide Gewicht, ml/l sind
+        beide Volumen. In diesem Fall wird die GRÖSSERE Einheit gewählt
+        (kg statt g, l statt ml), weil sich Preise üblicher auf kg/l beziehen.
+        Eine Warnung erscheint nur noch bei echt inkompatiblen Einheiten
+        (z.B. "Stk" und "ml" gemischt), wo keine sinnvolle Umrechnung möglich ist.
+
         Gibt (einheit, ist_uneinheitlich) zurück:
         - einheit: die Einheit, falls eindeutig ermittelbar, sonst "" (z.B.
-          keine Verwendung, oder mehrere unterschiedliche Einheiten)
+          keine Verwendung, oder mehrere unterschiedliche, inkompatible
+          Einheiten)
         - ist_uneinheitlich: True, wenn die Zutat in mehreren Rezepten mit
-          unterschiedlichen Einheiten verwendet wird (z.B. einmal "g",
-          einmal "kg") -- dann sollte eine Warnung angezeigt werden, da der
-          Preis sich nicht eindeutig zuordnen lässt.
+          echt INKOMPATIBLEN Einheiten verwendet wird (nicht umrechenbar,
+          z.B. "Stk" und "kg") -- dann sollte eine Warnung angezeigt werden,
+          da der Preis sich nicht eindeutig zuordnen lässt.
         """
         units = list(
             self.recipe_uses_for_pricing()
             .values_list("unit", flat=True)
             .distinct()
         )
+        if len(units) == 0:
+            return "", False
         if len(units) == 1:
             return units[0], False
-        if len(units) > 1:
-            return "", True
-        return "", False
+
+        # Mehrere unterschiedliche Einheiten -- prüfen, ob sie alle derselben
+        # Dimension angehören (alle Gewicht, oder alle Volumen). Mischungen
+        # über Dimensionen hinweg (z.B. "g" und "Stk") bleiben ein Konflikt.
+        if all(u in self._WEIGHT_TO_G for u in units):
+            return "kg", False
+        if all(u in self._VOLUME_TO_ML for u in units):
+            return "l", False
+
+        return "", True
 
     def recipe_uses_for_pricing(self):
         """RecipeIngredient-Zeilen, die diese Zutat verwenden (für
@@ -196,13 +217,8 @@ class Ingredient(models.Model):
         Gibt None zurück, wenn kein Preis hinterlegt ist oder die Einheiten
         nicht zueinander umrechenbar sind (z.B. 'kg' vs 'Stk').
         """
-        from decimal import Decimal
-
         if not self.has_price:
             return None
-
-        _WEIGHT_TO_G = {"g": Decimal("1"), "kg": Decimal("1000")}
-        _VOLUME_TO_ML = {"ml": Decimal("1"), "l": Decimal("1000")}
 
         amount = Decimal(str(amount))
 
@@ -211,15 +227,15 @@ class Ingredient(models.Model):
             return self.price * amount
 
         # Gewicht <-> Gewicht (g/kg)
-        if unit in _WEIGHT_TO_G and self.price_unit in _WEIGHT_TO_G:
-            amount_in_g = amount * _WEIGHT_TO_G[unit]
-            price_per_g = self.price / _WEIGHT_TO_G[self.price_unit]
+        if unit in self._WEIGHT_TO_G and self.price_unit in self._WEIGHT_TO_G:
+            amount_in_g = amount * self._WEIGHT_TO_G[unit]
+            price_per_g = self.price / self._WEIGHT_TO_G[self.price_unit]
             return amount_in_g * price_per_g
 
         # Volumen <-> Volumen (ml/l)
-        if unit in _VOLUME_TO_ML and self.price_unit in _VOLUME_TO_ML:
-            amount_in_ml = amount * _VOLUME_TO_ML[unit]
-            price_per_ml = self.price / _VOLUME_TO_ML[self.price_unit]
+        if unit in self._VOLUME_TO_ML and self.price_unit in self._VOLUME_TO_ML:
+            amount_in_ml = amount * self._VOLUME_TO_ML[unit]
+            price_per_ml = self.price / self._VOLUME_TO_ML[self.price_unit]
             return amount_in_ml * price_per_ml
 
         # Nicht umrechenbar (z.B. 'kg' Rezeptmenge gegen 'Stk' Preiseinheit)
