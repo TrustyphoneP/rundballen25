@@ -167,13 +167,13 @@
            class="nav-link {% if request.resolver_match.url_name == 'allgemein' or request.resolver_match.url_name == 'allgemein_default' %}active{% endif %}">
           <div class="nav-dot"></div> Allgemein
         </a>
-        <a href="{% url 'meals:fruehstueck_default' %}" @click="sidebarOpen = false"
-           class="nav-link {% if request.resolver_match.url_name == 'fruehstueck' or request.resolver_match.url_name == 'fruehstueck_default' %}active{% endif %}">
-          <div class="nav-dot"></div> Frühstück / Mittagessen
-        </a>
         <a href="{% url 'meals:bread_plan_default' %}" @click="sidebarOpen = false"
            class="nav-link {% if request.resolver_match.url_name == 'bread_plan' or request.resolver_match.url_name == 'bread_plan_default' %}active{% endif %}">
           <div class="nav-dot"></div> Brotplanung
+        </a>
+        <a href="{% url 'meals:fruehstueck_default' %}" @click="sidebarOpen = false"
+           class="nav-link {% if request.resolver_match.url_name == 'fruehstueck' or request.resolver_match.url_name == 'fruehstueck_default' %}active{% endif %}">
+          <div class="nav-dot"></div> Frühstück / Mittagessen
         </a>
         <a href="{% url 'meals:skf_alternativen' camp_pk=active_camp.pk %}" @click="sidebarOpen = false"
            class="nav-link {% if request.resolver_match.url_name == 'skf_alternativen' or request.resolver_match.url_name == 'skf_alternativen_day' or request.resolver_match.url_name == 'skf_alternativen_default' %}active{% endif %}">
