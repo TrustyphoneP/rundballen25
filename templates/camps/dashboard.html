@@ -103,17 +103,21 @@
     <div class="kitchen-tile-title">Wochenplan</div>
     <div class="kitchen-tile-desc">Hauptgericht, Dessert, Salat pro Tag</div>
   </a>
-  <a href="{% url 'meals:bread_plan_default' %}" class="kitchen-tile">
-    <div class="kitchen-tile-title">Brotplanung</div>
-    <div class="kitchen-tile-desc">Brote & Doppelweck pro Tag</div>
+  <a href="{% url 'meals:allgemein_default' %}" class="kitchen-tile">
+    <div class="kitchen-tile-title">Allgemein</div>
+    <div class="kitchen-tile-desc">Freie Zutaten für die ganze Freizeit</div>
   </a>
   <a href="{% url 'meals:fruehstueck_default' %}" class="kitchen-tile">
     <div class="kitchen-tile-title">Frühstück / Mittagessen</div>
     <div class="kitchen-tile-desc">Belag, Obst & Extras</div>
   </a>
-  <a href="{% url 'meals:allgemein_default' %}" class="kitchen-tile">
-    <div class="kitchen-tile-title">Allgemein</div>
-    <div class="kitchen-tile-desc">Freie Zutaten für die ganze Freizeit</div>
+  <a href="{% url 'meals:bread_plan_default' %}" class="kitchen-tile">
+    <div class="kitchen-tile-title">Brotplanung</div>
+    <div class="kitchen-tile-desc">Brote & Doppelweck pro Tag</div>
+  </a>
+  <a href="{% url 'meals:skf_alternativen' camp_pk=active_camp.pk %}" class="kitchen-tile">
+    <div class="kitchen-tile-title">SKF-Alternativen</div>
+    <div class="kitchen-tile-desc">Ersatzzutaten pro Tag</div>
   </a>
   <a href="{% url 'meals:betreueressen' camp_pk=active_camp.pk %}" class="kitchen-tile">
     <div class="kitchen-tile-title">Betreueressen</div>
