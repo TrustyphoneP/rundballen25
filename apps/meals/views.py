@@ -553,7 +553,8 @@ def allgemein(request, camp_pk=None):
                     if ing:
                         GeneralIngredient.objects.create(
                             camp=camp, ingredient=ing,
-                            amount=amount, unit=unit, notes=notes
+                            amount=amount, unit=unit, notes=notes,
+                            category=GeneralIngredient.Category.ALLGEMEIN,
                         )
                         messages.success(request, f"{ing.name} hinzugefügt.")
                 except (Ingredient.DoesNotExist, ValueError) as e:
@@ -563,9 +564,13 @@ def allgemein(request, camp_pk=None):
 
         elif action == "delete":
             pk = request.POST.get("pk")
-            GeneralIngredient.objects.filter(pk=pk, camp=camp).delete()
+            GeneralIngredient.objects.filter(
+                pk=pk, camp=camp, category=GeneralIngredient.Category.ALLGEMEIN,
+            ).delete()
 
-    items = GeneralIngredient.objects.filter(camp=camp).select_related("ingredient")
+    items = GeneralIngredient.objects.filter(
+        camp=camp, category=GeneralIngredient.Category.ALLGEMEIN,
+    ).select_related("ingredient")
 
     # Autocomplete URL for ingredient search
     from django.urls import reverse
