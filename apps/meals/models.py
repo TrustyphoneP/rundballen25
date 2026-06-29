@@ -233,17 +233,24 @@ class GeneralIngredient(models.Model):
     """
     Allgemeine Zutaten die keinem Rezept zugehören (z.B. Gewürze, Putzmittel),
     ODER zusätzliche Zutaten für "Betreueressen" (Resteverwertung eines
-    Hauptgerichts an einem bestimmten Tag, z.B. Eier für Eierreis aus Restreis).
+    Hauptgerichts an einem bestimmten Tag, z.B. Eier für Eierreis aus Restreis),
+    ODER zusätzliche Zutaten für "SKF-Alternativen" (Ersatzgericht/-zutaten für
+    Vegetarier/Unverträglichkeiten zu einem Hauptgericht, z.B. Tofu statt Fleisch).
 
     - category="allgemein" (Standard): freizeitweit, day=None, landet wie bisher
       in Lieferung 1 der Einkaufsliste.
     - category="betreueressen": an einen Tag (day) gebunden, landet im
       Liefertag, der den Tag des Bezugsrezepts (dinner_indices) abdeckt.
+      Mengen werden NICHT skaliert (feste Eingabe, z.B. "12 Eier").
+    - category="alternative": an einen Tag (day) gebunden, landet im
+      Liefertag, der den Tag des Bezugsrezepts (dinner_indices) abdeckt.
+      Mengen werden NICHT skaliert (feste Eingabe, z.B. "200g Tofu").
     """
 
     class Category(models.TextChoices):
         ALLGEMEIN      = "allgemein",      "Allgemein"
         BETREUERESSEN  = "betreueressen",  "Betreueressen"
+        ALTERNATIVE    = "alternative",    "Alternative"
 
     camp       = models.ForeignKey("camps.Camp", on_delete=models.CASCADE, related_name="general_ingredients")
     ingredient = models.ForeignKey("recipes.Ingredient", on_delete=models.CASCADE, related_name="general_uses")
@@ -259,8 +266,8 @@ class GeneralIngredient(models.Model):
     day        = models.ForeignKey(
         "camps.CampDay", on_delete=models.CASCADE, null=True, blank=True,
         related_name="general_ingredients",
-        verbose_name="Tag (nur Betreueressen)",
-        help_text="Nur für category='betreueressen': Tag, an dessen Liefertag die Zutat ankommen soll.",
+        verbose_name="Tag (nur Betreueressen/Alternative)",
+        help_text="Nur für category='betreueressen' oder 'alternative': Tag, an dessen Liefertag die Zutat ankommen soll.",
     )
 
     class Meta:

@@ -1,0 +1,246 @@
+{% extends "base/base.html" %}
+{% block title %}SKF-Alternativen – {{ camp.name }}{% endblock %}
+{% block page_title %}SKF-Alternativen{% endblock %}
+
+{% block extra_head %}
+<style>
+  .day-tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:20px; }
+  .day-tab {
+    font-family:'DM Mono',monospace; font-size:0.68rem; letter-spacing:0.05em;
+    padding:7px 14px; border-radius:8px; border:1px solid rgba(240,237,232,0.1);
+    color:rgba(240,237,232,0.55); text-decoration:none; transition:all 0.15s; white-space:nowrap;
+  }
+  .day-tab:hover { background:rgba(255,255,255,0.05); color:rgba(240,237,232,0.9); }
+  .day-tab.active { background:rgba(232,164,68,0.15); border-color:rgba(232,164,68,0.28); color:#e8a444; }
+  .autocomplete-dropdown { position:absolute; z-index:100; background:#1e4c59; border:1px solid rgba(240,237,232,0.15); border-radius:8px; min-width:280px; max-height:200px; overflow-y:auto; box-shadow:0 4px 20px rgba(0,0,0,0.4); }
+  .autocomplete-item { padding:8px 14px; font-size:0.82rem; cursor:pointer; color:rgba(240,237,232,0.8); }
+  .autocomplete-item:hover { background:rgba(255,255,255,0.08); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl">
+
+  {% if not days %}
+  <div class="card p-12 text-center" style="color:rgba(240,237,232,0.4);">
+    <div class="font-display text-xl mb-2">Keine Tage vorhanden</div>
+    <div class="text-sm">Freizeit-Zeitraum im Admin prüfen.</div>
+  </div>
+  {% else %}
+
+  <!-- Tagesauswahl -->
+  <div class="day-tabs">
+    {% for day in days %}
+    <a href="{% url 'meals:skf_alternativen_day' camp_pk=camp.pk day_pk=day.pk %}"
+       class="day-tab {% if day.pk == current_day.pk %}active{% endif %}">
+      {{ day.date|date:"D, d.m." }}
+    </a>
+    {% endfor %}
+  </div>
+
+  <!-- Hauptgericht aus dem Wochenplan (read-only) -->
+  <div class="card px-5 py-4 mb-6">
+    <div class="section-mono mb-1">Hauptgericht aus Wochenplan ({{ current_day.date|date:"D, d.m." }})</div>
+    {% if main_course %}
+    <div class="font-display text-2xl">{{ main_course.name }}</div>
+    {% else %}
+    <div class="text-sm" style="color:rgba(240,237,232,0.35);">
+      Kein Hauptgericht im Wochenplan für diesen Tag hinterlegt.
+      <a href="{% url 'meals:week_plan' camp_pk=camp.pk %}" style="color:#e8a444;">Im Wochenplan setzen →</a>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Original-Zutaten des Bezugsrezepts (nur Anzeige) -->
+  {% if main_course %}
+  <div class="card overflow-hidden mb-6">
+    <div class="px-5 py-3 border-b" style="border-color:rgba(240,237,232,0.07);">
+      <div class="section-mono">Zutaten von "{{ main_course.name }}" (Basisportion, nicht skaliert)</div>
+    </div>
+    {% if ref_ingredients %}
+    <table>
+      <thead>
+        <tr>
+          <th>Zutat</th>
+          <th>Menge</th>
+          <th>Einheit</th>
+          <th>Hinweis</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in ref_ingredients %}
+        <tr>
+          <td style="font-weight:500;">{{ item.ingredient.name }}</td>
+          <td class="font-mono" style="color:rgba(240,237,232,0.6);">{{ item.amount|floatformat:"-2" }}</td>
+          <td style="color:rgba(240,237,232,0.6);">{{ item.unit }}</td>
+          <td style="color:rgba(240,237,232,0.4); font-size:0.75rem;">{{ item.note }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="px-5 py-4 text-sm" style="color:rgba(240,237,232,0.35);">Keine Zutaten hinterlegt.</div>
+    {% endif %}
+
+    {% if allergen_counts %}
+    <div class="px-5 py-3 border-t flex flex-wrap gap-2" style="border-color:rgba(240,237,232,0.07);">
+      {% for ac in allergen_counts.values %}
+      <span class="badge badge-warn">{{ ac.allergen.short_code }} · {{ ac.count }} Betreuer</span>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <!-- Zusätzliche Zutaten hinzufügen -->
+  <form method="post" class="card p-5 mb-6" autocomplete="off">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="add">
+    <div class="section-mono mb-4">Alternative Zutat hinzufügen</div>
+    <div class="text-xs mb-4" style="color:rgba(240,237,232,0.4);">
+      Feste Menge für die ganze Freizeit -- wird NICHT mit der Teilnehmerzahl
+      skaliert (z.B. "200g Tofu" landet genau so auf der Einkaufsliste).
+    </div>
+    <div class="grid grid-cols-1 gap-4 mb-4">
+      <div style="position:relative;">
+        <label class="section-mono block mb-1">Zutat</label>
+        <input type="text" id="ingredient-name" name="ingredient_name" placeholder="Zutat suchen..." class="ingredient-autocomplete">
+        <input type="hidden" id="ingredient-id" name="ingredient_id">
+      </div>
+      <div class="grid grid-cols-3 gap-3">
+        <div>
+          <label class="section-mono block mb-1">Menge</label>
+          <input type="number" name="amount" placeholder="0" min="0" step="0.01">
+        </div>
+        <div>
+          <label class="section-mono block mb-1">Einheit</label>
+          <select name="unit">
+            <option value="g">g</option>
+            <option value="kg">kg</option>
+            <option value="ml">ml</option>
+            <option value="l">l</option>
+            <option value="Stk">Stk</option>
+            <option value="Pck">Pck</option>
+            <option value="EL">EL</option>
+            <option value="TL">TL</option>
+          </select>
+        </div>
+        <div>
+          <label class="section-mono block mb-1">Hinweis</label>
+          <input type="text" name="notes" placeholder="Optional">
+        </div>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary">+ Hinzufügen</button>
+  </form>
+
+  <!-- Liste der zusätzlichen Zutaten dieses Tages -->
+  {% if items %}
+  <div class="card overflow-hidden">
+    <div class="px-5 py-3 border-b" style="border-color:rgba(240,237,232,0.07);">
+      <div class="section-mono">{{ items.count }} Zutaten · Alternative -- kommen mit Lieferung von "{{ main_course.name|default:"diesem Tag" }}"</div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Zutat</th>
+          <th>Menge</th>
+          <th>Einheit</th>
+          <th>Hinweis</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in items %}
+        <tr>
+          <td style="font-weight:500;">{{ item.ingredient.name }}</td>
+          <td class="font-mono" style="color:#e8a444;">{{ item.amount|floatformat:"-2" }}</td>
+          <td style="color:rgba(240,237,232,0.6);">{{ item.unit }}</td>
+          <td style="color:rgba(240,237,232,0.4); font-size:0.75rem;">{{ item.notes }}</td>
+          <td>
+            <form method="post" style="display:inline;">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="delete">
+              <input type="hidden" name="pk" value="{{ item.pk }}">
+              <button type="submit" style="background:none; border:none; cursor:pointer; color:rgba(224,123,84,0.5); font-size:0.75rem; padding:2px 6px;">✕</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="card p-8 text-center" style="color:rgba(240,237,232,0.3);">
+    Noch keine Alternative-Zutaten für diesen Tag erfasst.
+  </div>
+  {% endif %}
+
+  {% endif %}
+</div>
+
+<script>
+const AUTOCOMPLETE_URL = "{{ autocomplete_url }}";
+let activeIndex = -1;
+
+function selectItem(item) {
+  document.getElementById("ingredient-name").value = item.name;
+  document.getElementById("ingredient-id").value = item.id;
+  clearDropdowns();
+}
+
+document.addEventListener("input", function(e) {
+  if (e.target.id !== "ingredient-name") return;
+  const val = e.target.value.trim();
+  clearDropdowns();
+  activeIndex = -1;
+  if (val.length < 2) return;
+
+  fetch(`${AUTOCOMPLETE_URL}?q=${encodeURIComponent(val)}`)
+    .then(r => r.json())
+    .then(data => {
+      if (!data.results.length) return;
+      const dropdown = document.createElement("div");
+      dropdown.className = "autocomplete-dropdown";
+      dropdown.dataset.items = JSON.stringify(data.results);
+      data.results.forEach((item, idx) => {
+        const div = document.createElement("div");
+        div.className = "autocomplete-item";
+        div.textContent = item.name;
+        div.addEventListener("mousedown", ev => { ev.preventDefault(); selectItem(item); });
+        dropdown.appendChild(div);
+      });
+      e.target.parentElement.appendChild(dropdown);
+    });
+});
+
+document.addEventListener("keydown", function(e) {
+  if (e.target.id !== "ingredient-name") return;
+  const dropdown = e.target.parentElement.querySelector(".autocomplete-dropdown");
+  if (!dropdown) return;
+  const items = dropdown.querySelectorAll(".autocomplete-item");
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    activeIndex = Math.min(activeIndex + 1, items.length - 1);
+    items.forEach((el, i) => el.style.background = i === activeIndex ? "rgba(255,255,255,0.12)" : "");
+  } else if (e.key === "ArrowUp") {
+    e.preventDefault();
+    activeIndex = Math.max(activeIndex - 1, 0);
+    items.forEach((el, i) => el.style.background = i === activeIndex ? "rgba(255,255,255,0.12)" : "");
+  } else if (e.key === "Tab" || e.key === "Enter") {
+    const allItems = JSON.parse(dropdown.dataset.items);
+    if (activeIndex >= 0) { e.preventDefault(); selectItem(allItems[activeIndex]); }
+    else if (allItems.length === 1) { e.preventDefault(); selectItem(allItems[0]); }
+  } else if (e.key === "Escape") { clearDropdowns(); }
+});
+
+document.addEventListener("blur", function(e) {
+  if (e.target.id === "ingredient-name") setTimeout(clearDropdowns, 150);
+}, true);
+
+function clearDropdowns() {
+  document.querySelectorAll(".autocomplete-dropdown").forEach(d => d.remove());
+  activeIndex = -1;
+}
+</script>
+{% endblock %}

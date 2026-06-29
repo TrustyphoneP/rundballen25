@@ -20,4 +20,9 @@ urlpatterns = [
     path("freizeit/<int:camp_pk>/betreueressen/",                 views.betreueressen, name="betreueressen"),
     path("freizeit/<int:camp_pk>/betreueressen/tag/<int:day_pk>/", views.betreueressen, name="betreueressen_day"),
     path("betreueressen/",                                        views.betreueressen, name="betreueressen_default"),
+
+    # SKF-Alternativen: Ersatzzutaten pro Tag (analog Betreueressen, ohne Skalierung)
+    path("freizeit/<int:camp_pk>/skf-alternativen/",                  views.skf_alternativen, name="skf_alternativen"),
+    path("freizeit/<int:camp_pk>/skf-alternativen/tag/<int:day_pk>/", views.skf_alternativen, name="skf_alternativen_day"),
+    path("skf-alternativen/",                                         views.skf_alternativen, name="skf_alternativen_default"),
 ]

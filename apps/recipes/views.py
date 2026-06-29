@@ -299,6 +299,16 @@ def ingredient_edit(request, pk):
         form.save()
         messages.success(request, f"\"{ingredient.name}\" aktualisiert.")
         return redirect("recipes:ingredient_list")
+
+    unit, inconsistent = ingredient.derive_price_unit()
+    used_units = []
+    if inconsistent:
+        used_units = list(
+            ingredient.recipe_uses_for_pricing().values_list("unit", flat=True).distinct()
+        )
+
     return render(request, "recipes/ingredient_form.html", {
         "form": form, "ingredient": ingredient,
+        "price_unit": unit, "price_unit_inconsistent": inconsistent,
+        "price_unit_used": used_units,
     })

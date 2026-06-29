@@ -309,7 +309,7 @@ def export_csv(request, pk):
     response["Content-Disposition"] = f'attachment; filename="einkauf_{slugify(sl.camp.name)}_{sl.from_date}.csv"'
     response.write("\ufeff")
     writer = csv.writer(response, delimiter=";")
-    writer.writerow(["Zutat", "Menge", "Einheit", "Typ", "Kategorie", "Zutaten-Notiz", "Tag", "Rezept"])
+    writer.writerow(["Zutat", "Menge", "Einheit", "Trocken/Frisch", "Kategorie", "Zutaten-Notiz", "Tag", "Rezept"])
     for item in sl.items.select_related("ingredient").order_by("ingredient__is_fresh", "ingredient__name"):
         info        = ing_info.get(item.ingredient.pk, {})
         days_str    = ", ".join(str(d) for d in sorted(info.get("days", [])))
@@ -361,7 +361,7 @@ def export_csv_combined(request, camp_pk):
     response["Content-Disposition"] = f'attachment; filename="einkauf_{slugify(camp.name)}_gesamt.csv"'
     response.write("\ufeff")
     writer = csv.writer(response, delimiter=";")
-    writer.writerow(["Lieferung", "Datum", "Kategorie", "Artikel", "Menge", "Einheit", "Typ", "Zutaten-Notiz", "Tag", "Rezept"])
+    writer.writerow(["Lieferung", "Datum", "Kategorie", "Trocken/Frisch", "Artikel", "Menge", "Einheit", "Zutaten-Notiz", "Tag", "Rezept"])
 
     shopping_days = get_shopping_days(camp)
 
@@ -379,19 +379,24 @@ def export_csv_combined(request, camp_pk):
             menge = parts_fmt[0] if len(parts_fmt) == 2 else fmt
             einheit = parts_fmt[1] if len(parts_fmt) == 2 else ""
             writer.writerow([
-                label, datum, item.notes, item.ingredient.name,
-                menge, einheit,
+                label, datum, item.notes,
                 "frisch" if item.ingredient.is_fresh else "trocken",
+                item.ingredient.name,
+                menge, einheit,
                 item.ingredient.notes,
                 days_str,
                 recipes_str,
             ])
 
         for extra in _parse_fruehstueck_extras(sl.notes):
+            from apps.recipes.models import Ingredient
+            is_fresh = Ingredient.objects.filter(name=extra["name"]).values_list("is_fresh", flat=True).first()
             writer.writerow([
-                label, datum, "Frühstück", extra["name"],
+                label, datum, "Frühstück/Mittag",
+                "frisch" if is_fresh else "trocken",
+                extra["name"],
                 str(extra["amount"]).replace(".", ","),
-                extra["unit"], "trocken", "", "", "",
+                extra["unit"], "", "", "",
             ])
 
     return response

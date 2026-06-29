@@ -712,3 +712,141 @@ def betreueressen(request, camp_pk=None, day_pk=None):
         "allergen_counts":   allergen_counts,
         "autocomplete_url":  autocomplete_url,
     })
+
+
+@login_required
+def skf_alternativen(request, camp_pk=None, day_pk=None):
+    """
+    SKF-Alternativen: Ersatzzutaten für ein Hauptgericht eines Tages, um
+    Vegetariern/Teilis mit Unverträglichkeiten eine Alternative zu bieten
+    (z.B. 200g Tofu statt Hühnerbrust). Technisch identisch zu
+    "Betreueressen" aufgebaut, nur mit eigener Kategorie "alternative".
+
+    Das Hauptgericht kommt direkt und ausschließlich aus dem Wochenplan
+    (DayMeal.main_course) -- read-only, keine eigene Auswahl hier.
+
+    WICHTIG: Mengen werden NICHT mit der Teilnehmerzahl skaliert -- die
+    eingegebene Menge (z.B. "200g Tofu") geht 1:1 in die Einkaufsliste,
+    Kategorie "Alternative".
+
+    Allergen-Warnung bezieht sich NUR auf Personen mit person_type="supervisor",
+    nicht auf alle Teilis (anders als im Wochenplan), genau wie Betreueressen.
+    """
+    from .models import GeneralIngredient
+    from apps.recipes.models import Ingredient
+
+    if camp_pk:
+        camp = get_object_or_404(Camp, pk=camp_pk)
+    else:
+        camp = Camp.objects.filter(is_active=True).first()
+        if not camp:
+            return redirect("camps:dashboard")
+
+    _ensure_camp_days(camp)
+    days = list(
+        CampDay.objects.filter(camp=camp)
+        .select_related("day_meal", "day_meal__main_course")
+        .order_by("date")
+    )
+
+    if not days:
+        return render(request, "meals/skf_alternativen.html", {"camp": camp, "days": []})
+
+    # Aktiven Tag bestimmen: per URL-Param day_pk, sonst erster Tag
+    if day_pk:
+        current_day = get_object_or_404(
+            CampDay.objects.select_related("day_meal", "day_meal__main_course"),
+            pk=day_pk, camp=camp,
+        )
+    else:
+        current_day = days[0]
+
+    # Hauptgericht read-only aus dem Wochenplan
+    main_course = None
+    if hasattr(current_day, "day_meal") and current_day.day_meal:
+        main_course = current_day.day_meal.main_course
+
+    if request.method == "POST":
+        action = request.POST.get("action")
+
+        if action == "add":
+            ing_name = request.POST.get("ingredient_name", "").strip()
+            ing_id   = request.POST.get("ingredient_id", "").strip()
+            amount   = request.POST.get("amount", "").strip()
+            unit     = request.POST.get("unit", "g").strip()
+            notes    = request.POST.get("notes", "").strip()
+
+            if amount:
+                try:
+                    if ing_id:
+                        ing = Ingredient.objects.get(pk=ing_id)
+                    elif ing_name:
+                        ing = Ingredient.objects.filter(name__iexact=ing_name).first()
+                        if not ing:
+                            ing = Ingredient.objects.create(name=ing_name)
+                            messages.success(request, f"Neue Zutat '{ing_name}' angelegt.")
+                    else:
+                        ing = None
+
+                    if ing:
+                        GeneralIngredient.objects.create(
+                            camp=camp, ingredient=ing,
+                            amount=amount, unit=unit, notes=notes,
+                            category=GeneralIngredient.Category.ALTERNATIVE,
+                            day=current_day,
+                        )
+                        messages.success(request, f"{ing.name} hinzugefügt.")
+                except (Ingredient.DoesNotExist, ValueError) as e:
+                    messages.error(request, f"Fehler: {e}")
+            else:
+                messages.error(request, "Bitte Menge eingeben.")
+
+        elif action == "delete":
+            pk = request.POST.get("pk")
+            GeneralIngredient.objects.filter(
+                pk=pk, camp=camp, day=current_day,
+                category=GeneralIngredient.Category.ALTERNATIVE,
+            ).delete()
+
+        # Redirect, damit der Tag in der URL bleibt (kein Re-POST bei Reload)
+        return redirect("meals:skf_alternativen_day", camp_pk=camp.pk, day_pk=current_day.pk)
+
+    # Original-Zutaten des Hauptgerichts: NUR Anzeige, keine Skalierung
+    ref_ingredients = []
+    if main_course:
+        for ri in main_course.recipe_ingredients.select_related("ingredient").order_by("ingredient__name"):
+            ref_ingredients.append({
+                "ingredient": ri.ingredient,
+                "amount":     ri.amount,
+                "unit":       ri.unit,
+                "note":       ri.note,
+            })
+
+    items = GeneralIngredient.objects.filter(
+        camp=camp, day=current_day,
+        category=GeneralIngredient.Category.ALTERNATIVE,
+    ).select_related("ingredient")
+
+    # Allergen-Warnung NUR für Betreuer (person_type="supervisor"),
+    # nicht für alle Teilis wie im Wochenplan
+    allergen_counts = {}
+    if main_course:
+        supervisors = camp.participants.filter(person_type="supervisor").prefetch_related("intolerances")
+        for allergen in main_course.allergens.all():
+            count = sum(1 for s in supervisors if allergen in s.intolerances.all())
+            if count:
+                allergen_counts[allergen.pk] = {"allergen": allergen, "count": count}
+
+    from django.urls import reverse
+    autocomplete_url = reverse("recipes:ingredient_autocomplete")
+
+    return render(request, "meals/skf_alternativen.html", {
+        "camp":              camp,
+        "days":              days,
+        "current_day":       current_day,
+        "main_course":       main_course,
+        "ref_ingredients":   ref_ingredients,
+        "items":             items,
+        "allergen_counts":   allergen_counts,
+        "autocomplete_url":  autocomplete_url,
+    })

@@ -166,6 +166,9 @@ def build_shopping_day_items(camp, shopping_day, all_day_meals):
             add(ing, item["unit"], item["amount"], is_fresh, "Abendessen")
 
     # --- Alle trockenen Zutaten (nur Lieferung 1) ---
+    # Kategorie bleibt "Abendessen" (Herkunft: Hauptgericht/Dessert/Salat),
+    # NICHT "Trocken" -- "Trocken" ist kein Kategorie-Wert mehr, sondern wird
+    # ausschließlich über das is_fresh-Flag (Spalte "Trocken/Frisch") sichtbar.
     if shopping_day.include_dry:
         for meal in all_day_meals:
             if meal is None:
@@ -174,7 +177,7 @@ def build_shopping_day_items(camp, shopping_day, all_day_meals):
                 ing = item["ingredient"]
                 if ing.is_fresh:
                     continue  # already handled above per day
-                add(ing, item["unit"], item["amount"], False, "Trocken")
+                add(ing, item["unit"], item["amount"], False, "Abendessen")
 
     # --- Frühstück/Belag aus FruehstueckConfig ---
     # Dry items (Milch, Choco, Margarine, Müsliriegel): only on Lieferung 1
@@ -224,7 +227,7 @@ def build_shopping_day_items(camp, shopping_day, all_day_meals):
                 if weight_g > 0:
                     try:
                         ing = Ingredient.objects.get(name=ing_name)
-                        add(ing, "g", weight_g, True, "Frühstück")
+                        add(ing, "g", weight_g, True, "Frühstück/Mittag")
                     except Ingredient.DoesNotExist:
                         fruehstueck_extras.append({"name": ing_name, "amount": weight_g, "unit": "g"})
 
@@ -249,7 +252,7 @@ def build_shopping_day_items(camp, shopping_day, all_day_meals):
                         if amount_these_days > 0:
                             try:
                                 ing = Ingredient.objects.get(name=fruit_name)
-                                add(ing, "Stk", amount_these_days, True, "Obst")
+                                add(ing, "Stk", amount_these_days, True, "Frühstück/Mittag")
                             except Ingredient.DoesNotExist:
                                 fruehstueck_extras.append({"name": fruit_name, "amount": amount_these_days, "unit": "Stk"})
 
@@ -258,7 +261,7 @@ def build_shopping_day_items(camp, shopping_day, all_day_meals):
                         if weight_these_days > 0:
                             try:
                                 ing = Ingredient.objects.get(name=fruit_name)
-                                add(ing, "kg", weight_these_days, True, "Obst")
+                                add(ing, "kg", weight_these_days, True, "Frühstück/Mittag")
                             except Ingredient.DoesNotExist:
                                 fruehstueck_extras.append({"name": f"{fruit_name} (Gewicht)", "amount": weight_these_days, "unit": "kg"})
             except Exception:
@@ -313,6 +316,30 @@ def build_shopping_day_items(camp, shopping_day, all_day_meals):
                 continue
             if day_index in shopping_day.dinner_indices:
                 add(gi.ingredient, gi.unit, gi.amount, gi.ingredient.is_fresh, "Betreueressen")
+    except Exception:
+        pass
+
+    # --- Alternative-Zutaten (SKF-Alternativen): identisch zu Betreueressen
+    #     aufgebaut -- gebunden an den Tag des Bezugsrezepts, landen im
+    #     Liefertag, der diesen Tag in dinner_indices abdeckt. Mengen werden
+    #     NICHT skaliert, sie kommen als feste Eingabe direkt aus dem Formular. ---
+    try:
+        from apps.meals.models import GeneralIngredient
+
+        camp_days_ordered = list(camp.days.order_by("date"))
+        day_to_index = {d.pk: i for i, d in enumerate(camp_days_ordered)}
+
+        alt_items = GeneralIngredient.objects.filter(
+            camp=camp, category=GeneralIngredient.Category.ALTERNATIVE,
+            day__isnull=False,
+        ).select_related("ingredient", "day")
+
+        for gi in alt_items:
+            day_index = day_to_index.get(gi.day_id)
+            if day_index is None:
+                continue
+            if day_index in shopping_day.dinner_indices:
+                add(gi.ingredient, gi.unit, gi.amount, gi.ingredient.is_fresh, "Alternative")
     except Exception:
         pass
 

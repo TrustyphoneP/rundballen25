@@ -131,6 +131,100 @@ class Ingredient(models.Model):
     is_fresh  = models.BooleanField(default=False, verbose_name="Frische Zutat", help_text="Frisch (z.B. Gemuese, Fleisch) oder trocken (z.B. Nudeln, Dosenware)")
     notes     = models.CharField(max_length=300, blank=True)
 
+    # Kostenkalkulation
+    price = models.DecimalField(
+        max_digits=8, decimal_places=4, null=True, blank=True,
+        verbose_name="Preis (€)",
+        help_text="Preis pro 'Preis-Einheit' unten, z.B. 5,36 für 5,36€ pro kg",
+    )
+    price_unit = models.CharField(
+        max_length=10, choices=Unit.choices, blank=True,
+        verbose_name="Preis-Einheit",
+        help_text="Auf welche Einheit sich der Preis bezieht (z.B. 'kg' bei 5,36€/kg)",
+    )
+
+    @property
+    def has_price(self):
+        return self.price is not None and self.price_unit
+
+    def derive_price_unit(self):
+        """
+        Ermittelt die Einheit für den Preis direkt aus den tatsächlichen
+        Rezept-Verwendungen dieser Zutat (RecipeIngredient.unit), statt sie
+        manuell auswählen zu lassen.
+
+        Gibt (einheit, ist_uneinheitlich) zurück:
+        - einheit: die Einheit, falls eindeutig ermittelbar, sonst "" (z.B.
+          keine Verwendung, oder mehrere unterschiedliche Einheiten)
+        - ist_uneinheitlich: True, wenn die Zutat in mehreren Rezepten mit
+          unterschiedlichen Einheiten verwendet wird (z.B. einmal "g",
+          einmal "kg") -- dann sollte eine Warnung angezeigt werden, da der
+          Preis sich nicht eindeutig zuordnen lässt.
+        """
+        units = list(
+            self.recipe_uses_for_pricing()
+            .values_list("unit", flat=True)
+            .distinct()
+        )
+        if len(units) == 1:
+            return units[0], False
+        if len(units) > 1:
+            return "", True
+        return "", False
+
+    def recipe_uses_for_pricing(self):
+        """RecipeIngredient-Zeilen, die diese Zutat verwenden (für
+        derive_price_unit und die Admin-Anzeige)."""
+        return RecipeIngredient.objects.filter(ingredient=self)
+
+    def save(self, *args, **kwargs):
+        # price_unit wird nicht manuell gepflegt, sondern automatisch aus den
+        # Rezept-Verwendungen abgeleitet, sobald eindeutig ermittelbar. Bei
+        # uneinheitlicher Verwendung (mehrere unterschiedliche Einheiten)
+        # bleibt das Feld leer -- price_for() liefert dann bewusst keinen
+        # Wert, statt einen falschen zu erraten.
+        if self.pk:  # nur möglich, wenn die Zutat schon existiert (FK braucht pk)
+            unit, _ = self.derive_price_unit()
+            self.price_unit = unit
+        super().save(*args, **kwargs)
+
+    def price_for(self, amount, unit):
+        """
+        Berechnet die Kosten für eine gegebene Menge in einer beliebigen Einheit,
+        unter automatischer Umrechnung auf die hinterlegte Preis-Einheit
+        (z.B. Rezept nutzt 'g', Preis ist je 'kg' hinterlegt).
+        Gibt None zurück, wenn kein Preis hinterlegt ist oder die Einheiten
+        nicht zueinander umrechenbar sind (z.B. 'kg' vs 'Stk').
+        """
+        from decimal import Decimal
+
+        if not self.has_price:
+            return None
+
+        _WEIGHT_TO_G = {"g": Decimal("1"), "kg": Decimal("1000")}
+        _VOLUME_TO_ML = {"ml": Decimal("1"), "l": Decimal("1000")}
+
+        amount = Decimal(str(amount))
+
+        # Gleiche Einheit: direkt multiplizieren, keine Umrechnung nötig
+        if unit == self.price_unit:
+            return self.price * amount
+
+        # Gewicht <-> Gewicht (g/kg)
+        if unit in _WEIGHT_TO_G and self.price_unit in _WEIGHT_TO_G:
+            amount_in_g = amount * _WEIGHT_TO_G[unit]
+            price_per_g = self.price / _WEIGHT_TO_G[self.price_unit]
+            return amount_in_g * price_per_g
+
+        # Volumen <-> Volumen (ml/l)
+        if unit in _VOLUME_TO_ML and self.price_unit in _VOLUME_TO_ML:
+            amount_in_ml = amount * _VOLUME_TO_ML[unit]
+            price_per_ml = self.price / _VOLUME_TO_ML[self.price_unit]
+            return amount_in_ml * price_per_ml
+
+        # Nicht umrechenbar (z.B. 'kg' Rezeptmenge gegen 'Stk' Preiseinheit)
+        return None
+
     @property
     def is_vegan(self):
         return self.diet_type == self.DietType.VEGAN
