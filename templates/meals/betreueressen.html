@@ -6,12 +6,21 @@
 <style>
   .day-tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:20px; }
   .day-tab {
+    display:flex; flex-direction:column; align-items:flex-start; gap:2px;
     font-family:'DM Mono',monospace; font-size:0.68rem; letter-spacing:0.05em;
     padding:7px 14px; border-radius:8px; border:1px solid rgba(240,237,232,0.1);
-    color:rgba(240,237,232,0.55); text-decoration:none; transition:all 0.15s; white-space:nowrap;
+    color:rgba(240,237,232,0.55); text-decoration:none; transition:all 0.15s;
+    max-width:130px; overflow:hidden;
   }
   .day-tab:hover { background:rgba(255,255,255,0.05); color:rgba(240,237,232,0.9); }
   .day-tab.active { background:rgba(232,164,68,0.15); border-color:rgba(232,164,68,0.28); color:#e8a444; }
+  .day-tab-date { white-space:nowrap; }
+  .day-tab-dish {
+    font-family:'Outfit',sans-serif; font-size:0.62rem; letter-spacing:0;
+    text-transform:none; color:rgba(240,237,232,0.4);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;
+  }
+  .day-tab.active .day-tab-dish { color:rgba(232,164,68,0.75); }
   .autocomplete-dropdown { position:absolute; z-index:100; background:#1e4c59; border:1px solid rgba(240,237,232,0.15); border-radius:8px; min-width:280px; max-height:200px; overflow-y:auto; box-shadow:0 4px 20px rgba(0,0,0,0.4); }
   .autocomplete-item { padding:8px 14px; font-size:0.82rem; cursor:pointer; color:rgba(240,237,232,0.8); }
   .autocomplete-item:hover { background:rgba(255,255,255,0.08); }
@@ -33,7 +42,10 @@
     {% for day in days %}
     <a href="{% url 'meals:betreueressen_day' camp_pk=camp.pk day_pk=day.pk %}"
        class="day-tab {% if day.pk == current_day.pk %}active{% endif %}">
-      {{ day.date|date:"D, d.m." }}
+      <span class="day-tab-date">{{ day.date|date:"D, d.m." }}</span>
+      {% if day.day_meal.main_course %}
+      <span class="day-tab-dish">{{ day.day_meal.main_course.name }}</span>
+      {% endif %}
     </a>
     {% endfor %}
   </div>
