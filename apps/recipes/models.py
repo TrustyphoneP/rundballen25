@@ -102,6 +102,21 @@ class Recipe(models.Model):
         return self.name
 
 
+# Feste Frühstück/Mittag-Posten (H-Milch, Choco Drink, Pflanzenmargarine,
+# Müsliriegel), deren Einheit NUR in apps.shopping.shopping_days.py als
+# Python-Literal hartcodiert ist (z.B. add(ing, "g", ...)), nicht in einer
+# RecipeIngredient- oder GeneralIngredient-Zeile. Diese Mini-Zuordnung
+# spiegelt NUR die dortigen Einheiten für die Preis-Einheit-Ermittlung in
+# Ingredient.derive_price_unit() -- wenn sich die Einheit in
+# shopping_days.py ändert, muss sie hier ebenfalls angepasst werden.
+FIXED_FRUEHSTUECK_UNITS = {
+    "H-Milch":              "l",
+    "G&G Choco Drink":      "Pck",
+    "G&G Pflanzenmargarine": "g",
+    "G&G Müsliriegel":      "Stk",
+}
+
+
 class Ingredient(models.Model):
     """Zutat (Stammdaten)"""
 
@@ -154,12 +169,11 @@ class Ingredient(models.Model):
     def derive_price_unit(self):
         """
         Ermittelt die Einheit für den Preis aus ALLEN tatsächlichen
-        Verwendungen dieser Zutat -- sowohl in Rezepten (RecipeIngredient)
-        als auch in Allgemein/Betreueressen/Alternative (GeneralIngredient),
-        statt sie manuell auswählen zu lassen. Eine Zutat wie "Ancho Chilis,
-        getrocknet" taucht z.B. NIE in einem Rezept auf, sondern nur in
-        Allgemein -- ohne diese zweite Quelle würde "noch in keinem Rezept
-        verwendet" angezeigt, obwohl die Einheit längst bekannt ist.
+        Verwendungen dieser Zutat -- in Rezepten (RecipeIngredient), in
+        Allgemein/Betreueressen/Alternative (GeneralIngredient), UND in den
+        fest hinterlegten Frühstück/Mittag-Posten (FIXED_FRUEHSTUECK_UNITS,
+        z.B. H-Milch, G&G Choco Drink), deren Einheit nur als Python-Literal
+        in shopping_days.py existiert, nicht in einer DB-Zeile.
 
         Einheiten derselben Dimension werden zusammengefasst, statt als
         Konflikt behandelt zu werden: g/kg sind beide Gewicht, ml/l sind
@@ -211,15 +225,18 @@ class Ingredient(models.Model):
 
     def all_units_used(self):
         """
-        Alle tatsächlich verwendeten Einheiten dieser Zutat, aus Rezepten
-        UND aus Allgemein/Betreueressen/Alternative zusammen, als distinkte
-        Liste. Wird für die "uneinheitlich verwendet (...)"-Warnung in
-        Admin und Zutatenverwaltung genutzt, damit dort wirklich ALLE
-        Quellen auftauchen, nicht nur Rezepte.
+        Alle tatsächlich verwendeten Einheiten dieser Zutat, aus Rezepten,
+        aus Allgemein/Betreueressen/Alternative, UND aus den fest
+        hinterlegten Frühstück/Mittag-Posten (FIXED_FRUEHSTUECK_UNITS)
+        zusammen, als distinkte Liste. Wird für die "uneinheitlich
+        verwendet (...)"-Warnung in Admin und Zutatenverwaltung genutzt,
+        damit dort wirklich ALLE Quellen auftauchen, nicht nur Rezepte.
         """
         recipe_units = list(self.recipe_uses_for_pricing().values_list("unit", flat=True).distinct())
         general_units = list(self.general_uses_for_pricing().values_list("unit", flat=True).distinct())
-        return list(dict.fromkeys(recipe_units + general_units))
+        fixed_unit = FIXED_FRUEHSTUECK_UNITS.get(self.name)
+        fixed_units = [fixed_unit] if fixed_unit else []
+        return list(dict.fromkeys(recipe_units + general_units + fixed_units))
 
     def save(self, *args, **kwargs):
         # price_unit wird nicht manuell gepflegt, sondern automatisch aus den
