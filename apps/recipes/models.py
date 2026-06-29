@@ -153,9 +153,13 @@ class Ingredient(models.Model):
 
     def derive_price_unit(self):
         """
-        Ermittelt die Einheit für den Preis direkt aus den tatsächlichen
-        Rezept-Verwendungen dieser Zutat (RecipeIngredient.unit), statt sie
-        manuell auswählen zu lassen.
+        Ermittelt die Einheit für den Preis aus ALLEN tatsächlichen
+        Verwendungen dieser Zutat -- sowohl in Rezepten (RecipeIngredient)
+        als auch in Allgemein/Betreueressen/Alternative (GeneralIngredient),
+        statt sie manuell auswählen zu lassen. Eine Zutat wie "Ancho Chilis,
+        getrocknet" taucht z.B. NIE in einem Rezept auf, sondern nur in
+        Allgemein -- ohne diese zweite Quelle würde "noch in keinem Rezept
+        verwendet" angezeigt, obwohl die Einheit längst bekannt ist.
 
         Einheiten derselben Dimension werden zusammengefasst, statt als
         Konflikt behandelt zu werden: g/kg sind beide Gewicht, ml/l sind
@@ -168,16 +172,13 @@ class Ingredient(models.Model):
         - einheit: die Einheit, falls eindeutig ermittelbar, sonst "" (z.B.
           keine Verwendung, oder mehrere unterschiedliche, inkompatible
           Einheiten)
-        - ist_uneinheitlich: True, wenn die Zutat in mehreren Rezepten mit
-          echt INKOMPATIBLEN Einheiten verwendet wird (nicht umrechenbar,
-          z.B. "Stk" und "kg") -- dann sollte eine Warnung angezeigt werden,
-          da der Preis sich nicht eindeutig zuordnen lässt.
+        - ist_uneinheitlich: True, wenn die Zutat mit echt INKOMPATIBLEN
+          Einheiten verwendet wird (nicht umrechenbar, z.B. "Stk" und "kg")
+          -- dann sollte eine Warnung angezeigt werden, da der Preis sich
+          nicht eindeutig zuordnen lässt.
         """
-        units = list(
-            self.recipe_uses_for_pricing()
-            .values_list("unit", flat=True)
-            .distinct()
-        )
+        units = self.all_units_used()
+
         if len(units) == 0:
             return "", False
         if len(units) == 1:
@@ -197,6 +198,28 @@ class Ingredient(models.Model):
         """RecipeIngredient-Zeilen, die diese Zutat verwenden (für
         derive_price_unit und die Admin-Anzeige)."""
         return RecipeIngredient.objects.filter(ingredient=self)
+
+    def general_uses_for_pricing(self):
+        """
+        GeneralIngredient-Zeilen, die diese Zutat verwenden (Allgemein,
+        Betreueressen, Alternative -- für derive_price_unit und die
+        Admin-Anzeige). Lokaler Import, da GeneralIngredient in apps.meals
+        liegt, nicht in apps.recipes.
+        """
+        from apps.meals.models import GeneralIngredient
+        return GeneralIngredient.objects.filter(ingredient=self)
+
+    def all_units_used(self):
+        """
+        Alle tatsächlich verwendeten Einheiten dieser Zutat, aus Rezepten
+        UND aus Allgemein/Betreueressen/Alternative zusammen, als distinkte
+        Liste. Wird für die "uneinheitlich verwendet (...)"-Warnung in
+        Admin und Zutatenverwaltung genutzt, damit dort wirklich ALLE
+        Quellen auftauchen, nicht nur Rezepte.
+        """
+        recipe_units = list(self.recipe_uses_for_pricing().values_list("unit", flat=True).distinct())
+        general_units = list(self.general_uses_for_pricing().values_list("unit", flat=True).distinct())
+        return list(dict.fromkeys(recipe_units + general_units))
 
     def save(self, *args, **kwargs):
         # price_unit wird nicht manuell gepflegt, sondern automatisch aus den

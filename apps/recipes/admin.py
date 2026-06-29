@@ -33,9 +33,7 @@ class IngredientAdmin(admin.ModelAdmin):
             return "– (erst nach dem ersten Speichern verfügbar)"
         unit, inconsistent = obj.derive_price_unit()
         if inconsistent:
-            used_units = ", ".join(
-                obj.recipe_uses_for_pricing().values_list("unit", flat=True).distinct()
-            )
+            used_units = ", ".join(obj.all_units_used())
             return format_html(
                 '<span style="color:#c0392b; font-weight:bold;">⚠ Uneinheitlich verwendet ({})'
                 ' — Preis kann nicht eindeutig zugeordnet werden.</span>',

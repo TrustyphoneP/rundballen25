@@ -301,11 +301,7 @@ def ingredient_edit(request, pk):
         return redirect("recipes:ingredient_list")
 
     unit, inconsistent = ingredient.derive_price_unit()
-    used_units = []
-    if inconsistent:
-        used_units = list(
-            ingredient.recipe_uses_for_pricing().values_list("unit", flat=True).distinct()
-        )
+    used_units = ingredient.all_units_used() if inconsistent else []
 
     return render(request, "recipes/ingredient_form.html", {
         "form": form, "ingredient": ingredient,
