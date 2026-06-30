@@ -73,8 +73,11 @@ RecipeIngredientFormSet = inlineformset_factory(
 class IngredientForm(forms.ModelForm):
     class Meta:
         model  = Ingredient
-        fields = ["name", "allergens", "diet_type", "is_fresh", "notes"]
+        # price_unit ist KEIN Formularfeld mehr -- wird automatisch in
+        # Ingredient.save() aus den Rezept-Verwendungen abgeleitet.
+        fields = ["name", "allergens", "diet_type", "is_fresh", "price", "notes"]
         widgets = {
-            "allergens": forms.CheckboxSelectMultiple,
-            "notes":     forms.TextInput(attrs={"placeholder": "Optionale Notiz"}),
+            "allergens":  forms.CheckboxSelectMultiple,
+            "price":      forms.NumberInput(attrs={"placeholder": "z.B. 5,36", "step": "0.0001", "min": "0"}),
+            "notes":      forms.TextInput(attrs={"placeholder": "Optionale Notiz"}),
         }

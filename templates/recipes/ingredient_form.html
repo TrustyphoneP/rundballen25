@@ -1,6 +1,6 @@
 {% extends "base/base.html" %}
-{% block title %}{% if ingredient %}{{ ingredient.name }} bearbeiten{% else %}Neü Zutat{% endif %}{% endblock %}
-{% block page_title %}{% if ingredient %}Zutat bearbeiten{% else %}Neü Zutat{% endif %}{% endblock %}
+{% block title %}{% if ingredient %}{{ ingredient.name }} bearbeiten{% else %}Neue Zutat{% endif %}{% endblock %}
+{% block page_title %}{% if ingredient %}Zutat bearbeiten{% else %}Neue Zutat{% endif %}{% endblock %}
 
 {% block topbar_actions %}
   <a href="{% url 'recipes:ingredient_list' %}" class="btn btn-ghost">Abbrechen</a>
@@ -17,8 +17,53 @@
         {{ form.name }}
         {% if form.name.errors %}<div class="text-xs mt-1" style="color:#e07b54">{{ form.name.errors.0 }}</div>{% endif %}
       </div>
-      <label class="check-label mb-3">{{ form.is_vegan }} Vegan</label>
-      <label class="check-label mb-4">{{ form.is_fresh }} Frische Zutat (nicht trocken lagerfaehig)</label>
+      <div class="mb-4">
+        <label class="section-mono block mb-1">SKF</label>
+        {{ form.diet_type }}
+      </div>
+      <label class="check-label mb-4">{{ form.is_fresh }} Frische Zutat (nicht trocken lagerfähig)</label>
+
+      <div class="mt-4 pt-4" style="border-top:1px solid rgba(240,237,232,0.07);">
+        <div class="section-mono mb-2">Kostenkalkulation</div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="section-mono block mb-1">Preis (€)</label>
+            {{ form.price }}
+          </div>
+          <div>
+            <label class="section-mono block mb-1">Preis-Einheit</label>
+            {% if not ingredient %}
+            <div class="text-sm" style="padding:8px 0; color:rgba(240,237,232,0.4);">
+              – (erst nach dem ersten Speichern verfügbar)
+            </div>
+            {% elif price_unit_inconsistent %}
+            <div class="text-sm" style="padding:8px 0; color:#e07b54; font-weight:500;">
+              ⚠ Uneinheitlich verwendet ({{ price_unit_used|join:", " }})
+            </div>
+            {% elif price_unit %}
+            <div class="text-sm" style="padding:8px 0;">{{ price_unit }}</div>
+            {% else %}
+            <div class="text-sm" style="padding:8px 0; color:rgba(240,237,232,0.4);">
+              – (noch in keinem Rezept verwendet)
+            </div>
+            {% endif %}
+          </div>
+        </div>
+        <div class="text-xs mt-2" style="color:rgba(240,237,232,0.35);">
+          Die Preis-Einheit wird automatisch aus den Rezept-Verwendungen
+          dieser Zutat übernommen, nicht manuell ausgewählt. Wird die Zutat
+          in mehreren Rezepten mit unterschiedlichen Einheiten verwendet,
+          erscheint eine Warnung statt einer Einheit.
+        </div>
+        {% if price_unit_inconsistent %}
+        <div class="text-xs mt-2" style="color:#e07b54;">
+          Der Preis kann erst berechnet werden, wenn alle Rezepte diese
+          Zutat in derselben Einheit verwenden. Bitte die betroffenen
+          Rezepte vereinheitlichen.
+        </div>
+        {% endif %}
+      </div>
+
       <div class="mt-4">
         <label class="section-mono block mb-2">Enthaltene Allergene</label>
         <div style="display:flex; flex-wrap:wrap; gap:6px;">

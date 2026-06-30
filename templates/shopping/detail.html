@@ -5,7 +5,7 @@
 
 {% block topbar_actions %}
   <a href="{% url 'shopping:export_csv' pk=sl.pk %}" class="btn btn-ghost">CSV-Export</a>
-  <a href="{% url 'shopping:plan_overview' camp_pk=sl.camp.pk %}" class="btn btn-ghost">Zur Uebersicht</a>
+  <a href="{% url 'shopping:plan_overview' camp_pk=sl.camp.pk %}" class="btn btn-ghost">Zur Übersicht</a>
 {% endblock %}
 
 {% block content %}
@@ -105,6 +105,26 @@
         </td>
         <td class="font-medium {% if item.is_bought %}line-through{% endif %}">{{ item.ingredient.name }}</td>
         <td class="font-mono" style="color:#e8a444;" colspan="2">{{ item.amount|smart_amount:item.unit }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<!-- Frühstück-Extras (aus Notiz-Feld, keine echten ShoppingItem-Zeilen) -->
+{% if fruehstueck_extras %}
+<div class="section-mono mb-3">Frühstück/Mittag</div>
+<div class="card overflow-hidden mb-6">
+  <table>
+    <thead><tr>
+      <th>Artikel</th><th>Menge</th><th>Einheit</th>
+    </tr></thead>
+    <tbody>
+      {% for extra in fruehstueck_extras %}
+      <tr>
+        <td class="font-medium">{{ extra.name }}</td>
+        <td class="font-mono" style="color:#e8a444;" colspan="2">{{ extra.amount|smart_amount:extra.unit }}</td>
       </tr>
       {% endfor %}
     </tbody>

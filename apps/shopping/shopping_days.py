@@ -117,19 +117,41 @@ def build_shopping_day_items(camp, shopping_day, all_day_meals):
 
     aggregated = {}
 
+    # Einheiten, die sich gegenseitig umrechnen lassen, werden auf eine
+    # gemeinsame Basis normalisiert, bevor sie aggregiert werden. Sonst
+    # werden z.B. "130 g" aus einem Rezept und "1,2 kg" aus einem anderen
+    # Rezept für dieselbe Zutat NICHT zusammengeführt, weil (ingredient_id, unit)
+    # zwei unterschiedliche Schlüssel wären ("g" vs "kg").
+    _WEIGHT_TO_G = {"g": Decimal("1"), "kg": Decimal("1000")}
+    _VOLUME_TO_ML = {"ml": Decimal("1"), "l": Decimal("1000")}
+
+    def _normalize_unit(unit, amount):
+        """Gibt (normalisierte_einheit, normalisierte_menge) zurück.
+        Gewicht -> g, Volumen -> ml, alles andere (Stk/Pck/EL/TL/Bd) bleibt."""
+        amount = Decimal(str(amount))
+        if unit in _WEIGHT_TO_G:
+            return "g", amount * _WEIGHT_TO_G[unit]
+        if unit in _VOLUME_TO_ML:
+            return "ml", amount * _VOLUME_TO_ML[unit]
+        return unit, amount
+
     def add(ing, unit, amount, is_fresh, source="Abendessen"):
-        key = (ing.id, unit)
+        norm_unit, norm_amount = _normalize_unit(unit, amount)
+        key = (ing.id, norm_unit)
         if key not in aggregated:
             aggregated[key] = {
                 "ingredient": ing,
-                "unit":       unit,
+                "unit":       norm_unit,
                 "amount":     Decimal("0"),
                 "is_fresh":   is_fresh,
                 "source":     source,
             }
-        aggregated[key]["amount"] += Decimal(str(amount))
+        aggregated[key]["amount"] += norm_amount
 
-    # --- Abendessen (dinner) ---
+    # --- Abendessen (dinner): NUR frische Zutaten ---
+    # Trockene Zutaten werden separat unten für die GESAMTE Freizeit
+    # aggregiert (nicht nur für die Tage dieser Lieferung), sonst würden
+    # sie hier UND im "Alle trockenen Zutaten"-Block doppelt gezählt.
     for idx in shopping_day.dinner_indices:
         if idx >= len(all_day_meals):
             continue
@@ -139,11 +161,14 @@ def build_shopping_day_items(camp, shopping_day, all_day_meals):
         for item in meal.get_all_scaled_ingredients():
             ing      = item["ingredient"]
             is_fresh = ing.is_fresh
-            if not is_fresh and not shopping_day.include_dry:
+            if not is_fresh:
                 continue
             add(ing, item["unit"], item["amount"], is_fresh, "Abendessen")
 
     # --- Alle trockenen Zutaten (nur Lieferung 1) ---
+    # Kategorie bleibt "Abendessen" (Herkunft: Hauptgericht/Dessert/Salat),
+    # NICHT "Trocken" -- "Trocken" ist kein Kategorie-Wert mehr, sondern wird
+    # ausschließlich über das is_fresh-Flag (Spalte "Trocken/Frisch") sichtbar.
     if shopping_day.include_dry:
         for meal in all_day_meals:
             if meal is None:
@@ -152,7 +177,7 @@ def build_shopping_day_items(camp, shopping_day, all_day_meals):
                 ing = item["ingredient"]
                 if ing.is_fresh:
                     continue  # already handled above per day
-                add(ing, item["unit"], item["amount"], False, "Trocken")
+                add(ing, item["unit"], item["amount"], False, "Abendessen")
 
     # --- Frühstück/Belag aus FruehstueckConfig ---
     # Dry items (Milch, Choco, Margarine, Müsliriegel): only on Lieferung 1
@@ -202,9 +227,45 @@ def build_shopping_day_items(camp, shopping_day, all_day_meals):
                 if weight_g > 0:
                     try:
                         ing = Ingredient.objects.get(name=ing_name)
-                        add(ing, "g", weight_g, True, "Frühstück")
+                        add(ing, "g", weight_g, True, "Frühstück/Mittag")
                     except Ingredient.DoesNotExist:
                         fruehstueck_extras.append({"name": ing_name, "amount": weight_g, "unit": "g"})
+
+            # --- Obst aus FruitConfig -- proportional über alle Liefertage,
+            #     analog zum Aufschnitt anhand der Brot-Tage in dieser Lieferung ---
+            try:
+                from apps.meals.models import FruitConfig
+
+                fruit_cfg = FruitConfig.objects.get(camp=camp)
+                fruit_defs = [
+                    ("amount_apfel",     "weight_apfel",     "Äpfel"),
+                    ("amount_banane",    "weight_banane",    "Bananen"),
+                    ("amount_birne",     "weight_birne",     "Birnen"),
+                    ("amount_nektarine", "weight_nektarine", "Nektarinen"),
+                ]
+                for amount_key, weight_key, fruit_name in fruit_defs:
+                    total_amount_camp = getattr(fruit_cfg, amount_key, None)
+                    total_weight_camp = getattr(fruit_cfg, weight_key, None)
+
+                    if total_amount_camp:
+                        amount_these_days = round(total_amount_camp * bread_days_this_delivery / total_bread_days)
+                        if amount_these_days > 0:
+                            try:
+                                ing = Ingredient.objects.get(name=fruit_name)
+                                add(ing, "Stk", amount_these_days, True, "Frühstück/Mittag")
+                            except Ingredient.DoesNotExist:
+                                fruehstueck_extras.append({"name": fruit_name, "amount": amount_these_days, "unit": "Stk"})
+
+                    if total_weight_camp:
+                        weight_these_days = round(total_weight_camp * bread_days_this_delivery / total_bread_days, 2)
+                        if weight_these_days > 0:
+                            try:
+                                ing = Ingredient.objects.get(name=fruit_name)
+                                add(ing, "kg", weight_these_days, True, "Frühstück/Mittag")
+                            except Ingredient.DoesNotExist:
+                                fruehstueck_extras.append({"name": f"{fruit_name} (Gewicht)", "amount": weight_these_days, "unit": "kg"})
+            except Exception:
+                pass
 
             # Dry items -- only on first delivery (include_dry)
             if shopping_day.include_dry:
@@ -222,13 +283,64 @@ def build_shopping_day_items(camp, shopping_day, all_day_meals):
     except Exception:
         pass
 
-    # --- Allgemeine Zutaten (nur Lieferung 1) ---
+    # --- Allgemeine Zutaten (freizeitweit, nur Lieferung 1) ---
     if shopping_day.include_dry:
         try:
             from apps.meals.models import GeneralIngredient
-            for gi in GeneralIngredient.objects.filter(camp=camp).select_related("ingredient"):
+            for gi in GeneralIngredient.objects.filter(
+                camp=camp, category=GeneralIngredient.Category.ALLGEMEIN
+            ).select_related("ingredient"):
                 add(gi.ingredient, gi.unit, gi.amount, gi.ingredient.is_fresh, "Allgemein")
         except Exception:
             pass
+
+    # --- Betreueressen-Zutaten: gebunden an den Tag des Bezugsrezepts,
+    #     landen im Liefertag, der diesen Tag in dinner_indices abdeckt
+    #     (gleiche Logik wie Abendessen: Lieferung kommt am selben Tag) ---
+    try:
+        from apps.meals.models import GeneralIngredient
+
+        # Camp-Tage in Datums-Reihenfolge, um den 0-basierten Index eines
+        # CampDay zu bestimmen (entspricht der Reihenfolge von all_day_meals)
+        camp_days_ordered = list(camp.days.order_by("date"))
+        day_to_index = {d.pk: i for i, d in enumerate(camp_days_ordered)}
+
+        be_items = GeneralIngredient.objects.filter(
+            camp=camp, category=GeneralIngredient.Category.BETREUERESSEN,
+            day__isnull=False,
+        ).select_related("ingredient", "day")
+
+        for gi in be_items:
+            day_index = day_to_index.get(gi.day_id)
+            if day_index is None:
+                continue
+            if day_index in shopping_day.dinner_indices:
+                add(gi.ingredient, gi.unit, gi.amount, gi.ingredient.is_fresh, "Betreueressen")
+    except Exception:
+        pass
+
+    # --- Alternative-Zutaten (SKF-Alternativen): identisch zu Betreueressen
+    #     aufgebaut -- gebunden an den Tag des Bezugsrezepts, landen im
+    #     Liefertag, der diesen Tag in dinner_indices abdeckt. Mengen werden
+    #     NICHT skaliert, sie kommen als feste Eingabe direkt aus dem Formular. ---
+    try:
+        from apps.meals.models import GeneralIngredient
+
+        camp_days_ordered = list(camp.days.order_by("date"))
+        day_to_index = {d.pk: i for i, d in enumerate(camp_days_ordered)}
+
+        alt_items = GeneralIngredient.objects.filter(
+            camp=camp, category=GeneralIngredient.Category.ALTERNATIVE,
+            day__isnull=False,
+        ).select_related("ingredient", "day")
+
+        for gi in alt_items:
+            day_index = day_to_index.get(gi.day_id)
+            if day_index is None:
+                continue
+            if day_index in shopping_day.dinner_indices:
+                add(gi.ingredient, gi.unit, gi.amount, gi.ingredient.is_fresh, "Alternative")
+    except Exception:
+        pass
 
     return aggregated, fruehstueck_extras

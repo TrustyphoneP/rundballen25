@@ -145,12 +145,27 @@
            class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
           <div class="nav-dot"></div> Dashboard
         </a>
+        <a href="{% url 'camps:skf_briefing_days' camp_pk=active_camp.pk %}" @click="sidebarOpen = false"
+           class="nav-link {% if request.resolver_match.url_name == 'skf_briefing_days' or request.resolver_match.url_name == 'skf_briefing_day' %}active{% endif %}">
+          <div class="nav-dot"></div> SKF-Briefing
+        </a>
+        <a href="{% url 'admin:index' %}" @click="sidebarOpen = false" class="nav-link">
+          <div class="nav-dot"></div> Admin
+        </a>
 
         {% if active_camp %}
-        <div class="section-mono px-2 mb-2 mt-4">Planung</div>
+        <div class="section-mono px-2 mb-2 mt-4">Küche</div>
+        <a href="{% url 'recipes:list' %}" @click="sidebarOpen = false"
+           class="nav-link {% if 'recipes' in request.resolver_match.app_name %}active{% endif %}">
+          <div class="nav-dot"></div> Rezepte
+        </a>
         <a href="{% url 'meals:week_plan' camp_pk=active_camp.pk %}" @click="sidebarOpen = false"
-           class="nav-link {% if 'meals' in request.resolver_match.app_name and request.resolver_match.url_name == 'week_plan' or request.resolver_match.url_name == 'index' %}active{% endif %}">
+           class="nav-link {% if request.resolver_match.app_name == 'meals' and request.resolver_match.url_name == 'week_plan' or request.resolver_match.app_name == 'meals' and request.resolver_match.url_name == 'index' %}active{% endif %}">
           <div class="nav-dot"></div> Wochenplan
+        </a>
+        <a href="{% url 'meals:allgemein_default' %}" @click="sidebarOpen = false"
+           class="nav-link {% if request.resolver_match.url_name == 'allgemein' or request.resolver_match.url_name == 'allgemein_default' %}active{% endif %}">
+          <div class="nav-dot"></div> Allgemein
         </a>
         <a href="{% url 'meals:bread_plan_default' %}" @click="sidebarOpen = false"
            class="nav-link {% if request.resolver_match.url_name == 'bread_plan' or request.resolver_match.url_name == 'bread_plan_default' %}active{% endif %}">
@@ -160,24 +175,20 @@
            class="nav-link {% if request.resolver_match.url_name == 'fruehstueck' or request.resolver_match.url_name == 'fruehstueck_default' %}active{% endif %}">
           <div class="nav-dot"></div> Frühstück / Mittagessen
         </a>
-        <a href="{% url 'recipes:list' %}" @click="sidebarOpen = false"
-           class="nav-link {% if 'recipes' in request.resolver_match.app_name %}active{% endif %}">
-          <div class="nav-dot"></div> Rezepte
+        <a href="{% url 'meals:skf_alternativen' camp_pk=active_camp.pk %}" @click="sidebarOpen = false"
+           class="nav-link {% if request.resolver_match.url_name == 'skf_alternativen' or request.resolver_match.url_name == 'skf_alternativen_day' or request.resolver_match.url_name == 'skf_alternativen_default' %}active{% endif %}">
+          <div class="nav-dot"></div> SKF-Alternativen
         </a>
-        <a href="{% url 'meals:allgemein_default' %}" @click="sidebarOpen = false"
-           class="nav-link {% if request.resolver_match.url_name == 'allgemein' or request.resolver_match.url_name == 'allgemein_default' %}active{% endif %}">
-          <div class="nav-dot"></div> Allgemein
+        <a href="{% url 'meals:betreueressen' camp_pk=active_camp.pk %}" @click="sidebarOpen = false"
+           class="nav-link {% if request.resolver_match.url_name == 'betreueressen' or request.resolver_match.url_name == 'betreueressen_day' or request.resolver_match.url_name == 'betreueressen_default' %}active{% endif %}">
+          <div class="nav-dot"></div> Betreueressen
         </a>
         <a href="{% if active_camp %}{% url 'shopping:plan_overview' camp_pk=active_camp.pk %}{% else %}{% url 'shopping:create_from_plan' %}{% endif %}" @click="sidebarOpen = false"
            class="nav-link {% if 'shopping' in request.resolver_match.app_name %}active{% endif %}">
           <div class="nav-dot"></div> Einkaufsliste
         </a>
-        <a href="{% url 'camps:skf_briefing_days' camp_pk=active_camp.pk %}" @click="sidebarOpen = false"
-           class="nav-link {% if request.resolver_match.url_name == 'skf_briefing_days' or request.resolver_match.url_name == 'skf_briefing_day' %}active{% endif %}">
-          <div class="nav-dot"></div> SKF-Briefing
-        </a>
 
-        <div class="section-mono px-2 mb-2 mt-4">Personen</div>
+        <div class="section-mono px-2 mb-2 mt-4">Teiliverwaltung</div>
         <a href="{% url 'camps:participant_list' camp_pk=active_camp.pk %}" @click="sidebarOpen = false"
            class="nav-link {% if 'participant' in request.resolver_match.url_name %}active{% endif %}">
           <div class="nav-dot"></div> Teilis

@@ -3,7 +3,7 @@
 {% block page_title %}Zutaten-Stammdaten{% endblock %}
 
 {% block topbar_actions %}
-  <a href="{% url 'recipes:ingredient_create' %}" class="btn btn-primary">+ Neü Zutat</a>
+  <a href="{% url 'recipes:ingredient_create' %}" class="btn btn-primary">+ Neue Zutat</a>
   <a href="{% url 'recipes:list' %}" class="btn btn-ghost">Zu den Rezepten</a>
 {% endblock %}
 
@@ -22,6 +22,7 @@
       <th>Name</th>
       <th>Allergene</th>
       <th>Vegan</th>
+      <th>Preis</th>
       <th></th>
     </tr></thead>
     <tbody>
@@ -38,6 +39,13 @@
         <td>
           {% if ing.is_vegan %}<span class="badge badge-ok">Ja</span>
           {% else %}<span style="color:rgba(240,237,232,0.3);font-size:0.75rem;">Nein</span>{% endif %}
+        </td>
+        <td>
+          {% if ing.has_price %}
+          <span class="font-mono" style="color:#e8a444;">{{ ing.price|floatformat:2 }} € / {{ ing.price_unit }}</span>
+          {% else %}
+          <span style="color:rgba(240,237,232,0.25);font-size:0.75rem;">kein Preis</span>
+          {% endif %}
         </td>
         <td class="text-right">
           <a href="{% url 'recipes:ingredient_edit' pk=ing.pk %}" class="btn btn-ghost"

@@ -22,13 +22,13 @@ class MobileUserProfile(models.Model):
         verbose_name_plural = "Mobile Nutzerprofile"
 
     def __str__(self):
-        return f"Profil fuer {self.user.username}"
+        return f"Profil für {self.user.username}"
 
 
 class Wochenplan(models.Model):
     """
-    Wochenplan fuer eine Freizeit (Camp).
-    Verknuepft sich mit dem bestehenden Camp-Model ueber camp_id.
+    Wochenplan für eine Freizeit (Camp).
+    Verknüpft sich mit dem bestehenden Camp-Model über camp_id.
     """
     camp_id = models.IntegerField(
         verbose_name="Camp-ID",

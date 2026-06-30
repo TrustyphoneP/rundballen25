@@ -230,13 +230,45 @@ class BrotConfig(models.Model):
 
 
 class GeneralIngredient(models.Model):
-    """Allgemeine Zutaten die keinem Rezept zugehören (z.B. Gewürze, Putzmittel)."""
+    """
+    Allgemeine Zutaten die keinem Rezept zugehören (z.B. Gewürze, Putzmittel),
+    ODER zusätzliche Zutaten für "Betreueressen" (Resteverwertung eines
+    Hauptgerichts an einem bestimmten Tag, z.B. Eier für Eierreis aus Restreis),
+    ODER zusätzliche Zutaten für "SKF-Alternativen" (Ersatzgericht/-zutaten für
+    Vegetarier/Unverträglichkeiten zu einem Hauptgericht, z.B. Tofu statt Fleisch).
+
+    - category="allgemein" (Standard): freizeitweit, day=None, landet wie bisher
+      in Lieferung 1 der Einkaufsliste.
+    - category="betreueressen": an einen Tag (day) gebunden, landet im
+      Liefertag, der den Tag des Bezugsrezepts (dinner_indices) abdeckt.
+      Mengen werden NICHT skaliert (feste Eingabe, z.B. "12 Eier").
+    - category="alternative": an einen Tag (day) gebunden, landet im
+      Liefertag, der den Tag des Bezugsrezepts (dinner_indices) abdeckt.
+      Mengen werden NICHT skaliert (feste Eingabe, z.B. "200g Tofu").
+    """
+
+    class Category(models.TextChoices):
+        ALLGEMEIN      = "allgemein",      "Allgemein"
+        BETREUERESSEN  = "betreueressen",  "Betreueressen"
+        ALTERNATIVE    = "alternative",    "Alternative"
+
     camp       = models.ForeignKey("camps.Camp", on_delete=models.CASCADE, related_name="general_ingredients")
     ingredient = models.ForeignKey("recipes.Ingredient", on_delete=models.CASCADE, related_name="general_uses")
     amount     = models.DecimalField(max_digits=10, decimal_places=2)
     unit       = models.CharField(max_length=20)
     notes      = models.CharField(max_length=300, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    category   = models.CharField(
+        max_length=20, choices=Category.choices, default=Category.ALLGEMEIN,
+        verbose_name="Kategorie"
+    )
+    day        = models.ForeignKey(
+        "camps.CampDay", on_delete=models.CASCADE, null=True, blank=True,
+        related_name="general_ingredients",
+        verbose_name="Tag (nur Betreueressen/Alternative)",
+        help_text="Nur für category='betreueressen' oder 'alternative': Tag, an dessen Liefertag die Zutat ankommen soll.",
+    )
 
     class Meta:
         ordering = ["ingredient__name"]
@@ -245,3 +277,37 @@ class GeneralIngredient(models.Model):
 
     def __str__(self):
         return f"{self.ingredient.name} ({self.amount} {self.unit})"
+
+
+class FruitConfig(models.Model):
+    """
+    Gespeicherte Obst-Schätzung pro Freizeit (Äpfel/Bananen/Birnen/Nektarinen).
+    Menge (Stück, grobe Schätzung für die ganze Freizeit) und/oder Gewicht (kg,
+    grobe Schätzung für die ganze Freizeit) -- beide optional.
+    Wird wie Aufschnitt proportional über alle Liefertage verteilt.
+    """
+    camp = models.OneToOneField(
+        "camps.Camp", on_delete=models.CASCADE,
+        related_name="fruit_config"
+    )
+
+    amount_apfel       = models.PositiveIntegerField(null=True, blank=True, verbose_name="Äpfel (Stück)")
+    weight_apfel        = models.FloatField(null=True, blank=True, verbose_name="Äpfel (kg)")
+
+    amount_banane       = models.PositiveIntegerField(null=True, blank=True, verbose_name="Bananen (Stück)")
+    weight_banane        = models.FloatField(null=True, blank=True, verbose_name="Bananen (kg)")
+
+    amount_birne        = models.PositiveIntegerField(null=True, blank=True, verbose_name="Birnen (Stück)")
+    weight_birne         = models.FloatField(null=True, blank=True, verbose_name="Birnen (kg)")
+
+    amount_nektarine    = models.PositiveIntegerField(null=True, blank=True, verbose_name="Nektarinen (Stück)")
+    weight_nektarine     = models.FloatField(null=True, blank=True, verbose_name="Nektarinen (kg)")
+
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Obst Konfiguration"
+        verbose_name_plural = "Obst Konfigurationen"
+
+    def __str__(self):
+        return f"Obst Konfig: {self.camp}"

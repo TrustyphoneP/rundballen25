@@ -326,6 +326,9 @@ def fruehstueck(request, camp_pk=None):
     # Load saved config or create with defaults
     saved, _ = FruehstueckConfig.objects.get_or_create(camp=camp)
 
+    from .models import FruitConfig
+    saved_fruit, _ = FruitConfig.objects.get_or_create(camp=camp)
+
     # Bread days: skip first camp day only
     bread_dates = [d.date for d in days[1:]] if len(days) >= 2 else []
 
@@ -353,6 +356,30 @@ def fruehstueck(request, camp_pk=None):
                 return default
         return default
 
+    def get_optional_int(key, default):
+        """Wie get_int, aber leeres Feld -> None (Obst-Mengen sind optionale Schätzwerte)."""
+        if request.method == "POST":
+            raw = request.POST.get(key, "")
+            if raw in ("", None):
+                return None
+            try:
+                return int(raw)
+            except (ValueError, TypeError):
+                return default
+        return default
+
+    def get_optional_float(key, default):
+        """Wie get_float, aber leeres Feld -> None (Obst-Gewichte sind optionale Schätzwerte)."""
+        if request.method == "POST":
+            raw = request.POST.get(key, "")
+            if raw in ("", None):
+                return None
+            try:
+                return float(raw)
+            except (ValueError, TypeError):
+                return default
+        return default
+
     # Read from POST or fall back to saved DB values
     t_cheese        = get_int("loaves_cheese",       saved.loaves_cheese)
     t_salami        = get_int("loaves_salami",       saved.loaves_salami)
@@ -369,6 +396,16 @@ def fruehstueck(request, camp_pk=None):
     spb_fleischkaese = get_float("spb_fleischkaese", saved.spb_fleischkaese)
     spb_fleischwurst = get_float("spb_fleischwurst", saved.spb_fleischwurst)
 
+    # Obst: Menge (Stück) und Gewicht (kg), beide optional, für die ganze Freizeit
+    fruit_amount_apfel     = get_optional_int("amount_apfel",     saved_fruit.amount_apfel)
+    fruit_weight_apfel     = get_optional_float("weight_apfel",   saved_fruit.weight_apfel)
+    fruit_amount_banane    = get_optional_int("amount_banane",    saved_fruit.amount_banane)
+    fruit_weight_banane    = get_optional_float("weight_banane",  saved_fruit.weight_banane)
+    fruit_amount_birne     = get_optional_int("amount_birne",     saved_fruit.amount_birne)
+    fruit_weight_birne     = get_optional_float("weight_birne",   saved_fruit.weight_birne)
+    fruit_amount_nektarine = get_optional_int("amount_nektarine", saved_fruit.amount_nektarine)
+    fruit_weight_nektarine = get_optional_float("weight_nektarine", saved_fruit.weight_nektarine)
+
     # Save if Speichern button clicked
     if request.method == "POST" and "save" in request.POST:
         saved.loaves_cheese       = t_cheese
@@ -384,6 +421,16 @@ def fruehstueck(request, camp_pk=None):
         saved.spb_fleischkaese    = spb_fleischkaese
         saved.spb_fleischwurst    = spb_fleischwurst
         saved.save()
+
+        saved_fruit.amount_apfel       = fruit_amount_apfel
+        saved_fruit.weight_apfel       = fruit_weight_apfel
+        saved_fruit.amount_banane      = fruit_amount_banane
+        saved_fruit.weight_banane      = fruit_weight_banane
+        saved_fruit.amount_birne       = fruit_amount_birne
+        saved_fruit.weight_birne       = fruit_weight_birne
+        saved_fruit.amount_nektarine   = fruit_amount_nektarine
+        saved_fruit.weight_nektarine   = fruit_weight_nektarine
+        saved_fruit.save()
 
     def calc(loaves, weight_per_slice, slices_per_bread):
         total_slices = loaves * SLICES_PER_LOAF * slices_per_bread
@@ -438,6 +485,20 @@ def fruehstueck(request, camp_pk=None):
     extras[3]["per_day"] = f"{muesli_per_day} Stk"
     extras[3]["total"]   = f"{muesli_total} Stk"
 
+    def fmt_optional(value):
+        """Wandelt None/Zahl in str um, ohne deutsche Komma-Lokalisierung
+        (sonst zeigt <input type="number"> den Wert wegen value="5,0" nicht an)."""
+        if value is None:
+            return ""
+        return str(value)
+
+    fruits = [
+        {"name": "Äpfel",      "key": "apfel",     "amount": fmt_optional(fruit_amount_apfel),     "weight": fmt_optional(fruit_weight_apfel)},
+        {"name": "Bananen",    "key": "banane",    "amount": fmt_optional(fruit_amount_banane),    "weight": fmt_optional(fruit_weight_banane)},
+        {"name": "Birnen",     "key": "birne",     "amount": fmt_optional(fruit_amount_birne),     "weight": fmt_optional(fruit_weight_birne)},
+        {"name": "Nektarinen", "key": "nektarine", "amount": fmt_optional(fruit_amount_nektarine), "weight": fmt_optional(fruit_weight_nektarine)},
+    ]
+
     return render(request, "meals/fruehstueck.html", {
         "camp":            camp,
         "persons":         persons,
@@ -449,6 +510,7 @@ def fruehstueck(request, camp_pk=None):
         "saved_at":        saved.updated_at,
         "extras":          extras,
         "num_bread_days":  num_bread_days,
+        "fruits":          fruits,
     })
 
 
@@ -491,7 +553,8 @@ def allgemein(request, camp_pk=None):
                     if ing:
                         GeneralIngredient.objects.create(
                             camp=camp, ingredient=ing,
-                            amount=amount, unit=unit, notes=notes
+                            amount=amount, unit=unit, notes=notes,
+                            category=GeneralIngredient.Category.ALLGEMEIN,
                         )
                         messages.success(request, f"{ing.name} hinzugefügt.")
                 except (Ingredient.DoesNotExist, ValueError) as e:
@@ -501,9 +564,13 @@ def allgemein(request, camp_pk=None):
 
         elif action == "delete":
             pk = request.POST.get("pk")
-            GeneralIngredient.objects.filter(pk=pk, camp=camp).delete()
+            GeneralIngredient.objects.filter(
+                pk=pk, camp=camp, category=GeneralIngredient.Category.ALLGEMEIN,
+            ).delete()
 
-    items = GeneralIngredient.objects.filter(camp=camp).select_related("ingredient")
+    items = GeneralIngredient.objects.filter(
+        camp=camp, category=GeneralIngredient.Category.ALLGEMEIN,
+    ).select_related("ingredient")
 
     # Autocomplete URL for ingredient search
     from django.urls import reverse
@@ -513,4 +580,278 @@ def allgemein(request, camp_pk=None):
         "camp":             camp,
         "items":            items,
         "autocomplete_url": autocomplete_url,
+    })
+
+
+@login_required
+def betreueressen(request, camp_pk=None, day_pk=None):
+    """
+    Betreueressen: Resteverwertung des Hauptgerichts eines Tages.
+    Das Hauptgericht kommt direkt und ausschließlich aus dem Wochenplan
+    (DayMeal.main_course) -- read-only, keine eigene Auswahl hier, damit es
+    nie vom Wochenplan abweichen kann.
+
+    Zusätzliche Zutaten (z.B. Eier für Eierreis aus Restreis) werden als
+    GeneralIngredient(category="betreueressen", day=<dieser Tag>) gespeichert
+    und landen im Liefertag, der diesen Tag abdeckt (gleiche Logik wie
+    Abendessen-Zutaten).
+
+    Allergen-Warnung bezieht sich NUR auf Personen mit person_type="supervisor",
+    nicht auf alle Teilis (anders als im Wochenplan).
+    """
+    from .models import GeneralIngredient
+    from apps.recipes.models import Ingredient
+
+    if camp_pk:
+        camp = get_object_or_404(Camp, pk=camp_pk)
+    else:
+        camp = Camp.objects.filter(is_active=True).first()
+        if not camp:
+            return redirect("camps:dashboard")
+
+    _ensure_camp_days(camp)
+    days = list(
+        CampDay.objects.filter(camp=camp)
+        .select_related("day_meal", "day_meal__main_course")
+        .order_by("date")
+    )
+
+    if not days:
+        return render(request, "meals/betreueressen.html", {"camp": camp, "days": []})
+
+    # Aktiven Tag bestimmen: per URL-Param day_pk, sonst erster Tag
+    if day_pk:
+        current_day = get_object_or_404(
+            CampDay.objects.select_related("day_meal", "day_meal__main_course"),
+            pk=day_pk, camp=camp,
+        )
+    else:
+        current_day = days[0]
+
+    # Hauptgericht read-only aus dem Wochenplan
+    main_course = None
+    if hasattr(current_day, "day_meal") and current_day.day_meal:
+        main_course = current_day.day_meal.main_course
+
+    if request.method == "POST":
+        action = request.POST.get("action")
+
+        if action == "add":
+            ing_name = request.POST.get("ingredient_name", "").strip()
+            ing_id   = request.POST.get("ingredient_id", "").strip()
+            amount   = request.POST.get("amount", "").strip()
+            unit     = request.POST.get("unit", "g").strip()
+            notes    = request.POST.get("notes", "").strip()
+
+            if amount:
+                try:
+                    if ing_id:
+                        ing = Ingredient.objects.get(pk=ing_id)
+                    elif ing_name:
+                        ing = Ingredient.objects.filter(name__iexact=ing_name).first()
+                        if not ing:
+                            ing = Ingredient.objects.create(name=ing_name)
+                            messages.success(request, f"Neue Zutat '{ing_name}' angelegt.")
+                    else:
+                        ing = None
+
+                    if ing:
+                        GeneralIngredient.objects.create(
+                            camp=camp, ingredient=ing,
+                            amount=amount, unit=unit, notes=notes,
+                            category=GeneralIngredient.Category.BETREUERESSEN,
+                            day=current_day,
+                        )
+                        messages.success(request, f"{ing.name} hinzugefügt.")
+                except (Ingredient.DoesNotExist, ValueError) as e:
+                    messages.error(request, f"Fehler: {e}")
+            else:
+                messages.error(request, "Bitte Menge eingeben.")
+
+        elif action == "delete":
+            pk = request.POST.get("pk")
+            GeneralIngredient.objects.filter(
+                pk=pk, camp=camp, day=current_day,
+                category=GeneralIngredient.Category.BETREUERESSEN,
+            ).delete()
+
+        # Redirect, damit der Tag in der URL bleibt (kein Re-POST bei Reload)
+        return redirect("meals:betreueressen_day", camp_pk=camp.pk, day_pk=current_day.pk)
+
+    # Original-Zutaten des Hauptgerichts: NUR Anzeige, keine Skalierung
+    ref_ingredients = []
+    if main_course:
+        for ri in main_course.recipe_ingredients.select_related("ingredient").order_by("ingredient__name"):
+            ref_ingredients.append({
+                "ingredient": ri.ingredient,
+                "amount":     ri.amount,
+                "unit":       ri.unit,
+                "note":       ri.note,
+            })
+
+    items = GeneralIngredient.objects.filter(
+        camp=camp, day=current_day,
+        category=GeneralIngredient.Category.BETREUERESSEN,
+    ).select_related("ingredient")
+
+    # Allergen-Warnung NUR für Betreuer (person_type="supervisor"),
+    # nicht für alle Teilis wie im Wochenplan
+    allergen_counts = {}
+    if main_course:
+        supervisors = camp.participants.filter(person_type="supervisor").prefetch_related("intolerances")
+        for allergen in main_course.allergens.all():
+            count = sum(1 for s in supervisors if allergen in s.intolerances.all())
+            if count:
+                allergen_counts[allergen.pk] = {"allergen": allergen, "count": count}
+
+    from django.urls import reverse
+    autocomplete_url = reverse("recipes:ingredient_autocomplete")
+
+    return render(request, "meals/betreueressen.html", {
+        "camp":              camp,
+        "days":              days,
+        "current_day":       current_day,
+        "main_course":       main_course,
+        "ref_ingredients":   ref_ingredients,
+        "items":             items,
+        "allergen_counts":   allergen_counts,
+        "autocomplete_url":  autocomplete_url,
+    })
+
+
+@login_required
+def skf_alternativen(request, camp_pk=None, day_pk=None):
+    """
+    SKF-Alternativen: Ersatzzutaten für ein Hauptgericht eines Tages, um
+    Vegetariern/Teilis mit Unverträglichkeiten eine Alternative zu bieten
+    (z.B. 200g Tofu statt Hühnerbrust). Technisch identisch zu
+    "Betreueressen" aufgebaut, nur mit eigener Kategorie "alternative".
+
+    Das Hauptgericht kommt direkt und ausschließlich aus dem Wochenplan
+    (DayMeal.main_course) -- read-only, keine eigene Auswahl hier.
+
+    WICHTIG: Mengen werden NICHT mit der Teilnehmerzahl skaliert -- die
+    eingegebene Menge (z.B. "200g Tofu") geht 1:1 in die Einkaufsliste,
+    Kategorie "Alternative".
+
+    Allergen-Warnung bezieht sich NUR auf Personen mit person_type="supervisor",
+    nicht auf alle Teilis (anders als im Wochenplan), genau wie Betreueressen.
+    """
+    from .models import GeneralIngredient
+    from apps.recipes.models import Ingredient
+
+    if camp_pk:
+        camp = get_object_or_404(Camp, pk=camp_pk)
+    else:
+        camp = Camp.objects.filter(is_active=True).first()
+        if not camp:
+            return redirect("camps:dashboard")
+
+    _ensure_camp_days(camp)
+    days = list(
+        CampDay.objects.filter(camp=camp)
+        .select_related("day_meal", "day_meal__main_course")
+        .order_by("date")
+    )
+
+    if not days:
+        return render(request, "meals/skf_alternativen.html", {"camp": camp, "days": []})
+
+    # Aktiven Tag bestimmen: per URL-Param day_pk, sonst erster Tag
+    if day_pk:
+        current_day = get_object_or_404(
+            CampDay.objects.select_related("day_meal", "day_meal__main_course"),
+            pk=day_pk, camp=camp,
+        )
+    else:
+        current_day = days[0]
+
+    # Hauptgericht read-only aus dem Wochenplan
+    main_course = None
+    if hasattr(current_day, "day_meal") and current_day.day_meal:
+        main_course = current_day.day_meal.main_course
+
+    if request.method == "POST":
+        action = request.POST.get("action")
+
+        if action == "add":
+            ing_name = request.POST.get("ingredient_name", "").strip()
+            ing_id   = request.POST.get("ingredient_id", "").strip()
+            amount   = request.POST.get("amount", "").strip()
+            unit     = request.POST.get("unit", "g").strip()
+            notes    = request.POST.get("notes", "").strip()
+
+            if amount:
+                try:
+                    if ing_id:
+                        ing = Ingredient.objects.get(pk=ing_id)
+                    elif ing_name:
+                        ing = Ingredient.objects.filter(name__iexact=ing_name).first()
+                        if not ing:
+                            ing = Ingredient.objects.create(name=ing_name)
+                            messages.success(request, f"Neue Zutat '{ing_name}' angelegt.")
+                    else:
+                        ing = None
+
+                    if ing:
+                        GeneralIngredient.objects.create(
+                            camp=camp, ingredient=ing,
+                            amount=amount, unit=unit, notes=notes,
+                            category=GeneralIngredient.Category.ALTERNATIVE,
+                            day=current_day,
+                        )
+                        messages.success(request, f"{ing.name} hinzugefügt.")
+                except (Ingredient.DoesNotExist, ValueError) as e:
+                    messages.error(request, f"Fehler: {e}")
+            else:
+                messages.error(request, "Bitte Menge eingeben.")
+
+        elif action == "delete":
+            pk = request.POST.get("pk")
+            GeneralIngredient.objects.filter(
+                pk=pk, camp=camp, day=current_day,
+                category=GeneralIngredient.Category.ALTERNATIVE,
+            ).delete()
+
+        # Redirect, damit der Tag in der URL bleibt (kein Re-POST bei Reload)
+        return redirect("meals:skf_alternativen_day", camp_pk=camp.pk, day_pk=current_day.pk)
+
+    # Original-Zutaten des Hauptgerichts: NUR Anzeige, keine Skalierung
+    ref_ingredients = []
+    if main_course:
+        for ri in main_course.recipe_ingredients.select_related("ingredient").order_by("ingredient__name"):
+            ref_ingredients.append({
+                "ingredient": ri.ingredient,
+                "amount":     ri.amount,
+                "unit":       ri.unit,
+                "note":       ri.note,
+            })
+
+    items = GeneralIngredient.objects.filter(
+        camp=camp, day=current_day,
+        category=GeneralIngredient.Category.ALTERNATIVE,
+    ).select_related("ingredient")
+
+    # Allergen-Warnung NUR für Betreuer (person_type="supervisor"),
+    # nicht für alle Teilis wie im Wochenplan
+    allergen_counts = {}
+    if main_course:
+        supervisors = camp.participants.filter(person_type="supervisor").prefetch_related("intolerances")
+        for allergen in main_course.allergens.all():
+            count = sum(1 for s in supervisors if allergen in s.intolerances.all())
+            if count:
+                allergen_counts[allergen.pk] = {"allergen": allergen, "count": count}
+
+    from django.urls import reverse
+    autocomplete_url = reverse("recipes:ingredient_autocomplete")
+
+    return render(request, "meals/skf_alternativen.html", {
+        "camp":              camp,
+        "days":              days,
+        "current_day":       current_day,
+        "main_course":       main_course,
+        "ref_ingredients":   ref_ingredients,
+        "items":             items,
+        "allergen_counts":   allergen_counts,
+        "autocomplete_url":  autocomplete_url,
     })

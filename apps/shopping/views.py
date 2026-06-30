@@ -16,8 +16,26 @@ from .forms import ShoppingListFromPlanForm, ShoppingListFromRecipesForm
 from .shopping_days import get_shopping_days, build_shopping_day_items
 
 
+def _parse_fruehstueck_extras(notes):
+    """Liest die in ShoppingList.notes als Text codierten Frühstück-Extras
+    (H-Milch, Aufschnitt, Obst usw.) aus und gibt sie als Liste von
+    {"name", "amount", "unit"} zurück. Leere Liste, wenn keine vorhanden."""
+    extras = []
+    if "__fruehstueck__:" not in notes:
+        return extras
+    raw = notes.split("__fruehstueck__:")[1]
+    for entry in raw.split("|"):
+        parts = entry.split(":")
+        if len(parts) == 3:
+            try:
+                extras.append({"name": parts[0], "amount": float(parts[1]), "unit": parts[2]})
+            except ValueError:
+                pass
+    return extras
+
+
 # ---------------------------------------------------------------------------
-# Uebersicht
+# Übersicht
 # ---------------------------------------------------------------------------
 
 @login_required
@@ -101,7 +119,7 @@ def _generate_from_plan(request, camp):
 
 
 # ---------------------------------------------------------------------------
-# Einkaufsplan-Uebersicht
+# Einkaufsplan-Übersicht
 # ---------------------------------------------------------------------------
 
 @login_required
@@ -113,16 +131,7 @@ def plan_overview(request, camp_pk):
 
     paired_with_extras = []
     for sd, sl in paired:
-        extras = []
-        if "__fruehstueck__:" in sl.notes:
-            raw = sl.notes.split("__fruehstueck__:")[1]
-            for entry in raw.split("|"):
-                parts = entry.split(":")
-                if len(parts) == 3:
-                    try:
-                        extras.append({"name": parts[0], "amount": float(parts[1]), "unit": parts[2]})
-                    except ValueError:
-                        pass
+        extras = _parse_fruehstueck_extras(sl.notes)
         paired_with_extras.append((sd, sl, extras))
 
     return render(request, "shopping/plan_overview.html", {
@@ -217,6 +226,7 @@ def detail(request, pk):
     dry   = items.filter(ingredient__is_fresh=False)
     total  = items.count()
     bought = items.filter(is_bought=True).count()
+    fruehstueck_extras = _parse_fruehstueck_extras(sl.notes)
 
     recipe_days = []
     try:
@@ -240,6 +250,7 @@ def detail(request, pk):
         "sl": sl, "items": items, "fresh": fresh, "dry": dry,
         "total": total, "bought": bought, "open": total - bought,
         "recipe_days": recipe_days,
+        "fruehstueck_extras": fruehstueck_extras,
     })
 
 
@@ -298,7 +309,7 @@ def export_csv(request, pk):
     response["Content-Disposition"] = f'attachment; filename="einkauf_{slugify(sl.camp.name)}_{sl.from_date}.csv"'
     response.write("\ufeff")
     writer = csv.writer(response, delimiter=";")
-    writer.writerow(["Zutat", "Menge", "Einheit", "Typ", "Kategorie", "Zutaten-Notiz", "Tag", "Rezept"])
+    writer.writerow(["Zutat", "Menge", "Einheit", "Trocken/Frisch", "Kategorie", "Zutaten-Notiz", "Tag", "Rezept"])
     for item in sl.items.select_related("ingredient").order_by("ingredient__is_fresh", "ingredient__name"):
         info        = ing_info.get(item.ingredient.pk, {})
         days_str    = ", ".join(str(d) for d in sorted(info.get("days", [])))
@@ -331,7 +342,7 @@ def delete_list(request, pk):
     sl = get_object_or_404(ShoppingList, pk=pk)
     camp_pk = sl.camp.pk
     sl.delete()
-    messages.success(request, "Einkaufsliste geloescht.")
+    messages.success(request, "Einkaufsliste gelöscht.")
     return redirect("shopping:plan_overview", camp_pk=camp_pk)
 
 
@@ -350,7 +361,7 @@ def export_csv_combined(request, camp_pk):
     response["Content-Disposition"] = f'attachment; filename="einkauf_{slugify(camp.name)}_gesamt.csv"'
     response.write("\ufeff")
     writer = csv.writer(response, delimiter=";")
-    writer.writerow(["Lieferung", "Datum", "Kategorie", "Artikel", "Menge", "Einheit", "Typ", "Zutaten-Notiz", "Tag", "Rezept"])
+    writer.writerow(["Lieferung", "Datum", "Kategorie", "Trocken/Frisch", "Artikel", "Menge", "Einheit", "Zutaten-Notiz", "Tag", "Rezept"])
 
     shopping_days = get_shopping_days(camp)
 
@@ -368,26 +379,24 @@ def export_csv_combined(request, camp_pk):
             menge = parts_fmt[0] if len(parts_fmt) == 2 else fmt
             einheit = parts_fmt[1] if len(parts_fmt) == 2 else ""
             writer.writerow([
-                label, datum, item.notes, item.ingredient.name,
-                menge, einheit,
+                label, datum, item.notes,
                 "frisch" if item.ingredient.is_fresh else "trocken",
+                item.ingredient.name,
+                menge, einheit,
                 item.ingredient.notes,
                 days_str,
                 recipes_str,
             ])
 
-        if "__fruehstueck__:" in sl.notes:
-            raw = sl.notes.split("__fruehstueck__:")[1]
-            for entry in raw.split("|"):
-                parts = entry.split(":")
-                if len(parts) == 3:
-                    try:
-                        writer.writerow([
-                            label, datum, "Frühstück", parts[0],
-                            str(float(parts[1])).replace(".", ","),
-                            parts[2], "trocken", "", "", "",
-                        ])
-                    except ValueError:
-                        pass
+        for extra in _parse_fruehstueck_extras(sl.notes):
+            from apps.recipes.models import Ingredient
+            is_fresh = Ingredient.objects.filter(name=extra["name"]).values_list("is_fresh", flat=True).first()
+            writer.writerow([
+                label, datum, "Frühstück/Mittag",
+                "frisch" if is_fresh else "trocken",
+                extra["name"],
+                str(extra["amount"]).replace(".", ","),
+                extra["unit"], "", "", "",
+            ])
 
     return response

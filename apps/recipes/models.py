@@ -5,6 +5,7 @@ Alle 14 EU-Pflichtallergene sind vorinstalliert.
 Jedes Rezept kann beliebige Allergene und Diäteigenschaften tragen.
 Die Mengenberechnung erfolgt pro Person und skaliert automatisch.
 """
+from decimal import Decimal
 from django.db import models
 
 
@@ -101,6 +102,21 @@ class Recipe(models.Model):
         return self.name
 
 
+# Feste Frühstück/Mittag-Posten (H-Milch, Choco Drink, Pflanzenmargarine,
+# Müsliriegel), deren Einheit NUR in apps.shopping.shopping_days.py als
+# Python-Literal hartcodiert ist (z.B. add(ing, "g", ...)), nicht in einer
+# RecipeIngredient- oder GeneralIngredient-Zeile. Diese Mini-Zuordnung
+# spiegelt NUR die dortigen Einheiten für die Preis-Einheit-Ermittlung in
+# Ingredient.derive_price_unit() -- wenn sich die Einheit in
+# shopping_days.py ändert, muss sie hier ebenfalls angepasst werden.
+FIXED_FRUEHSTUECK_UNITS = {
+    "H-Milch":              "l",
+    "G&G Choco Drink":      "Pck",
+    "G&G Pflanzenmargarine": "g",
+    "G&G Müsliriegel":      "Stk",
+}
+
+
 class Ingredient(models.Model):
     """Zutat (Stammdaten)"""
 
@@ -130,6 +146,140 @@ class Ingredient(models.Model):
     )
     is_fresh  = models.BooleanField(default=False, verbose_name="Frische Zutat", help_text="Frisch (z.B. Gemuese, Fleisch) oder trocken (z.B. Nudeln, Dosenware)")
     notes     = models.CharField(max_length=300, blank=True)
+
+    # Kostenkalkulation
+    price = models.DecimalField(
+        max_digits=8, decimal_places=4, null=True, blank=True,
+        verbose_name="Preis (€)",
+        help_text="Preis pro 'Preis-Einheit' unten, z.B. 5,36 für 5,36€ pro kg",
+    )
+    price_unit = models.CharField(
+        max_length=10, choices=Unit.choices, blank=True,
+        verbose_name="Preis-Einheit",
+        help_text="Auf welche Einheit sich der Preis bezieht (z.B. 'kg' bei 5,36€/kg)",
+    )
+
+    @property
+    def has_price(self):
+        return self.price is not None and self.price_unit
+
+    _WEIGHT_TO_G = {"g": Decimal("1"), "kg": Decimal("1000")}
+    _VOLUME_TO_ML = {"ml": Decimal("1"), "l": Decimal("1000")}
+
+    def derive_price_unit(self):
+        """
+        Ermittelt die Einheit für den Preis aus ALLEN tatsächlichen
+        Verwendungen dieser Zutat -- in Rezepten (RecipeIngredient), in
+        Allgemein/Betreueressen/Alternative (GeneralIngredient), UND in den
+        fest hinterlegten Frühstück/Mittag-Posten (FIXED_FRUEHSTUECK_UNITS,
+        z.B. H-Milch, G&G Choco Drink), deren Einheit nur als Python-Literal
+        in shopping_days.py existiert, nicht in einer DB-Zeile.
+
+        Einheiten derselben Dimension werden zusammengefasst, statt als
+        Konflikt behandelt zu werden: g/kg sind beide Gewicht, ml/l sind
+        beide Volumen. In diesem Fall wird die GRÖSSERE Einheit gewählt
+        (kg statt g, l statt ml), weil sich Preise üblicher auf kg/l beziehen.
+        Eine Warnung erscheint nur noch bei echt inkompatiblen Einheiten
+        (z.B. "Stk" und "ml" gemischt), wo keine sinnvolle Umrechnung möglich ist.
+
+        Gibt (einheit, ist_uneinheitlich) zurück:
+        - einheit: die Einheit, falls eindeutig ermittelbar, sonst "" (z.B.
+          keine Verwendung, oder mehrere unterschiedliche, inkompatible
+          Einheiten)
+        - ist_uneinheitlich: True, wenn die Zutat mit echt INKOMPATIBLEN
+          Einheiten verwendet wird (nicht umrechenbar, z.B. "Stk" und "kg")
+          -- dann sollte eine Warnung angezeigt werden, da der Preis sich
+          nicht eindeutig zuordnen lässt.
+        """
+        units = self.all_units_used()
+
+        if len(units) == 0:
+            return "", False
+        if len(units) == 1:
+            return units[0], False
+
+        # Mehrere unterschiedliche Einheiten -- prüfen, ob sie alle derselben
+        # Dimension angehören (alle Gewicht, oder alle Volumen). Mischungen
+        # über Dimensionen hinweg (z.B. "g" und "Stk") bleiben ein Konflikt.
+        if all(u in self._WEIGHT_TO_G for u in units):
+            return "kg", False
+        if all(u in self._VOLUME_TO_ML for u in units):
+            return "l", False
+
+        return "", True
+
+    def recipe_uses_for_pricing(self):
+        """RecipeIngredient-Zeilen, die diese Zutat verwenden (für
+        derive_price_unit und die Admin-Anzeige)."""
+        return RecipeIngredient.objects.filter(ingredient=self)
+
+    def general_uses_for_pricing(self):
+        """
+        GeneralIngredient-Zeilen, die diese Zutat verwenden (Allgemein,
+        Betreueressen, Alternative -- für derive_price_unit und die
+        Admin-Anzeige). Lokaler Import, da GeneralIngredient in apps.meals
+        liegt, nicht in apps.recipes.
+        """
+        from apps.meals.models import GeneralIngredient
+        return GeneralIngredient.objects.filter(ingredient=self)
+
+    def all_units_used(self):
+        """
+        Alle tatsächlich verwendeten Einheiten dieser Zutat, aus Rezepten,
+        aus Allgemein/Betreueressen/Alternative, UND aus den fest
+        hinterlegten Frühstück/Mittag-Posten (FIXED_FRUEHSTUECK_UNITS)
+        zusammen, als distinkte Liste. Wird für die "uneinheitlich
+        verwendet (...)"-Warnung in Admin und Zutatenverwaltung genutzt,
+        damit dort wirklich ALLE Quellen auftauchen, nicht nur Rezepte.
+        """
+        recipe_units = list(self.recipe_uses_for_pricing().values_list("unit", flat=True).distinct())
+        general_units = list(self.general_uses_for_pricing().values_list("unit", flat=True).distinct())
+        fixed_unit = FIXED_FRUEHSTUECK_UNITS.get(self.name)
+        fixed_units = [fixed_unit] if fixed_unit else []
+        return list(dict.fromkeys(recipe_units + general_units + fixed_units))
+
+    def save(self, *args, **kwargs):
+        # price_unit wird nicht manuell gepflegt, sondern automatisch aus den
+        # Rezept-Verwendungen abgeleitet, sobald eindeutig ermittelbar. Bei
+        # uneinheitlicher Verwendung (mehrere unterschiedliche Einheiten)
+        # bleibt das Feld leer -- price_for() liefert dann bewusst keinen
+        # Wert, statt einen falschen zu erraten.
+        if self.pk:  # nur möglich, wenn die Zutat schon existiert (FK braucht pk)
+            unit, _ = self.derive_price_unit()
+            self.price_unit = unit
+        super().save(*args, **kwargs)
+
+    def price_for(self, amount, unit):
+        """
+        Berechnet die Kosten für eine gegebene Menge in einer beliebigen Einheit,
+        unter automatischer Umrechnung auf die hinterlegte Preis-Einheit
+        (z.B. Rezept nutzt 'g', Preis ist je 'kg' hinterlegt).
+        Gibt None zurück, wenn kein Preis hinterlegt ist oder die Einheiten
+        nicht zueinander umrechenbar sind (z.B. 'kg' vs 'Stk').
+        """
+        if not self.has_price:
+            return None
+
+        amount = Decimal(str(amount))
+
+        # Gleiche Einheit: direkt multiplizieren, keine Umrechnung nötig
+        if unit == self.price_unit:
+            return self.price * amount
+
+        # Gewicht <-> Gewicht (g/kg)
+        if unit in self._WEIGHT_TO_G and self.price_unit in self._WEIGHT_TO_G:
+            amount_in_g = amount * self._WEIGHT_TO_G[unit]
+            price_per_g = self.price / self._WEIGHT_TO_G[self.price_unit]
+            return amount_in_g * price_per_g
+
+        # Volumen <-> Volumen (ml/l)
+        if unit in self._VOLUME_TO_ML and self.price_unit in self._VOLUME_TO_ML:
+            amount_in_ml = amount * self._VOLUME_TO_ML[unit]
+            price_per_ml = self.price / self._VOLUME_TO_ML[self.price_unit]
+            return amount_in_ml * price_per_ml
+
+        # Nicht umrechenbar (z.B. 'kg' Rezeptmenge gegen 'Stk' Preiseinheit)
+        return None
 
     @property
     def is_vegan(self):

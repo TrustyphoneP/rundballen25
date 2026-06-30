@@ -3,6 +3,56 @@
 {% block title %}Dashboard – rundballen25{% endblock %}
 {% block page_title %}Dashboard{% endblock %}
 
+{% block extra_head %}
+<style>
+  .kitchen-tile-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  @media (min-width: 640px) {
+    .kitchen-tile-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (min-width: 1024px) {
+    .kitchen-tile-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+  .kitchen-tile {
+    display: block;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(240,237,232,0.09);
+    border-radius: 14px;
+    padding: 22px 20px;
+    min-height: 88px;
+    text-decoration: none;
+    transition: all 0.15s;
+  }
+  .kitchen-tile:hover {
+    background: rgba(232,164,68,0.1);
+    border-color: rgba(232,164,68,0.28);
+  }
+  .kitchen-tile-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.25rem;
+    color: #f0ede8;
+    margin-bottom: 6px;
+  }
+  .kitchen-tile-desc {
+    font-size: 0.78rem;
+    color: rgba(240,237,232,0.45);
+  }
+  .kitchen-tile-featured {
+    background: rgba(224,123,84,0.1);
+    border-color: rgba(224,123,84,0.35);
+  }
+  .kitchen-tile-featured .kitchen-tile-title {
+    color: #e07b54;
+  }
+  .kitchen-tile-featured:hover {
+    background: rgba(224,123,84,0.16);
+  }
+</style>
+{% endblock %}
+
 {% block topbar_actions %}
   {% if active_camp %}
   <a href="{% url 'camps:participant_create' camp_pk=active_camp.pk %}" class="btn btn-primary">+ Teili</a>
@@ -25,7 +75,7 @@
     <div class="text-xs" style="color:rgba(240,237,232,0.4);">erfasste Personen</div>
   </div>
   <div class="card px-5 py-5">
-    <div class="section-mono mb-2">Unverträglichkeiten</div>
+    <div class="section-mono mb-2">SKF</div>
     <div class="font-display text-4xl mb-1" style="color:#e07b54;">{{ with_intol }}</div>
     <div class="text-xs" style="color:rgba(240,237,232,0.4);">von {{ total }} erfassten Personen</div>
   </div>
@@ -33,44 +83,51 @@
     <div class="section-mono mb-2">Dauer</div>
     <div class="font-display text-4xl mb-1">{{ active_camp.duration_days }}</div>
     <div class="text-xs" style="color:rgba(240,237,232,0.4);">
-      {{ active_camp.start_date|date:"d.m." }} – {{ active_camp.end_date|date:"d.m.Y" }}
+      {{ active_camp.start_date|date:"d.m." }} – {{ active_camp.end_date|date:"d.m." }}
     </div>
   </div>
 </div>
 
-<!-- Allergen-Uebersicht -->
-{% if allergen_counts %}
-<div class="section-mono mb-3">Häufigste Unverträglichkeiten</div>
-<div class="card overflow-hidden mb-8">
-  <table>
-    <thead><tr>
-      <th>Allergen / Unverträglichkeit</th>
-      <th>Betroffene Personen</th>
-      <th>Anteil</th>
-    </tr></thead>
-    <tbody>
-      {% for allergen in allergen_counts %}
-      <tr>
-        <td class="font-medium">{{ allergen.name }}</td>
-        <td>
-          <span class="badge badge-warn">{{ allergen.cnt }}</span>
-        </td>
-        <td>
-          <div class="flex items-center gap-3">
-            <div class="flex-1 h-1 rounded-full overflow-hidden" style="background:rgba(240,237,232,0.1); max-width:120px;">
-              <div class="h-full rounded-full" style="background:#e07b54; width:{{ allergen.cnt|floatformat:0 }}%"></div>
-            </div>
-            <span class="text-xs font-mono" style="color:rgba(240,237,232,0.45);">
-              von {{ total }}
-            </span>
-          </div>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+<!-- Küche -- große, handyfreundliche Kacheln -->
+<div class="section-mono mb-3">Küche</div>
+<div class="kitchen-tile-grid mb-8">
+  <a href="{% url 'camps:skf_briefing_days' camp_pk=active_camp.pk %}" class="kitchen-tile kitchen-tile-featured">
+    <div class="kitchen-tile-title">SKF-Briefing</div>
+    <div class="kitchen-tile-desc">Tagesbriefing für SKF-Teilis</div>
+  </a>
+  <a href="{% url 'recipes:list' %}" class="kitchen-tile">
+    <div class="kitchen-tile-title">Rezepte</div>
+    <div class="kitchen-tile-desc">Rezeptverwaltung & Zutaten</div>
+  </a>
+  <a href="{% url 'meals:week_plan' camp_pk=active_camp.pk %}" class="kitchen-tile">
+    <div class="kitchen-tile-title">Wochenplan</div>
+    <div class="kitchen-tile-desc">Hauptgericht, Dessert, Salat pro Tag</div>
+  </a>
+  <a href="{% url 'meals:allgemein_default' %}" class="kitchen-tile">
+    <div class="kitchen-tile-title">Allgemein</div>
+    <div class="kitchen-tile-desc">Freie Zutaten für die ganze Freizeit</div>
+  </a>
+  <a href="{% url 'meals:fruehstueck_default' %}" class="kitchen-tile">
+    <div class="kitchen-tile-title">Frühstück / Mittagessen</div>
+    <div class="kitchen-tile-desc">Belag, Obst & Extras</div>
+  </a>
+  <a href="{% url 'meals:bread_plan_default' %}" class="kitchen-tile">
+    <div class="kitchen-tile-title">Brotplanung</div>
+    <div class="kitchen-tile-desc">Brote & Doppelweck pro Tag</div>
+  </a>
+  <a href="{% url 'meals:skf_alternativen' camp_pk=active_camp.pk %}" class="kitchen-tile">
+    <div class="kitchen-tile-title">SKF-Alternativen</div>
+    <div class="kitchen-tile-desc">Ersatzzutaten pro Tag</div>
+  </a>
+  <a href="{% url 'meals:betreueressen' camp_pk=active_camp.pk %}" class="kitchen-tile">
+    <div class="kitchen-tile-title">Betreueressen</div>
+    <div class="kitchen-tile-desc">Resteverwertung pro Tag</div>
+  </a>
+  <a href="{% url 'shopping:plan_overview' camp_pk=active_camp.pk %}" class="kitchen-tile">
+    <div class="kitchen-tile-title">Einkaufsliste</div>
+    <div class="kitchen-tile-desc">Liefertage & CSV-Export</div>
+  </a>
 </div>
-{% endif %}
 
 {% else %}
 <!-- Kein Camp -->
