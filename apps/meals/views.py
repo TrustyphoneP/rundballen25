@@ -326,8 +326,9 @@ def fruehstueck(request, camp_pk=None):
     # Load saved config or create with defaults
     saved, _ = FruehstueckConfig.objects.get_or_create(camp=camp)
 
-    from .models import FruitConfig
+    from .models import FruitConfig, NussNougatConfig
     saved_fruit, _ = FruitConfig.objects.get_or_create(camp=camp)
+    saved_nn, _    = NussNougatConfig.objects.get_or_create(camp=camp)
 
     # Bread days: skip first camp day only
     bread_dates = [d.date for d in days[1:]] if len(days) >= 2 else []
@@ -406,6 +407,25 @@ def fruehstueck(request, camp_pk=None):
     fruit_amount_nektarine = get_optional_int("amount_nektarine", saved_fruit.amount_nektarine)
     fruit_weight_nektarine = get_optional_float("weight_nektarine", saved_fruit.weight_nektarine)
 
+    # Nuss-Nougat: g pro Halbweck, optional
+    nn_g_per_halbweck = get_optional_float("nn_g_per_halbweck", saved_nn.g_per_halbweck)
+
+    # Doppelweck-Gesamtzahl aus Brotplanung (Tag 2 bis Extra-Tag nach Freizeit),
+    # identische Logik wie bread_plan() View:
+    # - ab Tag 2 (bread_dates), plus Extra-Tag mit Faktor 0.6
+    teilis_only = camp.participants.filter(person_type="participant").count() or camp.participant_count
+    from datetime import timedelta as _td
+    bread_dates_dw = [d.date for d in days[1:]] if len(days) >= 2 else []
+    extra_date_dw  = days[-1].date + _td(days=1) if days else None
+    doppelweck_dates_all = bread_dates_dw + ([extra_date_dw] if extra_date_dw else [])
+    total_doppelweck = 0
+    for dw_date in doppelweck_dates_all:
+        factor = 0.6 if dw_date == extra_date_dw else 1.0
+        total_doppelweck += math.ceil(teilis_only * brot_cfg.doppelweck_per_person * factor)
+
+    # Nuss-Nougat Gesamtmenge: g/Halbweck × 2 Hälften × Anzahl Doppelweck
+    nn_total_g = round(nn_g_per_halbweck * 2 * total_doppelweck) if nn_g_per_halbweck else None
+
     # Save if Speichern button clicked
     if request.method == "POST" and "save" in request.POST:
         saved.loaves_cheese       = t_cheese
@@ -432,6 +452,9 @@ def fruehstueck(request, camp_pk=None):
         saved_fruit.weight_nektarine   = fruit_weight_nektarine
         saved_fruit.save()
 
+        saved_nn.g_per_halbweck = nn_g_per_halbweck
+        saved_nn.save()
+
     def calc(loaves, weight_per_slice, slices_per_bread):
         total_slices = loaves * SLICES_PER_LOAF * slices_per_bread
         weight_g     = round(total_slices * weight_per_slice)
@@ -444,13 +467,21 @@ def fruehstueck(request, camp_pk=None):
         {"name": "Fleischwurst","key": "fleischwurst", **calc(t_fleischwurst, w_fleischwurst, spb_fleischwurst), "weight_input": str(w_fleischwurst), "spb": str(spb_fleischwurst)},
     ]
 
+    # Nuss-Nougat als separater Belag unter dem Aufschnitt, mit Trennlinie
+    nn_topping = {
+        "name":             "Nuss-Nougat-Creme",
+        "key":              "nn",
+        "g_per_halbweck_input": str(nn_g_per_halbweck) if nn_g_per_halbweck is not None else "",
+        "total_doppelweck": total_doppelweck,
+        "total_g":          nn_total_g,
+        "total_kg":         round(nn_total_g / 1000, 2) if nn_total_g else None,
+    }
+
     total_weight_g = sum(t["weight_g"] for t in toppings)
 
     # Fixed extras
     num_bread_days     = len(bread_dates)
     total_bread_slices = total_loaves * SLICES_PER_LOAF
-
-    teilis_only = camp.participants.filter(person_type="participant").count() or camp.participant_count
 
     extras = [
         {
@@ -511,6 +542,7 @@ def fruehstueck(request, camp_pk=None):
         "extras":          extras,
         "num_bread_days":  num_bread_days,
         "fruits":          fruits,
+        "nn_topping":      nn_topping,
     })
 
 

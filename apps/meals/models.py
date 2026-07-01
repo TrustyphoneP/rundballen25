@@ -311,3 +311,30 @@ class FruitConfig(models.Model):
 
     def __str__(self):
         return f"Obst Konfig: {self.camp}"
+
+
+class NussNougatConfig(models.Model):
+    """
+    Gespeicherte Konfiguration für Nuss-Nougat-Creme pro Freizeit.
+    Berechnung: g_per_halbweck × 2 × total_Doppelweck (aus Brotplanung).
+    "total_Doppelweck" umfasst alle Doppelweck ab Tag 2 + den Extra-Tag
+    nach der Freizeit (wie in der Brotplanung berechnet).
+    Die berechnete Gesamtmenge landet als trockene Zutat in Lieferung 1.
+    """
+    camp = models.OneToOneField(
+        "camps.Camp", on_delete=models.CASCADE,
+        related_name="nuss_nougat_config"
+    )
+    g_per_halbweck = models.FloatField(
+        null=True, blank=True,
+        verbose_name="g pro Halbweck",
+        help_text="Gramm Nuss-Nougat-Creme pro Halbweck (eine Seite eines Doppelwecks). "
+                  "Gesamtmenge = g_pro_Halbweck × 2 × Anzahl_Doppelweck.",
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Nuss-Nougat Konfiguration"
+
+    def __str__(self):
+        return f"Nuss-Nougat Konfig: {self.camp}"

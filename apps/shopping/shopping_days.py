@@ -280,6 +280,45 @@ def build_shopping_day_items(camp, shopping_day, all_day_meals):
                 fruehstueck_extras.append({"name": "G&G Pflanzenmargarine",  "amount": round(all_slices * 2.5),          "unit": "g"})
                 fruehstueck_extras.append({"name": "G&G Müsliriegel",        "amount": math.ceil(all_teilis_days * 1.5), "unit": "Stk"})
 
+                # --- Nuss-Nougat-Creme (G&G): g/Halbweck × 2 × total_Doppelweck ---
+                # total_Doppelweck: Tag 2 bis Extra-Tag (gleiche Logik wie bread_plan View).
+                # Mengen landen trocken in Lieferung 1, Kategorie Frühstück/Mittag.
+                try:
+                    from apps.meals.models import NussNougatConfig, BrotConfig
+                    from datetime import timedelta as _td
+
+                    nn_cfg   = NussNougatConfig.objects.get(camp=camp)
+                    brot_cfg = BrotConfig.objects.get(camp=camp)
+
+                    if nn_cfg.g_per_halbweck:
+                        # Reconstruct doppelweck dates identically to bread_plan view
+                        camp_days_ordered = list(camp.days.order_by("date"))
+                        if len(camp_days_ordered) >= 2:
+                            dw_bread_dates = [d.date for d in camp_days_ordered[1:]]
+                            dw_extra_date  = camp_days_ordered[-1].date + _td(days=1)
+                            dw_all_dates   = dw_bread_dates + [dw_extra_date]
+
+                            total_doppelweck = 0
+                            for dw_date in dw_all_dates:
+                                factor = 0.6 if dw_date == dw_extra_date else 1.0
+                                total_doppelweck += math.ceil(
+                                    teilis * brot_cfg.doppelweck_per_person * factor
+                                )
+
+                            nn_total_g = round(nn_cfg.g_per_halbweck * 2 * total_doppelweck)
+                            if nn_total_g > 0:
+                                try:
+                                    ing = Ingredient.objects.get(name="G&G Nuss-Nougat-Creme")
+                                    add(ing, "g", nn_total_g, False, "Frühstück/Mittag")
+                                except Ingredient.DoesNotExist:
+                                    fruehstueck_extras.append({
+                                        "name":   "G&G Nuss-Nougat-Creme",
+                                        "amount": nn_total_g,
+                                        "unit":   "g",
+                                    })
+                except Exception:
+                    pass
+
     except Exception:
         pass
 
