@@ -82,6 +82,14 @@
 {% csrf_token %}
 {{ formset.management_form }}
 
+{% if form.errors or formset.total_error_count %}
+<div class="flash flash-error mb-4">
+  Speichern fehlgeschlagen -- bitte die rot markierten Felder unten prüfen.
+  {% if formset.total_error_count %}Mindestens eine Zutaten-Zeile hat eine Menge ohne ausgewählte Zutat
+  (oder umgekehrt) -- entweder beides ausfüllen oder die Zeile mit "x" entfernen.{% endif %}
+</div>
+{% endif %}
+
 <div class="grid gap-5" style="grid-template-columns: 1fr 340px;">
 
   <!-- Linke Spalte: Zutaten -->
@@ -139,6 +147,12 @@
         <div></div>
       </div>
 
+      {% if formset.non_form_errors %}
+      <div class="mb-3 text-xs" style="color:#e07b54;">
+        {{ formset.non_form_errors }}
+      </div>
+      {% endif %}
+
       <div id="ingredient-rows">
         {% for subform in formset %}
         <div class="ingredient-row {% if subform.instance.pk == None and forloop.counter > 1 %}{% endif %}"
@@ -149,11 +163,14 @@
           <div style="position:relative;">
             <input type="text"
                    name="ingredients-{{ forloop.counter0 }}-ingredient_name"
-                   value="{% if subform.instance.pk %}{{ subform.instance.ingredient.name }}{% endif %}"
+                   value="{{ subform.ingredient_name.value|default_if_none:'' }}"
                    placeholder="Zutat..."
                    class="ingredient-autocomplete"
                    autocomplete="off"
                    data-row="{{ forloop.counter0 }}">
+            {% if subform.ingredient_name.errors %}
+            <div class="text-xs mt-1" style="color:#e07b54;">{{ subform.ingredient_name.errors.0 }}</div>
+            {% endif %}
           </div>
           {{ subform.amount }}
           {{ subform.unit }}
@@ -163,6 +180,9 @@
           <input type="hidden" name="ingredients-{{ forloop.counter0 }}-DELETE" value="">
           {% endif %}
         </div>
+        {% if subform.non_field_errors %}
+        <div class="text-xs mb-2" style="color:#e07b54;">{{ subform.non_field_errors.0 }}</div>
+        {% endif %}
         {% endfor %}
       </div>
 
