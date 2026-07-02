@@ -11,7 +11,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 env = environ.Env(
     DEBUG=(bool, False),
-    ALLOWED_HOSTS=(list, ["localhost", "127.0.0.1"]),
+    ALLOWED_HOSTS=(list, ["localhost", "127.0.0.1", "192.168.2.34"]),
 )
 environ.Env.read_env(BASE_DIR / ".env")
 
@@ -216,15 +216,6 @@ RUNDBALLEN = {
     },
     "SLICES_PER_LOAF": 17,   # Standard 500g Mischbrot
     "ROLLS_PER_PERSON_BREAKFAST": 2,  # Brötchen als Alternative
-}
-
-REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
-    ),
-    "DEFAULT_PERMISSION_CLASSES": (
-        "rest_framework.permissions.IsAuthenticated",
-    ),
 }
 
 SIMPLE_JWT = {
