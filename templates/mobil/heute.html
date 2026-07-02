@@ -1,0 +1,84 @@
+{% extends "mobil/base_mobil.html" %}
+{% block title %}Heute · rundBallenMobil{% endblock %}
+
+{% block content %}
+<div class="flex items-baseline justify-between mb-1">
+  <h1 class="font-display text-2xl">
+    {% if ist_heute %}Heute{% else %}Tagesplan{% endif %}
+  </h1>
+  <span class="text-xs text-white/45">{{ camp.name }}</span>
+</div>
+<p class="text-sm text-white/55 mb-4">Dein persoenlicher Plan fuer den Tag.</p>
+
+<!-- Tages-Auswahl -->
+<div class="flex gap-1.5 overflow-x-auto pb-3 -mx-4 px-4 mb-2">
+  {% for nr, name in wochentage %}
+    <a href="{% url 'mobil:heute' %}?tag={{ nr }}"
+       class="shrink-0 rounded-full px-3.5 py-1.5 text-sm border
+              {% if nr == wochentag %}bg-acc text-p-dark border-acc font-medium
+              {% else %}border-white/15 text-white/60{% endif %}">
+      {{ name|slice:":2" }}
+    </a>
+  {% endfor %}
+</div>
+
+{% if not aktionen %}
+  <div class="rounded-xl border border-white/10 bg-p/40 p-8 text-center">
+    <div class="text-3xl mb-2">🌤</div>
+    <p class="text-sm text-white/50">Fuer diesen Tag sind noch keine Aktionen eingetragen.</p>
+  </div>
+{% endif %}
+
+<!-- Zeitleiste -->
+<div class="space-y-2.5">
+  {% for aktion, zeit in aktionen %}
+    <div class="rounded-xl border border-white/10 bg-p/40 p-3.5 flex gap-3">
+      <div class="font-mono text-xs text-acc pt-0.5 w-[5.5rem] shrink-0 leading-relaxed">
+        {{ zeit }}
+      </div>
+      <div class="min-w-0 flex-1">
+        <div class="font-medium leading-snug">{{ aktion.titel }}</div>
+        <div class="text-xs text-white/50 mt-0.5">
+          {{ aktion.get_kategorie_display }}
+          {% if aktion.ort %} · {{ aktion.ort }}{% endif %}
+        </div>
+        {% if aktion.beschreibung %}
+          <div class="text-xs text-white/60 mt-1.5">{{ aktion.beschreibung }}</div>
+        {% endif %}
+        {% if aktion.verantwortlich.exists %}
+          <div class="flex flex-wrap gap-1 mt-2">
+            {% for b in aktion.verantwortlich.all %}
+              <span class="text-[0.65rem] rounded-full border px-2 py-0.5
+                           {% if b == request.user %}border-acc/50 text-acc bg-acc-dim
+                           {% else %}border-white/15 text-white/50{% endif %}">
+                {{ b.first_name|default:b.username }}
+              </span>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="text-[0.65rem] text-white/35 mt-2 uppercase tracking-wide">Alle Betreuer</div>
+        {% endif %}
+      </div>
+      {% if kann_bearbeiten %}
+        <a href="{% url 'mobil:aktion_bearbeiten' aktion.pk %}"
+           class="self-start text-white/40 hover:text-acc p-1" aria-label="Bearbeiten">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24">
+            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4L16.5 3.5z"/>
+          </svg>
+        </a>
+      {% endif %}
+    </div>
+  {% endfor %}
+</div>
+
+{% if kann_bearbeiten %}
+  <a href="{% url 'mobil:aktion_neu' %}?tag={{ wochentag }}"
+     class="fixed bottom-20 right-4 z-10 w-13 h-13 rounded-full bg-acc text-p-dark
+            flex items-center justify-center shadow-lg w-12 h-12"
+     aria-label="Aktion hinzufuegen">
+    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <path d="M12 5v14M5 12h14"/>
+    </svg>
+  </a>
+{% endif %}
+{% endblock %}

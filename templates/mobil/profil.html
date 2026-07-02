@@ -1,0 +1,51 @@
+{% extends "mobil/base_mobil.html" %}
+{% block title %}Profil · rundBallenMobil{% endblock %}
+
+{% block content %}
+<h1 class="font-display text-2xl mb-5">Profil</h1>
+
+<div class="rounded-xl border border-white/10 bg-p/40 p-4 mb-5">
+  <div class="flex items-center gap-3">
+    <div class="w-12 h-12 rounded-full bg-p flex items-center justify-center
+                text-lg font-medium border border-white/15">
+      {{ request.user.first_name|default:request.user.username|slice:":1"|upper }}
+    </div>
+    <div>
+      <div class="font-medium">
+        {{ request.user.get_full_name|default:request.user.username }}
+      </div>
+      <div class="text-xs text-white/50">
+        {{ request.user.get_role_display }} · {{ request.user.username }}
+      </div>
+    </div>
+  </div>
+</div>
+
+<h2 class="text-xs uppercase tracking-widest text-white/45 mb-2">Meine Freizeiten</h2>
+<div class="space-y-2 mb-6">
+  {% for m in mitgliedschaften %}
+    <div class="rounded-lg border border-white/10 bg-p/40 px-3 py-2.5 text-sm">
+      {{ m.camp.name }}
+      <span class="text-xs text-white/40 font-mono ml-1">
+        {{ m.camp.start_date|date:"d.m." }}–{{ m.camp.end_date|date:"d.m.Y" }}
+      </span>
+    </div>
+  {% empty %}
+    <p class="text-sm text-white/40">Noch mit keiner Freizeit verbunden.</p>
+  {% endfor %}
+</div>
+
+<div class="space-y-2.5">
+  <a href="{% url 'mobil:passwort' %}"
+     class="block text-center rounded-xl border border-white/20 py-3 text-sm">
+    Passwort aendern
+  </a>
+  <form method="post" action="{% url 'mobil:logout' %}">
+    {% csrf_token %}
+    <button type="submit"
+            class="w-full rounded-xl border border-warn/40 text-warn py-3 text-sm">
+      Abmelden
+    </button>
+  </form>
+</div>
+{% endblock %}

@@ -6,6 +6,8 @@ EXEMPT_URLS = (
     "/accounts/logout/",
     "/accounts/passwort-aendern/",
     "/admin/",
+    "/mobil/passwort/",
+    "/mobil/logout/",
 )
 
 
@@ -23,5 +25,7 @@ class ForcePasswordChangeMiddleware:
             and getattr(request.user, "must_change_password", False)
             and not any(request.path.startswith(url) for url in EXEMPT_URLS)
         ):
+            if request.path.startswith("/mobil/"):
+                return redirect("mobil:passwort")
             return redirect("accounts:force_password_change")
         return self.get_response(request)

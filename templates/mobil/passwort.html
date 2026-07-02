@@ -1,0 +1,38 @@
+{% extends "mobil/base_mobil.html" %}
+{% block title %}Passwort · rundBallenMobil{% endblock %}
+
+{% block content %}
+<h1 class="font-display text-2xl mb-1">Neues Passwort</h1>
+{% if erzwungen %}
+  <p class="text-sm text-white/55 mb-6">
+    Du hast ein Startpasswort erhalten. Bitte lege jetzt dein eigenes Passwort fest,
+    bevor es weitergeht.
+  </p>
+{% else %}
+  <p class="text-sm text-white/55 mb-6">Hier kannst du dein Passwort aendern.</p>
+{% endif %}
+
+<form method="post" class="space-y-4">
+  {% csrf_token %}
+  {% if form.non_field_errors %}
+    <div class="rounded-lg px-3 py-2 text-sm bg-warn/15 border border-warn/40 text-warn">
+      {{ form.non_field_errors }}
+    </div>
+  {% endif %}
+  <div>
+    <label for="{{ form.new_password1.id_for_label }}">Neues Passwort</label>
+    {{ form.new_password1 }}
+    {{ form.new_password1.errors }}
+  </div>
+  <div>
+    <label for="{{ form.new_password2.id_for_label }}">Passwort wiederholen</label>
+    {{ form.new_password2 }}
+    {{ form.new_password2.errors }}
+  </div>
+  <button type="submit"
+          class="w-full rounded-xl bg-acc text-p-dark font-medium py-3
+                 active:scale-[0.98] transition-transform">
+    Passwort speichern
+  </button>
+</form>
+{% endblock %}

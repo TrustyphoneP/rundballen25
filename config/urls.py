@@ -16,6 +16,7 @@ urlpatterns = [
     path("api/v1/meals/",   include("apps.meals.api_urls")),
     path("api/v1/recipes/", include("apps.recipes.api_urls")),
     path("api/mobile/", include("apps.mobile_api.urls")),
+    path("mobil/", include("apps.mobil.urls")),
 ]
 
 if settings.DEBUG:

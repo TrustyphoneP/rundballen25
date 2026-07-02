@@ -1,0 +1,135 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="de" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#1e4c59">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>{% block title %}rundBallenMobil{% endblock %}</title>
+  <link rel="icon" type="image/x-icon" href="{% static 'favicon.ico' %}?v=2">
+  <link rel="apple-touch-icon" href="{% static 'apple-touch-icon.png' %}?v=2">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            p:   { DEFAULT:'#1e4c59', light:'#2a6275', dark:'#122f38', pale:'#3a7a8f' },
+            acc: { DEFAULT:'#e8a444', dim:'rgba(232,164,68,0.15)', brd:'rgba(232,164,68,0.28)' },
+            ok:  '#4caf7d',
+            warn:'#e07b54',
+          },
+          fontFamily: {
+            display: ['"DM Serif Display"','serif'],
+            mono:    ['"DM Mono"','monospace'],
+            sans:    ['Outfit','sans-serif'],
+          },
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body { font-weight: 350; }
+    input, select, textarea {
+      background: rgba(255,255,255,0.06) !important;
+      border: 1px solid rgba(255,255,255,0.14) !important;
+      color: #f0ede8 !important;
+      border-radius: 10px !important;
+      padding: 10px 12px !important;
+      width: 100%;
+      font-size: 16px;   /* verhindert iOS-Zoom */
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none; border-color: #e8a444 !important;
+      box-shadow: 0 0 0 2px rgba(232,164,68,0.25);
+    }
+    select option { background: #122f38; color: #f0ede8; }
+    label { font-size: 0.75rem; letter-spacing: 0.04em; text-transform: uppercase;
+            color: rgba(240,237,232,0.55); display: block; margin-bottom: 4px; }
+    .tab { display:flex; flex-direction:column; align-items:center; gap:2px;
+           padding:8px 0 4px; flex:1; font-size:0.65rem; letter-spacing:0.03em;
+           color:rgba(240,237,232,0.45); text-decoration:none; transition:color .15s; }
+    .tab.active { color:#e8a444; }
+    .tab svg { width:22px; height:22px; }
+    .helptext { font-size:0.7rem; color:rgba(240,237,232,0.4); text-transform:none;
+                letter-spacing:0; display:block; margin-top:3px; }
+    ul.errorlist { color:#e07b54; font-size:0.8rem; margin:4px 0; list-style:none; padding:0; }
+    @media (prefers-reduced-motion: reduce) { * { transition:none !important; } }
+  </style>
+</head>
+<body class="h-full bg-p-dark text-[#f0ede8] font-sans antialiased">
+
+  <div class="mx-auto max-w-lg min-h-full flex flex-col">
+
+    <!-- Kopf -->
+    <header class="sticky top-0 z-20 bg-p-dark/90 backdrop-blur border-b border-white/10
+                   px-4 pt-[env(safe-area-inset-top)]">
+      <div class="flex items-center justify-between h-14">
+        <a href="{% url 'mobil:heute' %}" class="font-display text-xl tracking-wide">
+          rund<span class="text-acc">Ballen</span>Mobil
+        </a>
+        {% block header_right %}
+          {% if request.user.is_authenticated %}
+            <a href="{% url 'mobil:profil' %}"
+               class="w-9 h-9 rounded-full bg-p flex items-center justify-center
+                      text-sm font-medium border border-white/15">
+              {{ request.user.first_name|default:request.user.username|slice:":1"|upper }}
+            </a>
+          {% endif %}
+        {% endblock %}
+      </div>
+    </header>
+
+    <!-- Meldungen -->
+    {% if messages %}
+      <div class="px-4 pt-3 space-y-2">
+        {% for m in messages %}
+          <div class="rounded-lg px-3 py-2 text-sm
+                      {% if m.tags == 'error' %}bg-warn/15 border border-warn/40 text-warn
+                      {% else %}bg-ok/15 border border-ok/40 text-ok{% endif %}">
+            {{ m }}
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <!-- Inhalt -->
+    <main class="flex-1 px-4 py-4 pb-24">
+      {% block content %}{% endblock %}
+    </main>
+
+    <!-- Tab-Bar -->
+    {% if request.user.is_authenticated %}
+    <nav class="fixed bottom-0 inset-x-0 z-20 bg-p-dark/95 backdrop-blur border-t border-white/10
+                pb-[env(safe-area-inset-bottom)]">
+      <div class="mx-auto max-w-lg flex">
+        <a href="{% url 'mobil:heute' %}" class="tab {% if request.resolver_match.url_name == 'heute' %}active{% endif %}">
+          <svg fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24">
+            <rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 9h16M8 3v4M16 3v4"/>
+          </svg>Heute
+        </a>
+        <a href="{% url 'mobil:woche' %}" class="tab {% if request.resolver_match.url_name == 'woche' %}active{% endif %}">
+          <svg fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24">
+            <path d="M4 6h16M4 12h16M4 18h10"/>
+          </svg>Woche
+        </a>
+        <a href="{% url 'mobil:freizeiten' %}" class="tab {% if request.resolver_match.url_name == 'freizeiten' %}active{% endif %}">
+          <svg fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24">
+            <path d="M12 3 3 19h18L12 3zM12 3v16"/>
+          </svg>Freizeiten
+        </a>
+        <a href="{% url 'mobil:profil' %}" class="tab {% if request.resolver_match.url_name == 'profil' %}active{% endif %}">
+          <svg fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24">
+            <circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 5-5 8-5s6.5 1 8 5"/>
+          </svg>Profil
+        </a>
+      </div>
+    </nav>
+    {% endif %}
+  </div>
+</body>
+</html>

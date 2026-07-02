@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "corsheaders",
     "apps.mobile_api",
+    "apps.mobil",
 
     # Third-party
     "channels",

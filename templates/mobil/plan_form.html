@@ -1,0 +1,20 @@
+{% extends "mobil/base_mobil.html" %}
+{% block title %}Wochenplan · rundBallenMobil{% endblock %}
+
+{% block content %}
+<h1 class="font-display text-2xl mb-1">Neuer Wochenplan</h1>
+<p class="text-sm text-white/55 mb-5">{{ camp.name }}</p>
+
+<form method="post" class="space-y-4">
+  {% csrf_token %}
+  <div>
+    <label>Titel</label>
+    {{ form.titel }} {{ form.titel.errors }}
+  </div>
+  <button type="submit"
+          class="w-full rounded-xl bg-acc text-p-dark font-medium py-3
+                 active:scale-[0.98] transition-transform">
+    Wochenplan anlegen
+  </button>
+</form>
+{% endblock %}

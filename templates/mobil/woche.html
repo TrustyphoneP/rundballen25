@@ -1,0 +1,64 @@
+{% extends "mobil/base_mobil.html" %}
+{% block title %}Woche · rundBallenMobil{% endblock %}
+
+{% block content %}
+<div class="flex items-baseline justify-between mb-1">
+  <h1 class="font-display text-2xl">Wochenplan</h1>
+  <span class="text-xs text-white/45">{{ camp.name }}</span>
+</div>
+<p class="text-sm text-white/55 mb-5">Alle Aktionen der Woche im Ueberblick.</p>
+
+{% if kann_bearbeiten and not plaene %}
+  <div class="rounded-xl border border-acc/30 bg-acc-dim p-4 mb-5 text-sm">
+    Fuer diese Freizeit gibt es noch keinen Wochenplan.
+    <a href="{% url 'mobil:plan_neu' %}" class="text-acc underline underline-offset-2">Jetzt anlegen</a>
+  </div>
+{% endif %}
+
+<div class="space-y-6">
+  {% for nr, name, aktionen in tage %}
+    <section>
+      <div class="flex items-center gap-2 mb-2">
+        <h2 class="text-sm uppercase tracking-widest
+                   {% if nr == heute_nr %}text-acc{% else %}text-white/45{% endif %}">
+          {{ name }}
+        </h2>
+        {% if nr == heute_nr %}
+          <span class="text-[0.6rem] uppercase tracking-wide text-acc border border-acc/40
+                       rounded-full px-1.5 py-px">Heute</span>
+        {% endif %}
+        <div class="flex-1 h-px bg-white/10"></div>
+        {% if kann_bearbeiten %}
+          <a href="{% url 'mobil:aktion_neu' %}?tag={{ nr }}"
+             class="text-white/35 hover:text-acc text-lg leading-none px-1"
+             aria-label="Aktion fuer {{ name }} hinzufuegen">+</a>
+        {% endif %}
+      </div>
+
+      {% if not aktionen %}
+        <p class="text-xs text-white/30 pl-1">Keine Aktionen.</p>
+      {% endif %}
+
+      <div class="space-y-1.5">
+        {% for aktion, zeit in aktionen %}
+          {% if kann_bearbeiten %}
+            <a href="{% url 'mobil:aktion_bearbeiten' aktion.pk %}"
+               class="flex items-center gap-3 rounded-lg bg-p/40 border border-white/10 px-3 py-2
+                      hover:border-acc/40">
+          {% else %}
+            <div class="flex items-center gap-3 rounded-lg bg-p/40 border border-white/10 px-3 py-2">
+          {% endif %}
+              <span class="font-mono text-[0.7rem] text-acc w-[5.5rem] shrink-0">{{ zeit }}</span>
+              <span class="text-sm truncate flex-1">{{ aktion.titel }}</span>
+              {% if aktion.verantwortlich.exists %}
+                <span class="text-[0.65rem] text-white/40 shrink-0">
+                  {{ aktion.verantwortlich.count }} Betr.
+                </span>
+              {% endif %}
+          {% if kann_bearbeiten %}</a>{% else %}</div>{% endif %}
+        {% endfor %}
+      </div>
+    </section>
+  {% endfor %}
+</div>
+{% endblock %}
