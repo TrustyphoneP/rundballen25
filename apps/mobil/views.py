@@ -9,8 +9,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from apps.camps.models import Camp
 from apps.mobile_api.models import Wochenplan, Aktion, WOCHENTAG_CHOICES
 
-from .forms import WochenplanForm, AktionForm
-from .models import FreizeitMitglied
+from .forms import WochenplanForm, AktionForm, GruppeForm
+from .models import FreizeitMitglied, Gruppe
 
 SESSION_CAMP_KEY = "mobil_camp_id"
 
@@ -47,21 +47,28 @@ def zeitspanne(a):
 
 
 def aktionen_fuer_tag(camp, user, wochentag):
-    """Individualisierter Tagesplan: Aktionen fuer alle + explizit zugeordnete."""
-    alle = Aktion.objects.filter(
-        wochenplan__camp_id=camp.pk,
-        wochentag=wochentag,
-        verantwortlich__isnull=True,
+    """
+    Individualisierter Tagesplan:
+    - Aktionen ohne Verantwortliche UND ohne Gruppen gelten fuer alle
+    - plus Aktionen, bei denen der Nutzer verantwortlich ist
+    - plus Aktionen, an denen die Gruppe des Nutzers teilnimmt
+    """
+    basis = Aktion.objects.filter(
+        wochenplan__camp_id=camp.pk, wochentag=wochentag
     )
-    meine = Aktion.objects.filter(
-        wochenplan__camp_id=camp.pk,
-        wochentag=wochentag,
-        verantwortlich=user,
-    )
+    alle = basis.filter(verantwortlich__isnull=True, gruppen__isnull=True)
+    meine = basis.filter(verantwortlich=user)
+
+    mitglied = FreizeitMitglied.objects.filter(user=user, camp=camp).first()
+    if mitglied and mitglied.gruppe_id:
+        gruppe = basis.filter(gruppen=mitglied.gruppe_id)
+    else:
+        gruppe = basis.none()
+
     return (
-        (alle | meine)
+        (alle | meine | gruppe)
         .distinct()
-        .prefetch_related("verantwortlich")
+        .prefetch_related("verantwortlich", "gruppen")
         .order_by("beginn_stunde", "beginn_minute")
     )
 
@@ -193,7 +200,7 @@ def woche_view(request):
     for nr, name in WOCHENTAG_CHOICES:
         aktionen = (
             Aktion.objects.filter(wochenplan__camp_id=camp.pk, wochentag=nr)
-            .prefetch_related("verantwortlich")
+            .prefetch_related("verantwortlich", "gruppen")
             .order_by("beginn_stunde", "beginn_minute")
         )
         tage.append((nr, name, [(a, zeitspanne(a)) for a in aktionen]))
@@ -259,6 +266,7 @@ def aktion_anlegen(request):
             aktion.wochenplan = plan
             aktion.save()
             form.save_m2m()
+            aktion.gruppen.set(form.cleaned_data["gruppen"])
             messages.success(request, f"Aktion „{aktion.titel}“ gespeichert.")
             return redirect(f"/mobil/heute/?tag={aktion.wochentag}")
     else:
@@ -288,6 +296,7 @@ def aktion_bearbeiten(request, pk):
         form = AktionForm(request.POST, instance=aktion, camp=camp)
         if form.is_valid():
             aktion = form.save()
+            aktion.gruppen.set(form.cleaned_data["gruppen"])
             messages.success(request, f"Aktion „{aktion.titel}“ aktualisiert.")
             return redirect(f"/mobil/heute/?tag={aktion.wochentag}")
     else:
@@ -308,4 +317,68 @@ def profil_view(request):
     ).select_related("camp")
     return render(request, "mobil/profil.html", {
         "mitgliedschaften": mitgliedschaften,
+    })
+
+
+# ---------------------------------------------------------------------------
+# Gruppen (zentrale Verwaltung)
+# ---------------------------------------------------------------------------
+
+@login_required
+def gruppen_view(request):
+    camp = aktive_freizeit(request)
+    if camp is None:
+        return redirect("mobil:freizeiten")
+    if not kann_bearbeiten(request.user):
+        messages.error(request, "Keine Berechtigung fuer die Gruppenverwaltung.")
+        return redirect("mobil:heute")
+
+    form = GruppeForm()
+
+    if request.method == "POST":
+        aktion = request.POST.get("aktion")
+
+        if aktion == "anlegen":
+            form = GruppeForm(request.POST)
+            if form.is_valid():
+                gruppe = form.save(commit=False)
+                gruppe.camp = camp
+                try:
+                    gruppe.save()
+                    messages.success(request, f"Gruppe „{gruppe.name}“ angelegt.")
+                    return redirect("mobil:gruppen")
+                except Exception:
+                    form.add_error("name", "Diese Gruppe gibt es bereits.")
+
+        elif aktion == "loeschen":
+            gruppe = get_object_or_404(Gruppe, pk=request.POST.get("gruppe_id"), camp=camp)
+            name = gruppe.name
+            gruppe.delete()
+            messages.success(request, f"Gruppe „{name}“ geloescht.")
+            return redirect("mobil:gruppen")
+
+        elif aktion == "zuordnen":
+            mitglied = get_object_or_404(
+                FreizeitMitglied, pk=request.POST.get("mitglied_id"), camp=camp
+            )
+            gruppe_id = request.POST.get("gruppe_id") or None
+            if gruppe_id:
+                mitglied.gruppe = get_object_or_404(Gruppe, pk=gruppe_id, camp=camp)
+            else:
+                mitglied.gruppe = None
+            mitglied.save(update_fields=["gruppe"])
+            messages.success(request, "Zuordnung gespeichert.")
+            return redirect("mobil:gruppen")
+
+    gruppen = Gruppe.objects.filter(camp=camp).prefetch_related("mitglieder__user")
+    mitglieder = (
+        FreizeitMitglied.objects.filter(camp=camp)
+        .select_related("user", "gruppe")
+        .order_by("user__first_name", "user__username")
+    )
+    return render(request, "mobil/gruppen.html", {
+        "camp": camp,
+        "form": form,
+        "gruppen": gruppen,
+        "mitglieder": mitglieder,
     })

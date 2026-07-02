@@ -56,6 +56,19 @@
   </div>
 
   <div>
+    <label>Teilnehmende Gruppen</label>
+    <p class="helptext mb-2">Nichts ausgewaehlt = keine Gruppeneinschraenkung.</p>
+    <div class="rounded-xl border border-white/10 bg-p/40 p-3 max-h-40 overflow-y-auto space-y-1
+                [&_ul]:space-y-1 [&_li]:list-none [&_label]:flex [&_label]:items-center
+                [&_label]:gap-2.5 [&_label]:text-sm [&_label]:normal-case [&_label]:tracking-normal
+                [&_label]:text-white/80 [&_label]:m-0
+                [&_input]:!w-4 [&_input]:!h-4 [&_input]:!p-0 [&_input]:accent-[#e8a444]">
+      {{ form.gruppen }}
+    </div>
+    {{ form.gruppen.errors }}
+  </div>
+
+  <div>
     <label>Verantwortliche Betreuer</label>
     <p class="helptext mb-2">Niemand ausgewaehlt = Aktion gilt fuer alle Betreuer.</p>
     <div class="rounded-xl border border-white/10 bg-p/40 p-3 max-h-56 overflow-y-auto space-y-1

@@ -2,6 +2,7 @@ from django import forms
 from django.contrib.auth import get_user_model
 
 from apps.mobile_api.models import Wochenplan, Aktion, WOCHENTAG_CHOICES
+from .models import Gruppe
 
 User = get_user_model()
 
@@ -23,6 +24,13 @@ class AktionForm(forms.ModelForm):
     beginn_minute = forms.TypedChoiceField(choices=MINUTEN, coerce=int, label="")
     ende_stunde = forms.TypedChoiceField(choices=STUNDEN, coerce=int, label="Ende")
     ende_minute = forms.TypedChoiceField(choices=MINUTEN, coerce=int, label="")
+    gruppen = forms.ModelMultipleChoiceField(
+        queryset=Gruppe.objects.none(),
+        required=False,
+        label="Teilnehmende Gruppen",
+        help_text="Leer lassen = keine Gruppeneinschraenkung.",
+        widget=forms.CheckboxSelectMultiple,
+    )
     verantwortlich = forms.ModelMultipleChoiceField(
         queryset=User.objects.none(),
         required=False,
@@ -46,6 +54,10 @@ class AktionForm(forms.ModelForm):
 
     def __init__(self, *args, camp=None, **kwargs):
         super().__init__(*args, **kwargs)
+        if camp is not None:
+            self.fields["gruppen"].queryset = Gruppe.objects.filter(camp=camp)
+        if self.instance.pk:
+            self.fields["gruppen"].initial = self.instance.gruppen.all()
         qs = User.objects.filter(is_active=True).order_by("first_name", "username")
         if camp is not None:
             mitglieder = camp.mobil_mitglieder.values_list("user_id", flat=True)
@@ -60,3 +72,12 @@ class AktionForm(forms.ModelForm):
         if None not in (bs, bm, es, em) and (es * 60 + em) <= (bs * 60 + bm):
             raise forms.ValidationError("Das Ende muss nach dem Beginn liegen.")
         return cleaned
+
+
+class GruppeForm(forms.ModelForm):
+    class Meta:
+        model = Gruppe
+        fields = ["name"]
+        widgets = {
+            "name": forms.TextInput(attrs={"placeholder": "z. B. Igel"}),
+        }

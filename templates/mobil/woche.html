@@ -8,6 +8,13 @@
 </div>
 <p class="text-sm text-white/55 mb-5">Alle Aktionen der Woche im Ueberblick.</p>
 
+{% if kann_bearbeiten %}
+  <a href="{% url 'mobil:gruppen' %}"
+     class="inline-block mb-5 rounded-lg border border-white/20 px-3 py-1.5 text-xs text-white/70">
+    Gruppen verwalten
+  </a>
+{% endif %}
+
 {% if kann_bearbeiten and not plaene %}
   <div class="rounded-xl border border-acc/30 bg-acc-dim p-4 mb-5 text-sm">
     Fuer diese Freizeit gibt es noch keinen Wochenplan.
@@ -50,6 +57,11 @@
           {% endif %}
               <span class="font-mono text-[0.7rem] text-acc w-[5.5rem] shrink-0">{{ zeit }}</span>
               <span class="text-sm truncate flex-1">{{ aktion.titel }}</span>
+              {% if aktion.gruppen.exists %}
+                <span class="text-[0.65rem] text-p-pale shrink-0">
+                  {{ aktion.gruppen.count }} Grp.
+                </span>
+              {% endif %}
               {% if aktion.verantwortlich.exists %}
                 <span class="text-[0.65rem] text-white/40 shrink-0">
                   {{ aktion.verantwortlich.count }} Betr.

@@ -305,7 +305,7 @@ def build_shopping_day_items(camp, shopping_day, all_day_meals):
                                     teilis * brot_cfg.doppelweck_per_person * factor
                                 )
 
-                            nn_total_g = round(nn_cfg.g_per_halbweck * 2 * total_doppelweck)
+                            nn_total_g = round(nn_cfg.g_per_halbweck * 2 * total_doppelweck * 0.6)
                             if nn_total_g > 0:
                                 try:
                                     ing = Ingredient.objects.get(name="G&G Nuss-Nougat-Creme")

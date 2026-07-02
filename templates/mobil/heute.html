@@ -45,6 +45,15 @@
         {% if aktion.beschreibung %}
           <div class="text-xs text-white/60 mt-1.5">{{ aktion.beschreibung }}</div>
         {% endif %}
+        {% if aktion.gruppen.exists %}
+          <div class="flex flex-wrap gap-1 mt-2">
+            {% for g in aktion.gruppen.all %}
+              <span class="text-[0.65rem] rounded-full border border-p-pale/60 text-p-pale bg-p-pale/10 px-2 py-0.5">
+                {{ g.name }}
+              </span>
+            {% endfor %}
+          </div>
+        {% endif %}
         {% if aktion.verantwortlich.exists %}
           <div class="flex flex-wrap gap-1 mt-2">
             {% for b in aktion.verantwortlich.all %}
@@ -55,7 +64,7 @@
               </span>
             {% endfor %}
           </div>
-        {% else %}
+        {% elif not aktion.gruppen.exists %}
           <div class="text-[0.65rem] text-white/35 mt-2 uppercase tracking-wide">Alle Betreuer</div>
         {% endif %}
       </div>

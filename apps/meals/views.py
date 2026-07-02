@@ -423,8 +423,9 @@ def fruehstueck(request, camp_pk=None):
         factor = 0.6 if dw_date == extra_date_dw else 1.0
         total_doppelweck += math.ceil(teilis_only * brot_cfg.doppelweck_per_person * factor)
 
-    # Nuss-Nougat Gesamtmenge: g/Halbweck × 2 Hälften × Anzahl Doppelweck
-    nn_total_g = round(nn_g_per_halbweck * 2 * total_doppelweck) if nn_g_per_halbweck else None
+    # Nuss-Nougat Gesamtmenge: g/Halbweck × 2 Hälften × Anzahl Doppelweck × 60%
+    # (60% der Halbweck werden mit Nuss-Nougat bestrichen)
+    nn_total_g = round(nn_g_per_halbweck * 2 * total_doppelweck * 0.6) if nn_g_per_halbweck else None
 
     # Save if Speichern button clicked
     if request.method == "POST" and "save" in request.POST:

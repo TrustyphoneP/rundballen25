@@ -36,6 +36,12 @@
 </div>
 
 <div class="space-y-2.5">
+  {% if request.user.is_staff or request.user.is_admin %}
+    <a href="{% url 'mobil:gruppen' %}"
+       class="block text-center rounded-xl border border-acc/40 text-acc py-3 text-sm">
+      Gruppen verwalten
+    </a>
+  {% endif %}
   <a href="{% url 'mobil:passwort' %}"
      class="block text-center rounded-xl border border-white/20 py-3 text-sm">
     Passwort aendern

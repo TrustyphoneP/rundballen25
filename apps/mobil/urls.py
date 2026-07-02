@@ -21,6 +21,9 @@ urlpatterns = [
     path("aktion/neu/",         views.aktion_anlegen,    name="aktion_neu"),
     path("aktion/<int:pk>/",    views.aktion_bearbeiten, name="aktion_bearbeiten"),
 
+    # Gruppen (zentrale Verwaltung)
+    path("gruppen/",            views.gruppen_view,      name="gruppen"),
+
     # Profil
     path("profil/",             views.profil_view,       name="profil"),
 ]
