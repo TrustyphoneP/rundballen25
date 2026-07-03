@@ -147,6 +147,18 @@ def _lookup_ingredient(name):
     return qs.first()
 
 
+def _merge_extras(extras):
+    """Fuehrt Fallback-Extras nach (Name, Einheit) zusammen: wenn mehrere
+    Bloecke fuer dieselbe Zutat in den Fallback laufen (z.B. Mittag- und
+    Halbweck-Anteil bei fehlendem Ingredient-Stammdatensatz), erscheint
+    EINE Zeile mit der Summe statt mehrerer Einzelzeilen."""
+    merged = {}
+    for e in extras:
+        key = (e["name"], e["unit"])
+        merged[key] = merged.get(key, 0) + e["amount"]
+    return [{"name": n, "amount": a, "unit": u} for (n, u), a in merged.items()]
+
+
 def build_shopping_day_items(camp, shopping_day, all_day_meals):
     """
     Aggregiert Zutaten für einen Liefertag.
@@ -247,7 +259,7 @@ def build_shopping_day_items(camp, shopping_day, all_day_meals):
             # Bread days in this delivery (exclude day 0 = first camp day, no bread)
             bread_days_this_delivery = sum(1 for i in shopping_day.breakfast_indices if i > 0)
             if bread_days_this_delivery == 0 and not shopping_day.include_dry:
-                return aggregated, fruehstueck_extras
+                return aggregated, _merge_extras(fruehstueck_extras)
 
             total_loaves = loaves_per_day * bread_days_this_delivery
             total_slices = total_loaves * SLICES_PER_LOAF
@@ -482,4 +494,4 @@ def build_shopping_day_items(camp, shopping_day, all_day_meals):
     except Exception:
         pass
 
-    return aggregated, fruehstueck_extras
+    return aggregated, _merge_extras(fruehstueck_extras)
