@@ -110,6 +110,43 @@ def get_shopping_days(camp):
     return days
 
 
+# Belag-Namen als EINZIGE Quelle fuer Mittag- (loaves_*) und Fruehstueck-
+# Block (halbweck_*). Verhindert, dass die beiden Bloecke durch Tippfehler
+# oder Encoding-Abweichungen unterschiedliche Namen verwenden.
+_TOPPING_DEFS = [
+    # (feld_suffix, ingredient_name)
+    ("cheese",       "Käseaufschnitt"),
+    ("salami",       "Salamiaufschnitt"),
+    ("fleischkaese", "Fleischkäseaufschnitt"),
+    ("fleischwurst", "Fleischwurstaufschnitt"),
+]
+
+
+def _lookup_ingredient(name):
+    """Findet ein Ingredient unabhaengig von Unicode-Normalisierung.
+
+    'ä' kann als ein Codepoint (NFC) oder als 'a' + Kombinationszeichen (NFD)
+    vorliegen; beide sehen identisch aus, sind fuer die DB aber verschiedene
+    Strings. Ein exact-match get() schlaegt dann fehl, obwohl die Zutat
+    sichtbar existiert. Diese Funktion sucht beide Formen und gibt None
+    zurueck, wenn wirklich nichts existiert. Duplikate werden geloggt statt
+    eine Exception zu werfen.
+    """
+    import unicodedata
+    from apps.recipes.models import Ingredient
+
+    forms = {unicodedata.normalize("NFC", name), unicodedata.normalize("NFD", name)}
+    qs = Ingredient.objects.filter(name__in=list(forms))
+    count = qs.count()
+    if count > 1:
+        logger.warning(
+            "Mehrere Ingredient-Eintraege fuer '%s' gefunden (%d Stueck) -- "
+            "verwende den ersten. Duplikate in der DB bereinigen.",
+            name, count,
+        )
+    return qs.first()
+
+
 def build_shopping_day_items(camp, shopping_day, all_day_meals):
     """
     Aggregiert Zutaten für einen Liefertag.
@@ -215,27 +252,22 @@ def build_shopping_day_items(camp, shopping_day, all_day_meals):
             total_loaves = loaves_per_day * bread_days_this_delivery
             total_slices = total_loaves * SLICES_PER_LOAF
 
-            # Fresh Aufschnitt -- split by delivery, use DB ingredient
-            topping_defs = [
-                ("loaves_cheese",       "weight_cheese",       "spb_cheese",       "Käseaufschnitt"),
-                ("loaves_salami",       "weight_salami",       "spb_salami",       "Salamiaufschnitt"),
-                ("loaves_fleischkaese", "weight_fleischkaese", "spb_fleischkaese", "Fleischkäseaufschnitt"),
-                ("loaves_fleischwurst", "weight_fleischwurst", "spb_fleischwurst", "Fleischwurstaufschnitt"),
-            ]
-
-            for loaves_key, weight_key, spb_key, ing_name in topping_defs:
-                loaves_total_camp = getattr(cfg, loaves_key, 0)
+            # Fresh Aufschnitt -- split by delivery, use DB ingredient.
+            # Namen kommen aus _TOPPING_DEFS (gemeinsame Quelle mit dem
+            # Halbweck-Block), Lookup ist normalisierungs-tolerant.
+            for suffix, ing_name in _TOPPING_DEFS:
+                loaves_total_camp = getattr(cfg, f"loaves_{suffix}", 0)
                 if loaves_total_camp == 0:
                     continue
                 loaves_these_days = loaves_total_camp * bread_days_this_delivery / total_bread_days
-                weight_per_slice  = getattr(cfg, weight_key, 0)
-                spb               = getattr(cfg, spb_key, 1)
+                weight_per_slice  = getattr(cfg, f"weight_{suffix}", 0)
+                spb               = getattr(cfg, f"spb_{suffix}", 1)
                 weight_g          = round(loaves_these_days * SLICES_PER_LOAF * spb * weight_per_slice)
                 if weight_g > 0:
-                    try:
-                        ing = Ingredient.objects.get(name=ing_name)
+                    ing = _lookup_ingredient(ing_name)
+                    if ing is not None:
                         add(ing, "g", weight_g, True, "Frühstück/Mittag")
-                    except Ingredient.DoesNotExist:
+                    else:
                         fruehstueck_extras.append({"name": ing_name, "amount": weight_g, "unit": "g"})
 
     except Exception:
@@ -262,21 +294,14 @@ def build_shopping_day_items(camp, shopping_day, all_day_meals):
         #   Gesamtgewicht / num_bread_days * 0.6
         is_last_delivery = (camp.duration_days - 1) in shopping_day.breakfast_indices
 
-        halbweck_topping_defs = [
-            ("halbweck_cheese",       "weight_cheese",       "spb_cheese",       "Käseaufschnitt"),
-            ("halbweck_salami",       "weight_salami",       "spb_salami",       "Salamiaufschnitt"),
-            ("halbweck_fleischkaese", "weight_fleischkaese", "spb_fleischkaese", "Fleischkäseaufschnitt"),
-            ("halbweck_fleischwurst", "weight_fleischwurst", "spb_fleischwurst", "Fleischwurstaufschnitt"),
-        ]
-
-        for hw_key, weight_key, spb_key, ing_name in halbweck_topping_defs:
+        for suffix, ing_name in _TOPPING_DEFS:
             try:
-                hw_total_camp = getattr(cfg, hw_key, 0)
+                hw_total_camp = getattr(cfg, f"halbweck_{suffix}", 0)
                 if hw_total_camp == 0:
                     continue
                 hw_these_days    = hw_total_camp * bread_days_this_delivery / total_bread_days
-                weight_per_slice = getattr(cfg, weight_key, 0)
-                spb              = getattr(cfg, spb_key, 1)
+                weight_per_slice = getattr(cfg, f"weight_{suffix}", 0)
+                spb              = getattr(cfg, f"spb_{suffix}", 1)
                 weight_g         = round(hw_these_days * spb * weight_per_slice)
 
                 # Tag nach Freizeit (nur letzte Lieferung), gleiche Formel
@@ -287,19 +312,15 @@ def build_shopping_day_items(camp, shopping_day, all_day_meals):
 
                 if weight_g <= 0:
                     continue
-                try:
-                    ing = Ingredient.objects.get(name=ing_name)
+                ing = _lookup_ingredient(ing_name)
+                if ing is not None:
                     add(ing, "g", weight_g, True, "Frühstück/Mittag")
-                except Ingredient.DoesNotExist:
-                    fruehstueck_extras.append({"name": ing_name, "amount": weight_g, "unit": "g"})
-                except Ingredient.MultipleObjectsReturned:
-                    logger.error(
-                        "Halbweck-Belag '%s': mehrere Ingredient-Einträge mit "
-                        "diesem Namen gefunden (camp=%s). Menge %sg wurde NICHT "
-                        "zur Einkaufsliste hinzugefügt -- Duplikate bereinigen.",
-                        ing_name, camp.pk, weight_g,
+                else:
+                    logger.warning(
+                        "Halbweck-Belag '%s': Ingredient nicht gefunden -- "
+                        "landet als Text-Extra statt als ShoppingItem.", ing_name,
                     )
-                    fruehstueck_extras.append({"name": f"{ing_name} (Duplikat-Konflikt!)", "amount": weight_g, "unit": "g"})
+                    fruehstueck_extras.append({"name": ing_name, "amount": weight_g, "unit": "g"})
             except Exception:
                 logger.exception(
                     "Halbweck-Belag '%s' konnte nicht berechnet werden (camp=%s, "
@@ -339,22 +360,22 @@ def build_shopping_day_items(camp, shopping_day, all_day_meals):
             if total_amount_camp:
                 amount_this_delivery = round(total_amount_camp * fraction)
                 if amount_this_delivery > 0:
-                    try:
-                        ing = Ingredient.objects.get(name=fruit_name)
+                    ing = _lookup_ingredient(fruit_name)
+                    if ing is not None:
                         add(ing, "Stk", amount_this_delivery, True, "Frühstück/Mittag")
-                    except Ingredient.DoesNotExist:
+                    else:
                         fruehstueck_extras.append({"name": fruit_name, "amount": amount_this_delivery, "unit": "Stk"})
 
             if total_weight_camp:
                 weight_this_delivery = round(total_weight_camp * float(fraction), 2)
                 if weight_this_delivery > 0:
-                    try:
-                        ing = Ingredient.objects.get(name=fruit_name)
+                    ing = _lookup_ingredient(fruit_name)
+                    if ing is not None:
                         add(ing, "kg", weight_this_delivery, True, "Frühstück/Mittag")
-                    except Ingredient.DoesNotExist:
+                    else:
                         fruehstueck_extras.append({"name": f"{fruit_name} (Gewicht)", "amount": weight_this_delivery, "unit": "kg"})
     except Exception:
-        pass
+        logger.exception("Obst-Block fehlgeschlagen (camp=%s, shopping_day=%s)", camp.pk, shopping_day.label)
 
     # --- Dry items: H-Milch, Choco Drink, Margarine, Müsliriegel, Nuss-Nougat ---
     if shopping_day.include_dry:

@@ -8,7 +8,7 @@
     {% csrf_token %}
     <button type="submit" class="btn btn-ghost">Neu generieren</button>
   </form>
-  {% if paired_with_extras %}
+  {% if paired_with_groups %}
   <a href="{% url 'shopping:export_csv_combined' camp_pk=camp.pk %}" class="btn btn-ghost">CSV Gesamt</a>
   {% endif %}
   <a href="{% url 'shopping:create_from_recipes' %}" class="btn btn-ghost">Aus Rezepten</a>
@@ -18,9 +18,9 @@
 
 <div class="section-mono mb-5">{{ camp.name }} · {{ camp.start_date|date:"d.m.Y" }} – {{ camp.end_date|date:"d.m.Y" }} · {{ camp.participants.count }} Personen</div>
 
-{% if paired_with_extras %}
+{% if paired_with_groups %}
 <div class="grid gap-6" style="grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));">
-  {% for sd, sl, extras in paired_with_extras %}
+  {% for sd, sl, display_groups in paired_with_groups %}
   <div class="card overflow-hidden">
 
     <!-- Header -->
@@ -35,17 +35,16 @@
       <div class="text-xs mt-2" style="color:rgba(240,237,232,0.45);">{{ sd.description }}</div>
     </div>
 
-    <!-- Items grouped by source -->
+    <!-- Items + Frühstück-Extras, zusammengeführt und nach Kategorie gruppiert -->
     <div style="max-height:400px; overflow-y:auto;">
 
-      {% regroup sl.items.all|dictsort:"notes" by notes as source_groups %}
-      {% for group in source_groups %}
+      {% for group in display_groups %}
       <div class="px-5 pt-3 pb-2">
-        <div class="section-mono mb-2">{{ group.grouper|capfirst }}</div>
-        {% for item in group.list %}
+        <div class="section-mono mb-2">{{ group.label|capfirst }}</div>
+        {% for row in group.rows %}
         <div class="flex justify-between py-1" style="border-bottom:1px solid rgba(240,237,232,0.04); font-size:0.78rem;">
-          <span>{{ item.ingredient.name }}</span>
-          <span class="font-mono" style="color:#e8a444;">{{ item.amount|smart_amount:item.unit }}</span>
+          <span>{{ row.name }}</span>
+          <span class="font-mono" style="color:#e8a444;">{{ row.amount|smart_amount:row.unit }}</span>
         </div>
         {% endfor %}
       </div>
@@ -54,18 +53,6 @@
         Keine Abendessen-Zutaten
       </div>
       {% endfor %}
-
-      {% if extras %}
-      <div class="px-5 pt-3 pb-3">
-        <div class="section-mono mb-2">Frühstück/Mittag</div>
-        {% for e in extras %}
-        <div class="flex justify-between py-1" style="border-bottom:1px solid rgba(240,237,232,0.04); font-size:0.78rem;">
-          <span>{{ e.name }}</span>
-          <span class="font-mono" style="color:#e8a444;">{{ e.amount|smart_amount:e.unit }}</span>
-        </div>
-        {% endfor %}
-      </div>
-      {% endif %}
 
     </div>
 

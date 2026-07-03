@@ -129,17 +129,38 @@ def plan_overview(request, camp_pk):
     shopping_days = get_shopping_days(camp)
     paired = list(zip(shopping_days, lists)) if lists else []
 
-    paired_with_extras = []
+    # Items und Fruehstueck-Extras zu EINER Anzeige-Struktur pro Lieferung
+    # zusammenfuehren. Vorher rendere das Template Items (gruppiert nach
+    # source) und Extras (mit hartkodierter Ueberschrift "Frühstück/Mittag")
+    # getrennt -- Ergebnis: zwei gleichnamige Abschnitte in einer Karte.
+    paired_with_groups = []
     for sd, sl in paired:
-        extras = _parse_fruehstueck_extras(sl.notes)
-        paired_with_extras.append((sd, sl, extras))
+        groups = {}
+        for item in sl.items.all():
+            label = item.notes or ("frisch" if item.ingredient.is_fresh else "trocken")
+            groups.setdefault(label, []).append({
+                "name":   item.ingredient.name,
+                "amount": item.amount,
+                "unit":   item.unit,
+            })
+        for e in _parse_fruehstueck_extras(sl.notes):
+            groups.setdefault("Frühstück/Mittag", []).append({
+                "name":   e["name"],
+                "amount": e["amount"],
+                "unit":   e["unit"],
+            })
+        display_groups = [
+            {"label": label, "rows": sorted(rows, key=lambda r: r["name"])}
+            for label, rows in sorted(groups.items())
+        ]
+        paired_with_groups.append((sd, sl, display_groups))
 
     return render(request, "shopping/plan_overview.html", {
         "camp":               camp,
         "lists":              lists,
         "shopping_days":      shopping_days,
         "paired":             paired,
-        "paired_with_extras": paired_with_extras,
+        "paired_with_groups": paired_with_groups,
     })
 
 
