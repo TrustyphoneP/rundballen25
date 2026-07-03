@@ -208,6 +208,46 @@ def create_from_recipes(request):
 # Helper: ingredient -> day/recipe map
 # ---------------------------------------------------------------------------
 
+def _build_general_notes(camp):
+    """Hinweise aus GeneralIngredient (Allgemein/Betreueressen/Alternative)
+    fuer die Zutaten-Notiz-Spalte im CSV-Export.
+
+    Key: (ingredient_id, kategorie_label), wobei kategorie_label dem Wert
+    entspricht, der beim Generieren als ShoppingItem.notes gesetzt wird
+    ("Allgemein", "Betreueressen", "Alternative"). Mehrere Eintraege
+    derselben Zutat (z.B. Betreueressen an verschiedenen Tagen) werden
+    kommagetrennt zusammengefuehrt."""
+    from apps.meals.models import GeneralIngredient
+
+    label_map = {
+        GeneralIngredient.Category.ALLGEMEIN:     "Allgemein",
+        GeneralIngredient.Category.BETREUERESSEN: "Betreueressen",
+        GeneralIngredient.Category.ALTERNATIVE:   "Alternative",
+    }
+    notes_map = {}
+    for gi in GeneralIngredient.objects.filter(camp=camp).exclude(notes=""):
+        key = (gi.ingredient_id, label_map.get(gi.category, gi.category))
+        if key in notes_map:
+            if gi.notes not in notes_map[key]:
+                notes_map[key] = f"{notes_map[key]}, {gi.notes}"
+        else:
+            notes_map[key] = gi.notes
+    return notes_map
+
+
+def _zutaten_notiz(item, general_notes):
+    """Kombiniert Stammdaten-Notiz (Ingredient.notes) und den
+    freizeitspezifischen Hinweis (GeneralIngredient.notes) fuer die
+    Zutaten-Notiz-Spalte."""
+    parts = []
+    if item.ingredient.notes:
+        parts.append(item.ingredient.notes)
+    gi_note = general_notes.get((item.ingredient_id, item.notes), "")
+    if gi_note and gi_note not in parts:
+        parts.append(gi_note)
+    return ", ".join(parts)
+
+
 def _build_ing_info(camp):
     from apps.meals.models import DayMeal
     from apps.camps.models import CampDay
@@ -325,6 +365,7 @@ def export_csv(request, pk):
     from apps.shopping.templatetags.shopping_tags import format_amount
     sl       = get_object_or_404(ShoppingList, pk=pk)
     ing_info = _build_ing_info(sl.camp)
+    general_notes = _build_general_notes(sl.camp)
 
     response = HttpResponse(content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = f'attachment; filename="einkauf_{slugify(sl.camp.name)}_{sl.from_date}.csv"'
@@ -346,7 +387,7 @@ def export_csv(request, pk):
             einheit,
             "frisch" if item.ingredient.is_fresh else "trocken",
             item.notes,
-            item.ingredient.notes,
+            _zutaten_notiz(item, general_notes),
             days_str,
             recipes_str,
         ])
@@ -377,6 +418,7 @@ def export_csv_combined(request, camp_pk):
     camp     = get_object_or_404(Camp, pk=camp_pk)
     lists    = ShoppingList.objects.filter(camp=camp).order_by("from_date").prefetch_related("items__ingredient")
     ing_info = _build_ing_info(camp)
+    general_notes = _build_general_notes(camp)
 
     response = HttpResponse(content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = f'attachment; filename="einkauf_{slugify(camp.name)}_gesamt.csv"'
@@ -404,7 +446,7 @@ def export_csv_combined(request, camp_pk):
                 "frisch" if item.ingredient.is_fresh else "trocken",
                 item.ingredient.name,
                 menge, einheit,
-                item.ingredient.notes,
+                _zutaten_notiz(item, general_notes),
                 days_str,
                 recipes_str,
             ])
