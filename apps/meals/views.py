@@ -545,6 +545,18 @@ def fruehstueck(request, camp_pk=None):
     halbweck_fruehstueck = round(total_halbweck * 0.6)
     halbweck_mittag      = round(total_halbweck * 0.4)
 
+    # Tag nach der Freizeit: Frühstück-Gewicht / num_bread_days × 0.6
+    def _frueh_g(hw, spb, g_per_scheibe):
+        return round(hw * spb * g_per_scheibe)
+
+    extra_day_notes = {
+        "cheese":       round(_frueh_g(hw_cheese,       spb_cheese,       w_cheese)       / num_bread_days * 0.6) if num_bread_days else 0,
+        "salami":       round(_frueh_g(hw_salami,       spb_salami,       w_salami)       / num_bread_days * 0.6) if num_bread_days else 0,
+        "fleischkaese": round(_frueh_g(hw_fleischkaese, spb_fleischkaese, w_fleischkaese) / num_bread_days * 0.6) if num_bread_days else 0,
+        "fleischwurst": round(_frueh_g(hw_fleischwurst, spb_fleischwurst, w_fleischwurst) / num_bread_days * 0.6) if num_bread_days else 0,
+        "nn": round(nn_total_g / num_bread_days * 0.6) if nn_total_g and num_bread_days else None,
+    }
+
     # Frühstück toppings: each has its own manually-entered Halbweck count
     # Weight = halbweck × scheiben_per_halbweck × g_per_scheibe
     def calc_halbweck(halbweck, weight_per_slice, slices_per_halbweck):
@@ -552,10 +564,10 @@ def fruehstueck(request, camp_pk=None):
         return {"weight_g": weight_g, "weight_kg": round(weight_g / 1000, 2)}
 
     fruehstueck_toppings = [
-        {"name": "Käse",         "key": "cheese",       "halbweck": hw_cheese,       **calc_halbweck(hw_cheese,       w_cheese,       spb_cheese),       "weight_input": str(w_cheese),       "spb": str(spb_cheese)},
-        {"name": "Salami",       "key": "salami",       "halbweck": hw_salami,       **calc_halbweck(hw_salami,       w_salami,       spb_salami),       "weight_input": str(w_salami),       "spb": str(spb_salami)},
-        {"name": "Fleischkäse",  "key": "fleischkaese", "halbweck": hw_fleischkaese, **calc_halbweck(hw_fleischkaese, w_fleischkaese, spb_fleischkaese), "weight_input": str(w_fleischkaese), "spb": str(spb_fleischkaese)},
-        {"name": "Fleischwurst", "key": "fleischwurst", "halbweck": hw_fleischwurst, **calc_halbweck(hw_fleischwurst, w_fleischwurst, spb_fleischwurst), "weight_input": str(w_fleischwurst), "spb": str(spb_fleischwurst)},
+        {"name": "Käse",         "key": "cheese",       "halbweck": hw_cheese,       **calc_halbweck(hw_cheese,       w_cheese,       spb_cheese),       "weight_input": str(w_cheese),       "spb": str(spb_cheese),       "extra_day_g": extra_day_notes["cheese"]},
+        {"name": "Salami",       "key": "salami",       "halbweck": hw_salami,       **calc_halbweck(hw_salami,       w_salami,       spb_salami),       "weight_input": str(w_salami),       "spb": str(spb_salami),       "extra_day_g": extra_day_notes["salami"]},
+        {"name": "Fleischkäse",  "key": "fleischkaese", "halbweck": hw_fleischkaese, **calc_halbweck(hw_fleischkaese, w_fleischkaese, spb_fleischkaese), "weight_input": str(w_fleischkaese), "spb": str(spb_fleischkaese), "extra_day_g": extra_day_notes["fleischkaese"]},
+        {"name": "Fleischwurst", "key": "fleischwurst", "halbweck": hw_fleischwurst, **calc_halbweck(hw_fleischwurst, w_fleischwurst, spb_fleischwurst), "weight_input": str(w_fleischwurst), "spb": str(spb_fleischwurst), "extra_day_g": extra_day_notes["fleischwurst"]},
     ]
 
     return render(request, "meals/fruehstueck.html", {
@@ -575,6 +587,7 @@ def fruehstueck(request, camp_pk=None):
         "halbweck_fruehstueck": halbweck_fruehstueck,
         "halbweck_mittag":      halbweck_mittag,
         "halbweck_total":       total_halbweck,
+        "extra_day_notes":      extra_day_notes,
     })
 
 

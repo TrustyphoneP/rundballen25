@@ -76,7 +76,12 @@
         <tbody>
           {% for t in fruehstueck_toppings %}
           <tr>
-            <td style="font-weight:500;">{{ t.name }}</td>
+            <td style="font-weight:500;">
+              {{ t.name }}
+              {% if t.extra_day_g %}
+              <div style="font-size:0.7rem; color:rgba(240,237,232,0.35); font-weight:400; margin-top:2px;">Tag nach Freizeit: {{ t.extra_day_g }} g</div>
+              {% endif %}
+            </td>
             <td>
               <input type="number" name="halbweck_{{ t.key }}" value="{{ t.halbweck }}"
                      min="0" step="1" style="width:70px; padding:4px 8px !important;">
@@ -99,7 +104,12 @@
         <!-- Nuss-Nougat mit Trennlinie -->
         <tbody>
           <tr style="border-top:2px solid rgba(240,237,232,0.15);">
-            <td style="font-weight:500;">Nuss-Nougat-Creme</td>
+            <td style="font-weight:500;">
+              Nuss-Nougat-Creme
+              {% if extra_day_notes.nn %}
+              <div style="font-size:0.7rem; color:rgba(240,237,232,0.35); font-weight:400; margin-top:2px;">Tag nach Freizeit: {{ extra_day_notes.nn }} g</div>
+              {% endif %}
+            </td>
             <td class="font-mono" style="color:rgba(240,237,232,0.35); font-style:italic;">{{ halbweck_fruehstueck }} <span style="font-size:0.7rem;">(auto)</span></td>
             <td colspan="2">
               <input type="number"
