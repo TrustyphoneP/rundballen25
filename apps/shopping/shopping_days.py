@@ -19,9 +19,12 @@ Lieferung erfolgt mittags → reicht für Abendessen desselben Tages,
 aber NICHT für Frühstück/Mittagessen desselben Tages.
 Daher: Belag/Frühstück wird der Lieferung VOR dem jeweiligen Tag zugeordnet.
 """
+import logging
 from datetime import timedelta
 from dataclasses import dataclass, field
 from typing import List
+
+logger = logging.getLogger(__name__)
 
 
 def _sunday_adjust_forward(d):
@@ -235,127 +238,168 @@ def build_shopping_day_items(camp, shopping_day, all_day_meals):
                     except Ingredient.DoesNotExist:
                         fruehstueck_extras.append({"name": ing_name, "amount": weight_g, "unit": "g"})
 
-            # Frühstück Aufschnitt -- aus halbweck_* Feldern, proportional
-            # über Liefertage verteilt. 1 Halbweck = 1 Scheibe.
-            halbweck_topping_defs = [
-                ("halbweck_cheese",       "weight_cheese",       "spb_cheese",       "Käseaufschnitt"),
-                ("halbweck_salami",       "weight_salami",       "spb_salami",       "Salamiaufschnitt"),
-                ("halbweck_fleischkaese", "weight_fleischkaese", "spb_fleischkaese", "Fleischkäseaufschnitt"),
-                ("halbweck_fleischwurst", "weight_fleischwurst", "spb_fleischwurst", "Fleischwurstaufschnitt"),
-            ]
+    except Exception:
+        pass
 
-            for hw_key, weight_key, spb_key, ing_name in halbweck_topping_defs:
+    # --- Frühstück Aufschnitt (Halbweck) -- eigener Block, damit Fehler
+    #     nicht vom äußeren try/except verschluckt werden ---
+    # WICHTIG: Kein pauschales "except Exception: pass" mehr. Ein Fehler bei
+    # EINER Belag-Sorte (z.B. Ingredient.MultipleObjectsReturned, falsches
+    # Feld, o.ä.) darf nicht dazu führen, dass die komplette Halbweck-Menge
+    # (inkl. aller anderen Beläge) stillschweigend verschwindet. Deshalb wird
+    # jede Belag-Sorte einzeln abgesichert und jeder Fehler geloggt.
+    try:
+        from apps.meals.models import FruehstueckConfig
+        from apps.recipes.models import Ingredient
+
+        cfg = FruehstueckConfig.objects.get(camp=camp)
+        total_bread_days = max(camp.duration_days - 1, 1)
+        bread_days_this_delivery = sum(1 for i in shopping_day.breakfast_indices if i > 0)
+
+        # Tag nach der Freizeit: gehoert zur LETZTEN Lieferung (deckt den
+        # letzten Camp-Tag ab). Formel identisch zur Anzeige in
+        # apps.meals.views (extra_day_notes):
+        #   Gesamtgewicht / num_bread_days * 0.6
+        is_last_delivery = (camp.duration_days - 1) in shopping_day.breakfast_indices
+
+        halbweck_topping_defs = [
+            ("halbweck_cheese",       "weight_cheese",       "spb_cheese",       "Käseaufschnitt"),
+            ("halbweck_salami",       "weight_salami",       "spb_salami",       "Salamiaufschnitt"),
+            ("halbweck_fleischkaese", "weight_fleischkaese", "spb_fleischkaese", "Fleischkäseaufschnitt"),
+            ("halbweck_fleischwurst", "weight_fleischwurst", "spb_fleischwurst", "Fleischwurstaufschnitt"),
+        ]
+
+        for hw_key, weight_key, spb_key, ing_name in halbweck_topping_defs:
+            try:
                 hw_total_camp = getattr(cfg, hw_key, 0)
                 if hw_total_camp == 0:
                     continue
                 hw_these_days    = hw_total_camp * bread_days_this_delivery / total_bread_days
                 weight_per_slice = getattr(cfg, weight_key, 0)
                 spb              = getattr(cfg, spb_key, 1)
-                # 1 Halbweck = 1 Scheibe, so weight = halbweck × spb × g_per_scheibe
-                weight_g = round(hw_these_days * spb * weight_per_slice)
-                if weight_g > 0:
-                    try:
-                        ing = Ingredient.objects.get(name=ing_name)
-                        add(ing, "g", weight_g, True, "Frühstück/Mittag")
-                    except Ingredient.DoesNotExist:
-                        fruehstueck_extras.append({"name": ing_name, "amount": weight_g, "unit": "g"})
+                weight_g         = round(hw_these_days * spb * weight_per_slice)
 
-            # --- Obst aus FruitConfig -- feste Aufteilung nach Liefertag:
-            #     Lieferung 1: 1/6, Lieferung 2: 3/6, Lieferung 3: 2/6
-            try:
-                from apps.meals.models import FruitConfig
-                from fractions import Fraction
+                # Tag nach Freizeit (nur letzte Lieferung), gleiche Formel
+                # wie extra_day_notes in der Fruehstueck-Ansicht
+                if is_last_delivery:
+                    total_g_camp = hw_total_camp * spb * weight_per_slice
+                    weight_g += round(total_g_camp / total_bread_days * 0.6)
 
-                FRUIT_FRACTIONS = {0: Fraction(1, 6), 1: Fraction(3, 6), 2: Fraction(2, 6)}
-                fraction = FRUIT_FRACTIONS.get(shopping_day.index)
-                if fraction is None:
-                    raise ValueError(f"Unbekannter Lieferindex: {shopping_day.index}")
-
-                fruit_cfg = FruitConfig.objects.get(camp=camp)
-                fruit_defs = [
-                    ("amount_apfel",     "weight_apfel",     "Äpfel"),
-                    ("amount_banane",    "weight_banane",    "Bananen"),
-                    ("amount_birne",     "weight_birne",     "Wassermelone"),
-                    ("amount_nektarine", "weight_nektarine", "Nektarinen"),
-                ]
-                for amount_key, weight_key, fruit_name in fruit_defs:
-                    total_amount_camp = getattr(fruit_cfg, amount_key, None)
-                    total_weight_camp = getattr(fruit_cfg, weight_key, None)
-
-                    if total_amount_camp:
-                        amount_this_delivery = round(total_amount_camp * fraction)
-                        if amount_this_delivery > 0:
-                            try:
-                                ing = Ingredient.objects.get(name=fruit_name)
-                                add(ing, "Stk", amount_this_delivery, True, "Frühstück/Mittag")
-                            except Ingredient.DoesNotExist:
-                                fruehstueck_extras.append({"name": fruit_name, "amount": amount_this_delivery, "unit": "Stk"})
-
-                    if total_weight_camp:
-                        weight_this_delivery = round(total_weight_camp * float(fraction), 2)
-                        if weight_this_delivery > 0:
-                            try:
-                                ing = Ingredient.objects.get(name=fruit_name)
-                                add(ing, "kg", weight_this_delivery, True, "Frühstück/Mittag")
-                            except Ingredient.DoesNotExist:
-                                fruehstueck_extras.append({"name": f"{fruit_name} (Gewicht)", "amount": weight_this_delivery, "unit": "kg"})
-            except Exception:
-                pass
-
-            # Dry items -- only on first delivery (include_dry)
-            if shopping_day.include_dry:
-                # Total over all bread days
-                all_bread_days  = total_bread_days
-                all_loaves     = loaves_per_day * all_bread_days
-                all_slices     = all_loaves * SLICES_PER_LOAF
-                all_teilis_days = teilis * all_bread_days
-
-                fruehstueck_extras.append({"name": "H-Milch",               "amount": all_bread_days * 15,              "unit": "l"})
-                fruehstueck_extras.append({"name": "G&G Choco Drink",        "amount": all_bread_days,                   "unit": "Pck"})
-                fruehstueck_extras.append({"name": "G&G Pflanzenmargarine",  "amount": round(all_slices * 2.5),          "unit": "g"})
-                fruehstueck_extras.append({"name": "G&G Müsliriegel",        "amount": math.ceil(all_teilis_days * 1.5), "unit": "Stk"})
-
-                # --- Nuss-Nougat-Creme (G&G): g/Halbweck × 2 × total_Doppelweck ---
-                # total_Doppelweck: Tag 2 bis Extra-Tag (gleiche Logik wie bread_plan View).
-                # Mengen landen trocken in Lieferung 1, Kategorie Frühstück/Mittag.
+                if weight_g <= 0:
+                    continue
                 try:
-                    from apps.meals.models import NussNougatConfig, BrotConfig
-                    from datetime import timedelta as _td
+                    ing = Ingredient.objects.get(name=ing_name)
+                    add(ing, "g", weight_g, True, "Frühstück/Mittag")
+                except Ingredient.DoesNotExist:
+                    fruehstueck_extras.append({"name": ing_name, "amount": weight_g, "unit": "g"})
+                except Ingredient.MultipleObjectsReturned:
+                    logger.error(
+                        "Halbweck-Belag '%s': mehrere Ingredient-Einträge mit "
+                        "diesem Namen gefunden (camp=%s). Menge %sg wurde NICHT "
+                        "zur Einkaufsliste hinzugefügt -- Duplikate bereinigen.",
+                        ing_name, camp.pk, weight_g,
+                    )
+                    fruehstueck_extras.append({"name": f"{ing_name} (Duplikat-Konflikt!)", "amount": weight_g, "unit": "g"})
+            except Exception:
+                logger.exception(
+                    "Halbweck-Belag '%s' konnte nicht berechnet werden (camp=%s, "
+                    "shopping_day=%s) -- übersprungen, andere Beläge laufen weiter.",
+                    ing_name, camp.pk, shopping_day.label,
+                )
+    except Exception:
+        logger.exception(
+            "Halbweck-Block komplett fehlgeschlagen (camp=%s, shopping_day=%s) -- "
+            "FruehstueckConfig fehlt vermutlich oder Import-Fehler.",
+            camp.pk, shopping_day.label,
+        )
 
-                    nn_cfg   = NussNougatConfig.objects.get(camp=camp)
-                    brot_cfg = BrotConfig.objects.get(camp=camp)
+    # --- Obst aus FruitConfig -- feste Aufteilung nach Liefertag:
+    #     Lieferung 1: 1/6, Lieferung 2: 3/6, Lieferung 3: 2/6
+    try:
+        from apps.meals.models import FruitConfig
+        from apps.recipes.models import Ingredient
+        from fractions import Fraction
 
-                    if nn_cfg.g_per_halbweck:
-                        # Reconstruct doppelweck dates identically to bread_plan view
-                        camp_days_ordered = list(camp.days.order_by("date"))
-                        if len(camp_days_ordered) >= 2:
-                            dw_bread_dates = [d.date for d in camp_days_ordered[1:]]
-                            dw_extra_date  = camp_days_ordered[-1].date + _td(days=1)
-                            dw_all_dates   = dw_bread_dates + [dw_extra_date]
+        FRUIT_FRACTIONS = {0: Fraction(1, 6), 1: Fraction(3, 6), 2: Fraction(2, 6)}
+        fraction = FRUIT_FRACTIONS.get(shopping_day.index)
+        if fraction is None:
+            raise ValueError(f"Unbekannter Lieferindex: {shopping_day.index}")
 
-                            total_doppelweck = 0
-                            for dw_date in dw_all_dates:
-                                factor = 0.6 if dw_date == dw_extra_date else 1.0
-                                total_doppelweck += math.ceil(
-                                    teilis * brot_cfg.doppelweck_per_person * factor
-                                )
+        fruit_cfg = FruitConfig.objects.get(camp=camp)
+        fruit_defs = [
+            ("amount_apfel",     "weight_apfel",     "Äpfel"),
+            ("amount_banane",    "weight_banane",    "Bananen"),
+            ("amount_birne",     "weight_birne",     "Wassermelone"),
+            ("amount_nektarine", "weight_nektarine", "Nektarinen"),
+        ]
+        for amount_key, weight_key, fruit_name in fruit_defs:
+            total_amount_camp = getattr(fruit_cfg, amount_key, None)
+            total_weight_camp = getattr(fruit_cfg, weight_key, None)
 
-                            nn_total_g = round(nn_cfg.g_per_halbweck * 2 * total_doppelweck * 0.6)
-                            if nn_total_g > 0:
-                                try:
-                                    ing = Ingredient.objects.get(name="G&G Nuss-Nougat-Creme")
-                                    add(ing, "g", nn_total_g, False, "Frühstück/Mittag")
-                                except Ingredient.DoesNotExist:
-                                    fruehstueck_extras.append({
-                                        "name":   "G&G Nuss-Nougat-Creme",
-                                        "amount": nn_total_g,
-                                        "unit":   "g",
-                                    })
-                except Exception:
-                    pass
+            if total_amount_camp:
+                amount_this_delivery = round(total_amount_camp * fraction)
+                if amount_this_delivery > 0:
+                    try:
+                        ing = Ingredient.objects.get(name=fruit_name)
+                        add(ing, "Stk", amount_this_delivery, True, "Frühstück/Mittag")
+                    except Ingredient.DoesNotExist:
+                        fruehstueck_extras.append({"name": fruit_name, "amount": amount_this_delivery, "unit": "Stk"})
 
+            if total_weight_camp:
+                weight_this_delivery = round(total_weight_camp * float(fraction), 2)
+                if weight_this_delivery > 0:
+                    try:
+                        ing = Ingredient.objects.get(name=fruit_name)
+                        add(ing, "kg", weight_this_delivery, True, "Frühstück/Mittag")
+                    except Ingredient.DoesNotExist:
+                        fruehstueck_extras.append({"name": f"{fruit_name} (Gewicht)", "amount": weight_this_delivery, "unit": "kg"})
     except Exception:
         pass
+
+    # --- Dry items: H-Milch, Choco Drink, Margarine, Müsliriegel, Nuss-Nougat ---
+    if shopping_day.include_dry:
+        try:
+            from apps.meals.models import FruehstueckConfig, NussNougatConfig, BrotConfig
+            from apps.recipes.models import Ingredient as _Ing
+            from datetime import timedelta as _td
+
+            _cfg = FruehstueckConfig.objects.get(camp=camp)
+            _teilis = camp.participants.filter(person_type="participant").count() or camp.participant_count
+            _total_bread = max(camp.duration_days - 1, 1)
+            _loaves_per_day = math.ceil(
+                (camp.participants.count() or camp.participant_count + camp.supervisor_count)
+                * 2 / 25
+            )
+            _all_slices     = _loaves_per_day * _total_bread * 25
+            _all_teilis_days = _teilis * _total_bread
+
+            fruehstueck_extras.append({"name": "H-Milch",               "amount": _total_bread * 15,              "unit": "l"})
+            fruehstueck_extras.append({"name": "G&G Choco Drink",        "amount": _total_bread,                   "unit": "Pck"})
+            fruehstueck_extras.append({"name": "G&G Pflanzenmargarine",  "amount": round(_all_slices * 2.5),       "unit": "g"})
+            fruehstueck_extras.append({"name": "G&G Müsliriegel",        "amount": math.ceil(_all_teilis_days * 1.5), "unit": "Stk"})
+
+            # Nuss-Nougat-Creme
+            nn_cfg   = NussNougatConfig.objects.get(camp=camp)
+            brot_cfg = BrotConfig.objects.get(camp=camp)
+            if nn_cfg.g_per_halbweck:
+                camp_days_ordered = list(camp.days.order_by("date"))
+                if len(camp_days_ordered) >= 2:
+                    dw_bread_dates = [d.date for d in camp_days_ordered[1:]]
+                    dw_extra_date  = camp_days_ordered[-1].date + _td(days=1)
+                    dw_all_dates   = dw_bread_dates + [dw_extra_date]
+                    total_doppelweck = 0
+                    for dw_date in dw_all_dates:
+                        factor = 0.6 if dw_date == dw_extra_date else 1.0
+                        total_doppelweck += math.ceil(_teilis * brot_cfg.doppelweck_per_person * factor)
+                    nn_total_g = round(nn_cfg.g_per_halbweck * 2 * total_doppelweck * 0.6)
+                    if nn_total_g > 0:
+                        try:
+                            ing = _Ing.objects.get(name="G&G Nuss-Nougat-Creme")
+                            add(ing, "g", nn_total_g, False, "Frühstück/Mittag")
+                        except _Ing.DoesNotExist:
+                            fruehstueck_extras.append({"name": "G&G Nuss-Nougat-Creme", "amount": nn_total_g, "unit": "g"})
+        except Exception:
+            pass
 
     # --- Allgemeine Zutaten (freizeitweit, nur Lieferung 1) ---
     if shopping_day.include_dry:

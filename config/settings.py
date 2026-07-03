@@ -230,4 +230,35 @@ SIMPLE_JWT = {
 CORS_ALLOW_ALL_ORIGINS = True
 # CORS_ALLOWED_ORIGINS = ["https://deine-domain.de"]
 
+# Ohne diese Konfiguration landen logger.exception()/logger.error()-Aufrufe
+# aus apps.* NIRGENDS (Django's Default-Logging kennt nur django.request und
+# django.security). Damit Fehler wie im Halbweck-Block in shopping_days.py
+# ueberhaupt sichtbar werden, muss der Root-Logger auf die Konsole geroutet
+# werden -- landet dann in `docker compose logs web` bzw. `docker-compose logs web`.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "WARNING",
+    },
+    "loggers": {
+        "apps": {
+            "handlers": ["console"],
+            "level": "DEBUG" if DEBUG else "INFO",
+            "propagate": False,
+        },
+        "django.request": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+    },
+}
+
 
