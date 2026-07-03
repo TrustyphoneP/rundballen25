@@ -187,10 +187,17 @@ class FruehstueckConfig(models.Model):
         "camps.Camp", on_delete=models.CASCADE,
         related_name="fruehstueck_config"
     )
+    # Mittagessen: Anzahl Brote pro Belag-Sorte
     loaves_cheese       = models.PositiveIntegerField(default=0)
     loaves_salami       = models.PositiveIntegerField(default=0)
     loaves_fleischkaese = models.PositiveIntegerField(default=0)
     loaves_fleischwurst = models.PositiveIntegerField(default=0)
+
+    # Frühstück: Anzahl Halbweck pro Belag-Sorte (manuell eingegeben)
+    halbweck_cheese       = models.PositiveIntegerField(default=0)
+    halbweck_salami       = models.PositiveIntegerField(default=0)
+    halbweck_fleischkaese = models.PositiveIntegerField(default=0)
+    halbweck_fleischwurst = models.PositiveIntegerField(default=0)
 
     weight_cheese       = models.FloatField(default=23.0)
     weight_salami       = models.FloatField(default=15.0)

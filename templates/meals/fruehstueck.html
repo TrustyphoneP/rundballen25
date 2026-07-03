@@ -53,10 +53,83 @@
       </table>
     </div>
 
-    <!-- Topping config + results -->
+    <!-- Belagsmengen Frühstück -->
     <div class="card overflow-hidden mb-6">
       <div class="px-5 py-3 border-b" style="border-color:rgba(240,237,232,0.07);">
-        <div class="section-mono">Belagsmengen</div>
+        <div class="section-mono">Belagsmengen Frühstück</div>
+        <div class="text-xs mt-1" style="color:rgba(240,237,232,0.4);">
+          Gesamt: {{ halbweck_total }} Halbweck —
+          Frühstück (60%): <span style="color:#e8a444;">{{ halbweck_fruehstueck }}</span> &nbsp;·&nbsp;
+          Mittagessen (40%): <span style="color:#e8a444;">{{ halbweck_mittag }}</span>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Belag</th>
+            <th>Halbweck</th>
+            <th>g/Scheibe</th>
+            <th>Scheiben/Halbweck</th>
+            <th>Gewicht</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in fruehstueck_toppings %}
+          <tr>
+            <td style="font-weight:500;">{{ t.name }}</td>
+            <td>
+              <input type="number" name="halbweck_{{ t.key }}" value="{{ t.halbweck }}"
+                     min="0" step="1" style="width:70px; padding:4px 8px !important;">
+            </td>
+            <td>
+              <input type="number" name="weight_{{ t.key }}" value="{{ t.weight_input }}"
+                     min="0" step="0.5" style="width:70px; padding:4px 8px !important;">
+            </td>
+            <td>
+              <input type="number" name="spb_{{ t.key }}" value="{{ t.spb }}"
+                     min="0.1" step="0.1" style="width:70px; padding:4px 8px !important;">
+            </td>
+            <td>
+              <span class="font-mono" style="color:#e8a444;">{{ t.weight_kg }} kg</span>
+              <span class="font-mono text-xs ml-1" style="color:rgba(240,237,232,0.3);">({{ t.weight_g }} g)</span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <!-- Nuss-Nougat mit Trennlinie -->
+        <tbody>
+          <tr style="border-top:2px solid rgba(240,237,232,0.15);">
+            <td style="font-weight:500;">Nuss-Nougat-Creme</td>
+            <td class="font-mono" style="color:rgba(240,237,232,0.35); font-style:italic;">{{ halbweck_fruehstueck }} <span style="font-size:0.7rem;">(auto)</span></td>
+            <td colspan="2">
+              <input type="number"
+                     name="nn_g_per_halbweck"
+                     value="{{ nn_topping.g_per_halbweck_input }}"
+                     min="0" step="0.5"
+                     placeholder="z.B. 20"
+                     style="width:70px; padding:4px 8px !important;">
+              <span style="color:rgba(240,237,232,0.5); font-size:0.78rem; margin-left:4px;">g/Halbweck</span>
+            </td>
+            <td>
+              {% if nn_topping.total_g %}
+              <span class="font-mono" style="color:#e8a444;">{{ nn_topping.total_kg }} kg</span>
+              <span class="font-mono text-xs ml-1" style="color:rgba(240,237,232,0.3);">({{ nn_topping.total_g }} g)</span>
+              {% else %}
+              <span style="color:rgba(240,237,232,0.3); font-size:0.75rem;">g/Halbweck eingeben</span>
+              {% endif %}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Belagsmengen Mittagessen -->
+    <div class="card overflow-hidden mb-6">
+      <div class="px-5 py-3 border-b" style="border-color:rgba(240,237,232,0.07);">
+        <div class="section-mono">Belagsmengen Mittagessen</div>
+        <div class="text-xs mt-1" style="color:rgba(240,237,232,0.4);">
+          {{ halbweck_mittag }} Halbweck (40 % von {{ halbweck_total }})
+        </div>
       </div>
       <table>
         <thead>
@@ -90,29 +163,6 @@
             </td>
           </tr>
           {% endfor %}
-        </tbody>
-        <!-- Nuss-Nougat: eigener Abschnitt mit Trennlinie -->
-        <tbody>
-          <tr style="border-top:2px solid rgba(240,237,232,0.15);">
-            <td style="font-weight:500;">Nuss-Nougat-Creme</td>
-            <td colspan="2">
-              <input type="number"
-                     name="nn_g_per_halbweck"
-                     value="{{ nn_topping.g_per_halbweck_input }}"
-                     min="0" step="0.5"
-                     placeholder="z.B. 20"
-                     style="width:70px; padding:4px 8px !important;">
-            </td>
-            <td style="color:rgba(240,237,232,0.5); font-size:0.78rem;">g / Halbweck</td>
-            <td>
-              {% if nn_topping.total_g %}
-              <span class="font-mono" style="color:#e8a444;">{{ nn_topping.total_kg }} kg</span>
-              <span class="font-mono text-xs ml-1" style="color:rgba(240,237,232,0.3);">({{ nn_topping.total_g }} g)</span>
-              {% else %}
-              <span style="color:rgba(240,237,232,0.3); font-size:0.75rem;">g/Halbweck eingeben</span>
-              {% endif %}
-            </td>
-          </tr>
         </tbody>
         <tfoot>
           <tr style="border-top:1px solid rgba(240,237,232,0.12);">

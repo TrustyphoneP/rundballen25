@@ -110,10 +110,23 @@ class Recipe(models.Model):
 # Ingredient.derive_price_unit() -- wenn sich die Einheit in
 # shopping_days.py ändert, muss sie hier ebenfalls angepasst werden.
 FIXED_FRUEHSTUECK_UNITS = {
-    "H-Milch":              "l",
-    "G&G Choco Drink":      "Pck",
+    # Extras (hardcoded in shopping_days.py dry block)
+    "H-Milch":               "l",
+    "G&G Choco Drink":       "Pck",
     "G&G Pflanzenmargarine": "g",
-    "G&G Müsliriegel":      "Stk",
+    "G&G Müsliriegel":       "Stk",
+    # Nuss-Nougat (hardcoded in NussNougatConfig block)
+    "G&G Nuss-Nougat-Creme": "g",
+    # Aufschnitt (used in topping_defs / halbweck_topping_defs loops)
+    "Käseaufschnitt":        "g",
+    "Salamiaufschnitt":      "g",
+    "Fleischkäseaufschnitt": "g",
+    "Fleischwurstaufschnitt":"g",
+    # Obst (used in FruitConfig block)
+    "Äpfel":                 "Stk",
+    "Bananen":               "Stk",
+    "Wassermelone":          "Stk",
+    "Nektarinen":            "Stk",
 }
 
 

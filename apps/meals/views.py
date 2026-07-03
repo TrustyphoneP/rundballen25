@@ -387,6 +387,12 @@ def fruehstueck(request, camp_pk=None):
     t_fleischkaese  = get_int("loaves_fleischkaese", saved.loaves_fleischkaese)
     t_fleischwurst  = get_int("loaves_fleischwurst", saved.loaves_fleischwurst)
 
+    # Frühstück: Halbweck pro Belag-Sorte (separate Eingabe)
+    hw_cheese        = get_int("halbweck_cheese",       saved.halbweck_cheese)
+    hw_salami        = get_int("halbweck_salami",       saved.halbweck_salami)
+    hw_fleischkaese  = get_int("halbweck_fleischkaese", saved.halbweck_fleischkaese)
+    hw_fleischwurst  = get_int("halbweck_fleischwurst", saved.halbweck_fleischwurst)
+
     w_cheese        = get_float("weight_cheese",       saved.weight_cheese)
     w_salami        = get_float("weight_salami",       saved.weight_salami)
     w_fleischkaese  = get_float("weight_fleischkaese", saved.weight_fleischkaese)
@@ -433,6 +439,10 @@ def fruehstueck(request, camp_pk=None):
         saved.loaves_salami       = t_salami
         saved.loaves_fleischkaese = t_fleischkaese
         saved.loaves_fleischwurst = t_fleischwurst
+        saved.halbweck_cheese       = hw_cheese
+        saved.halbweck_salami       = hw_salami
+        saved.halbweck_fleischkaese = hw_fleischkaese
+        saved.halbweck_fleischwurst = hw_fleischwurst
         saved.weight_cheese       = w_cheese
         saved.weight_salami       = w_salami
         saved.weight_fleischkaese = w_fleischkaese
@@ -527,23 +537,44 @@ def fruehstueck(request, camp_pk=None):
     fruits = [
         {"name": "Äpfel",      "key": "apfel",     "amount": fmt_optional(fruit_amount_apfel),     "weight": fmt_optional(fruit_weight_apfel)},
         {"name": "Bananen",    "key": "banane",    "amount": fmt_optional(fruit_amount_banane),    "weight": fmt_optional(fruit_weight_banane)},
-        {"name": "Birnen",     "key": "birne",     "amount": fmt_optional(fruit_amount_birne),     "weight": fmt_optional(fruit_weight_birne)},
+        {"name": "Wassermelone", "key": "birne",     "amount": fmt_optional(fruit_amount_birne),     "weight": fmt_optional(fruit_weight_birne)},
         {"name": "Nektarinen", "key": "nektarine", "amount": fmt_optional(fruit_amount_nektarine), "weight": fmt_optional(fruit_weight_nektarine)},
     ]
 
+    total_halbweck       = total_doppelweck * 2
+    halbweck_fruehstueck = round(total_halbweck * 0.6)
+    halbweck_mittag      = round(total_halbweck * 0.4)
+
+    # Frühstück toppings: each has its own manually-entered Halbweck count
+    # Weight = halbweck × scheiben_per_halbweck × g_per_scheibe
+    def calc_halbweck(halbweck, weight_per_slice, slices_per_halbweck):
+        weight_g = round(halbweck * slices_per_halbweck * weight_per_slice)
+        return {"weight_g": weight_g, "weight_kg": round(weight_g / 1000, 2)}
+
+    fruehstueck_toppings = [
+        {"name": "Käse",         "key": "cheese",       "halbweck": hw_cheese,       **calc_halbweck(hw_cheese,       w_cheese,       spb_cheese),       "weight_input": str(w_cheese),       "spb": str(spb_cheese)},
+        {"name": "Salami",       "key": "salami",       "halbweck": hw_salami,       **calc_halbweck(hw_salami,       w_salami,       spb_salami),       "weight_input": str(w_salami),       "spb": str(spb_salami)},
+        {"name": "Fleischkäse",  "key": "fleischkaese", "halbweck": hw_fleischkaese, **calc_halbweck(hw_fleischkaese, w_fleischkaese, spb_fleischkaese), "weight_input": str(w_fleischkaese), "spb": str(spb_fleischkaese)},
+        {"name": "Fleischwurst", "key": "fleischwurst", "halbweck": hw_fleischwurst, **calc_halbweck(hw_fleischwurst, w_fleischwurst, spb_fleischwurst), "weight_input": str(w_fleischwurst), "spb": str(spb_fleischwurst)},
+    ]
+
     return render(request, "meals/fruehstueck.html", {
-        "camp":            camp,
-        "persons":         persons,
-        "total_loaves":    total_loaves,
-        "rows":            rows,
-        "toppings":        toppings,
-        "total_weight_g":  total_weight_g,
-        "total_weight_kg": round(total_weight_g / 1000, 2),
-        "saved_at":        saved.updated_at,
-        "extras":          extras,
-        "num_bread_days":  num_bread_days,
-        "fruits":          fruits,
-        "nn_topping":      nn_topping,
+        "camp":                 camp,
+        "persons":              persons,
+        "total_loaves":         total_loaves,
+        "rows":                 rows,
+        "toppings":             toppings,
+        "fruehstueck_toppings": fruehstueck_toppings,
+        "total_weight_g":       total_weight_g,
+        "total_weight_kg":      round(total_weight_g / 1000, 2),
+        "saved_at":             saved.updated_at,
+        "extras":               extras,
+        "num_bread_days":       num_bread_days,
+        "fruits":               fruits,
+        "nn_topping":           nn_topping,
+        "halbweck_fruehstueck": halbweck_fruehstueck,
+        "halbweck_mittag":      halbweck_mittag,
+        "halbweck_total":       total_halbweck,
     })
 
 

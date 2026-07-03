@@ -46,6 +46,7 @@ class ShoppingDay:
     dinner_indices:   List[int]  # 0-based camp day indices for dinner
     breakfast_indices: List[int]  # 0-based camp day indices for breakfast/belag
     include_dry:      bool = False
+    index:            int  = 0   # 0-based delivery index (0=Lieferung 1, 1=Lieferung 2, 2=Lieferung 3)
 
 
 def get_shopping_days(camp):
@@ -74,9 +75,10 @@ def get_shopping_days(camp):
             label="Lieferung 1",
             date=day1_date,
             description=f"Alles trockene + Frisches für Abendessen {start.strftime('%d.%m.')}–{(start + timedelta(days=1)).strftime('%d.%m.')} + Frühstück Tag 1–2",
-            dinner_indices=list(range(min(2, duration))),      # day 1-2 dinner
-            breakfast_indices=list(range(min(2, duration))),   # day 1-2 breakfast
+            dinner_indices=list(range(min(2, duration))),
+            breakfast_indices=list(range(min(2, duration))),
             include_dry=True,
+            index=0,
         ),
     ]
 
@@ -88,6 +90,7 @@ def get_shopping_days(camp):
             dinner_indices=list(range(2, min(5, duration))),
             breakfast_indices=list(range(2, min(5, duration))),
             include_dry=False,
+            index=1,
         ))
 
     if duration > 5:
@@ -98,6 +101,7 @@ def get_shopping_days(camp):
             dinner_indices=list(range(5, duration)),
             breakfast_indices=list(range(5, duration)),
             include_dry=False,
+            index=2,
         ))
 
     return days
@@ -231,16 +235,47 @@ def build_shopping_day_items(camp, shopping_day, all_day_meals):
                     except Ingredient.DoesNotExist:
                         fruehstueck_extras.append({"name": ing_name, "amount": weight_g, "unit": "g"})
 
-            # --- Obst aus FruitConfig -- proportional über alle Liefertage,
-            #     analog zum Aufschnitt anhand der Brot-Tage in dieser Lieferung ---
+            # Frühstück Aufschnitt -- aus halbweck_* Feldern, proportional
+            # über Liefertage verteilt. 1 Halbweck = 1 Scheibe.
+            halbweck_topping_defs = [
+                ("halbweck_cheese",       "weight_cheese",       "spb_cheese",       "Käseaufschnitt"),
+                ("halbweck_salami",       "weight_salami",       "spb_salami",       "Salamiaufschnitt"),
+                ("halbweck_fleischkaese", "weight_fleischkaese", "spb_fleischkaese", "Fleischkäseaufschnitt"),
+                ("halbweck_fleischwurst", "weight_fleischwurst", "spb_fleischwurst", "Fleischwurstaufschnitt"),
+            ]
+
+            for hw_key, weight_key, spb_key, ing_name in halbweck_topping_defs:
+                hw_total_camp = getattr(cfg, hw_key, 0)
+                if hw_total_camp == 0:
+                    continue
+                hw_these_days    = hw_total_camp * bread_days_this_delivery / total_bread_days
+                weight_per_slice = getattr(cfg, weight_key, 0)
+                spb              = getattr(cfg, spb_key, 1)
+                # 1 Halbweck = 1 Scheibe, so weight = halbweck × spb × g_per_scheibe
+                weight_g = round(hw_these_days * spb * weight_per_slice)
+                if weight_g > 0:
+                    try:
+                        ing = Ingredient.objects.get(name=ing_name)
+                        add(ing, "g", weight_g, True, "Frühstück/Mittag")
+                    except Ingredient.DoesNotExist:
+                        fruehstueck_extras.append({"name": ing_name, "amount": weight_g, "unit": "g"})
+
+            # --- Obst aus FruitConfig -- feste Aufteilung nach Liefertag:
+            #     Lieferung 1: 1/6, Lieferung 2: 3/6, Lieferung 3: 2/6
             try:
                 from apps.meals.models import FruitConfig
+                from fractions import Fraction
+
+                FRUIT_FRACTIONS = {0: Fraction(1, 6), 1: Fraction(3, 6), 2: Fraction(2, 6)}
+                fraction = FRUIT_FRACTIONS.get(shopping_day.index)
+                if fraction is None:
+                    raise ValueError(f"Unbekannter Lieferindex: {shopping_day.index}")
 
                 fruit_cfg = FruitConfig.objects.get(camp=camp)
                 fruit_defs = [
                     ("amount_apfel",     "weight_apfel",     "Äpfel"),
                     ("amount_banane",    "weight_banane",    "Bananen"),
-                    ("amount_birne",     "weight_birne",     "Birnen"),
+                    ("amount_birne",     "weight_birne",     "Wassermelone"),
                     ("amount_nektarine", "weight_nektarine", "Nektarinen"),
                 ]
                 for amount_key, weight_key, fruit_name in fruit_defs:
@@ -248,22 +283,22 @@ def build_shopping_day_items(camp, shopping_day, all_day_meals):
                     total_weight_camp = getattr(fruit_cfg, weight_key, None)
 
                     if total_amount_camp:
-                        amount_these_days = round(total_amount_camp * bread_days_this_delivery / total_bread_days)
-                        if amount_these_days > 0:
+                        amount_this_delivery = round(total_amount_camp * fraction)
+                        if amount_this_delivery > 0:
                             try:
                                 ing = Ingredient.objects.get(name=fruit_name)
-                                add(ing, "Stk", amount_these_days, True, "Frühstück/Mittag")
+                                add(ing, "Stk", amount_this_delivery, True, "Frühstück/Mittag")
                             except Ingredient.DoesNotExist:
-                                fruehstueck_extras.append({"name": fruit_name, "amount": amount_these_days, "unit": "Stk"})
+                                fruehstueck_extras.append({"name": fruit_name, "amount": amount_this_delivery, "unit": "Stk"})
 
                     if total_weight_camp:
-                        weight_these_days = round(total_weight_camp * bread_days_this_delivery / total_bread_days, 2)
-                        if weight_these_days > 0:
+                        weight_this_delivery = round(total_weight_camp * float(fraction), 2)
+                        if weight_this_delivery > 0:
                             try:
                                 ing = Ingredient.objects.get(name=fruit_name)
-                                add(ing, "kg", weight_these_days, True, "Frühstück/Mittag")
+                                add(ing, "kg", weight_this_delivery, True, "Frühstück/Mittag")
                             except Ingredient.DoesNotExist:
-                                fruehstueck_extras.append({"name": f"{fruit_name} (Gewicht)", "amount": weight_these_days, "unit": "kg"})
+                                fruehstueck_extras.append({"name": f"{fruit_name} (Gewicht)", "amount": weight_this_delivery, "unit": "kg"})
             except Exception:
                 pass
 
