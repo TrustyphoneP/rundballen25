@@ -235,16 +235,21 @@ def _build_general_notes(camp):
     return notes_map
 
 
-def _zutaten_notiz(item, general_notes):
-    """Kombiniert Stammdaten-Notiz (Ingredient.notes) und den
-    freizeitspezifischen Hinweis (GeneralIngredient.notes) fuer die
-    Zutaten-Notiz-Spalte."""
+def _zutaten_notiz(item, general_notes, ing_info=None):
+    """Kombiniert Stammdaten-Notiz (Ingredient.notes), freizeitspezifischen
+    Hinweis (GeneralIngredient.notes) und rezeptspezifischen Hinweis
+    (RecipeIngredient.note, z.B. 'Vom Globus') fuer die
+    Zutaten-Notiz-Spalte im CSV-Export."""
     parts = []
     if item.ingredient.notes:
         parts.append(item.ingredient.notes)
     gi_note = general_notes.get((item.ingredient_id, item.notes), "")
     if gi_note and gi_note not in parts:
         parts.append(gi_note)
+    if ing_info:
+        for ri_note in sorted(ing_info.get(item.ingredient_id, {}).get("notes", [])):
+            if ri_note not in parts:
+                parts.append(ri_note)
     return ", ".join(parts)
 
 
@@ -264,11 +269,14 @@ def _build_ing_info(camp):
         for recipe in [dm.main_course, dm.dessert, dm.salad]:
             if not recipe:
                 continue
-            for ri in RecipeIngredient.objects.filter(recipe=recipe).values_list("ingredient_id", flat=True):
-                if ri not in ing_info:
-                    ing_info[ri] = {"days": set(), "recipes": set()}
-                ing_info[ri]["days"].add(day_num)
-                ing_info[ri]["recipes"].add(recipe.name)
+            for ri in RecipeIngredient.objects.filter(recipe=recipe).select_related("ingredient"):
+                key = ri.ingredient_id
+                if key not in ing_info:
+                    ing_info[key] = {"days": set(), "recipes": set(), "notes": set()}
+                ing_info[key]["days"].add(day_num)
+                ing_info[key]["recipes"].add(recipe.name)
+                if ri.note:
+                    ing_info[key]["notes"].add(ri.note)
     return ing_info
 
 
@@ -387,7 +395,7 @@ def export_csv(request, pk):
             einheit,
             "frisch" if item.ingredient.is_fresh else "trocken",
             item.notes,
-            _zutaten_notiz(item, general_notes),
+            _zutaten_notiz(item, general_notes, ing_info),
             days_str,
             recipes_str,
         ])
@@ -446,7 +454,7 @@ def export_csv_combined(request, camp_pk):
                 "frisch" if item.ingredient.is_fresh else "trocken",
                 item.ingredient.name,
                 menge, einheit,
-                _zutaten_notiz(item, general_notes),
+                _zutaten_notiz(item, general_notes, ing_info),
                 days_str,
                 recipes_str,
             ])
