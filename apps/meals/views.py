@@ -429,6 +429,11 @@ def fruehstueck(request, camp_pk=None):
         factor = 0.6 if dw_date == extra_date_dw else 1.0
         total_doppelweck += math.ceil(teilis_only * brot_cfg.doppelweck_per_person * factor)
 
+    # Halbweck-Gesamtzahl: jeder Doppelweck wird in 2 Halbweck-Haelften
+    # geschnitten. Wird hier frueh berechnet (statt erst spaeter bei den
+    # Belagsmengen), da die Pflanzenmargarine-Menge sie ebenfalls braucht.
+    total_halbweck = total_doppelweck * 2
+
     # Nuss-Nougat Gesamtmenge: g/Halbweck × 2 Hälften × Anzahl Doppelweck × 60%
     # (60% der Halbweck werden mit Nuss-Nougat bestrichen)
     nn_total_g = round(nn_g_per_halbweck * 2 * total_doppelweck * 0.6) if nn_g_per_halbweck else None
@@ -510,8 +515,8 @@ def fruehstueck(request, camp_pk=None):
         {
             "name":  "G&G Pflanzenmargarine",
             "per_day": "—",
-            "total": f"{round(total_bread_slices * 2.5)} g  ({round(total_bread_slices * 2.5 / 1000, 2)} kg)",
-            "note":  "2,5 g / Brotscheibe",
+            "total": f"{round((total_bread_slices + total_halbweck) * 2.5)} g  ({round((total_bread_slices + total_halbweck) * 2.5 / 1000, 2)} kg)",
+            "note":  "2,5 g / (Brotscheibe + Halbweck)",
         },
         {
             "name":  "G&G Müsliriegel",
@@ -541,7 +546,6 @@ def fruehstueck(request, camp_pk=None):
         {"name": "Nektarinen", "key": "nektarine", "amount": fmt_optional(fruit_amount_nektarine), "weight": fmt_optional(fruit_weight_nektarine)},
     ]
 
-    total_halbweck       = total_doppelweck * 2
     halbweck_fruehstueck = round(total_halbweck * 0.6)
     halbweck_mittag      = round(total_halbweck * 0.4)
 
