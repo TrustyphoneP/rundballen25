@@ -1,0 +1,58 @@
+{% extends "mobil/base_mobil.html" %}
+{% block title %}Registrieren · rundBallenMobil{% endblock %}
+{% block header_right %}{% endblock %}
+
+{% block content %}
+<div class="flex flex-col justify-center min-h-[70vh]">
+
+  <div class="text-center mb-8">
+    <div class="font-display text-3xl mb-2">
+      rund<span class="text-acc">Ballen</span>Mobil
+    </div>
+    <p class="text-sm text-white/50">
+      Registriere dich mit dem Zugangscode deiner Freizeit.
+    </p>
+  </div>
+
+  <form method="post" class="space-y-4">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="rounded-lg px-3 py-2 text-sm bg-warn/15 border border-warn/40 text-warn">
+        {{ form.non_field_errors }}
+      </div>
+    {% endif %}
+
+    <div>
+      <label for="{{ form.code.id_for_label }}">Zugangscode</label>
+      {{ form.code }} {{ form.code.errors }}
+    </div>
+    <div>
+      <label for="{{ form.name.id_for_label }}">Dein Name</label>
+      {{ form.name }} {{ form.name.errors }}
+    </div>
+    <div>
+      <label for="{{ form.username.id_for_label }}">Benutzername</label>
+      {{ form.username }} {{ form.username.errors }}
+    </div>
+    <div>
+      <label for="{{ form.password1.id_for_label }}">Passwort</label>
+      {{ form.password1 }} {{ form.password1.errors }}
+    </div>
+    <div>
+      <label for="{{ form.password2.id_for_label }}">Passwort wiederholen</label>
+      {{ form.password2 }} {{ form.password2.errors }}
+    </div>
+
+    <button type="submit"
+            class="w-full rounded-xl bg-acc text-p-dark font-medium py-3 mt-2
+                   active:scale-[0.98] transition-transform">
+      Registrieren
+    </button>
+  </form>
+
+  <p class="text-sm text-white/45 text-center mt-6">
+    Schon einen Account?
+    <a href="{% url 'mobil:login' %}" class="text-acc underline underline-offset-2">Anmelden</a>
+  </p>
+</div>
+{% endblock %}

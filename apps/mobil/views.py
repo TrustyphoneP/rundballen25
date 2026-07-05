@@ -1,3 +1,4 @@
+import secrets
 from datetime import date
 
 from django.contrib import messages
@@ -9,8 +10,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from apps.camps.models import Camp
 from apps.mobile_api.models import Wochenplan, Aktion, WOCHENTAG_CHOICES
 
-from .forms import WochenplanForm, AktionForm, GruppeForm
-from .models import FreizeitMitglied, Gruppe
+from .forms import WochenplanForm, AktionForm, GruppeForm, RegistrierungForm, ChecklisteForm
+from .models import FreizeitMitglied, Gruppe, FreizeitZugang, Checkliste, ChecklistenPunkt, PunktErledigt
 
 SESSION_CAMP_KEY = "mobil_camp_id"
 
@@ -20,8 +21,8 @@ SESSION_CAMP_KEY = "mobil_camp_id"
 # ---------------------------------------------------------------------------
 
 def kann_bearbeiten(user):
-    """Leitung/Admin und Staff duerfen Plaene bearbeiten."""
-    return user.is_authenticated and (user.is_admin() or user.is_staff)
+    """Leitung, Admin (root) und Staff duerfen verwalten."""
+    return user.is_authenticated and (user.is_leitung() or user.is_staff)
 
 
 def aktive_freizeit(request):
@@ -97,6 +98,36 @@ def login_view(request):
                 return redirect("mobil:passwort")
             return redirect("mobil:heute")
     return render(request, "mobil/login.html", {"error": error})
+
+
+def registrieren_view(request):
+    """Selbstregistrierung mit Freizeit-Zugangscode."""
+    if request.user.is_authenticated:
+        return redirect("mobil:heute")
+
+    if request.method == "POST":
+        form = RegistrierungForm(request.POST)
+        if form.is_valid():
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            user = User.objects.create_user(
+                username=form.cleaned_data["username"],
+                password=form.cleaned_data["password1"],
+                first_name=form.cleaned_data["name"],
+                role="supervisor",
+            )
+            camp = form.zugang.camp
+            FreizeitMitglied.objects.create(user=user, camp=camp)
+            login(request, user)
+            request.session[SESSION_CAMP_KEY] = camp.pk
+            messages.success(
+                request,
+                f"Willkommen, {user.first_name}! Du bist mit „{camp.name}“ verbunden.",
+            )
+            return redirect("mobil:heute")
+    else:
+        form = RegistrierungForm()
+    return render(request, "mobil/registrieren.html", {"form": form})
 
 
 def logout_view(request):
@@ -357,6 +388,59 @@ def gruppen_view(request):
             messages.success(request, f"Gruppe „{name}“ geloescht.")
             return redirect("mobil:gruppen")
 
+        elif aktion == "code_setzen":
+            code = request.POST.get("code", "").strip()
+            if code:
+                if FreizeitZugang.objects.filter(code__iexact=code).exclude(camp=camp).exists():
+                    messages.error(request, "Dieser Code wird schon von einer anderen Freizeit genutzt.")
+                else:
+                    FreizeitZugang.objects.update_or_create(
+                        camp=camp, defaults={"code": code, "aktiv": True}
+                    )
+                    messages.success(request, f"Zugangscode „{code}“ gespeichert.")
+            return redirect("mobil:gruppen")
+
+        elif aktion == "code_generieren":
+            code = secrets.token_hex(3).upper()
+            while FreizeitZugang.objects.filter(code__iexact=code).exists():
+                code = secrets.token_hex(3).upper()
+            FreizeitZugang.objects.update_or_create(
+                camp=camp, defaults={"code": code, "aktiv": True}
+            )
+            messages.success(request, f"Neuer Zugangscode: {code}")
+            return redirect("mobil:gruppen")
+
+        elif aktion == "code_toggle":
+            zugang = FreizeitZugang.objects.filter(camp=camp).first()
+            if zugang:
+                zugang.aktiv = not zugang.aktiv
+                zugang.save(update_fields=["aktiv"])
+                status = "offen" if zugang.aktiv else "geschlossen"
+                messages.success(request, f"Registrierung ist jetzt {status}.")
+            return redirect("mobil:gruppen")
+
+        elif aktion == "rolle_setzen":
+            mitglied = get_object_or_404(
+                FreizeitMitglied, pk=request.POST.get("mitglied_id"), camp=camp
+            )
+            neue_rolle = request.POST.get("rolle")
+            erlaubte = ["supervisor", "kitchen", "leitung"]
+            if request.user.is_admin():
+                erlaubte.append("admin")
+            ziel = mitglied.user
+            if ziel.is_admin() and not request.user.is_admin():
+                messages.error(request, "Nur Admin (root) kann Admin-Rollen aendern.")
+            elif neue_rolle in erlaubte:
+                ziel.role = neue_rolle
+                ziel.save(update_fields=["role"])
+                messages.success(
+                    request,
+                    f"{ziel.first_name or ziel.username} ist jetzt {ziel.get_role_display()}.",
+                )
+            else:
+                messages.error(request, "Diese Rolle darfst du nicht vergeben.")
+            return redirect("mobil:gruppen")
+
         elif aktion == "zuordnen":
             mitglied = get_object_or_404(
                 FreizeitMitglied, pk=request.POST.get("mitglied_id"), camp=camp
@@ -381,4 +465,134 @@ def gruppen_view(request):
         "form": form,
         "gruppen": gruppen,
         "mitglieder": mitglieder,
+        "zugang": FreizeitZugang.objects.filter(camp=camp).first(),
+        "rollen": (
+            [("supervisor", "Betreuer"), ("kitchen", "Küche"), ("leitung", "Leitung")]
+            + ([("admin", "Admin (root)")] if request.user.is_admin() else [])
+        ),
+    })
+
+
+# ---------------------------------------------------------------------------
+# Checklisten
+# ---------------------------------------------------------------------------
+
+def _sichtbare_checklisten(camp, user):
+    qs = Checkliste.objects.filter(camp=camp).prefetch_related("punkte")
+    return [c for c in qs if c.sichtbar_fuer_user(user)]
+
+
+@login_required
+def checklisten_view(request):
+    camp = aktive_freizeit(request)
+    if camp is None:
+        return redirect("mobil:freizeiten")
+
+    listen = _sichtbare_checklisten(camp, request.user)
+    erledigt_ids = set(
+        PunktErledigt.objects.filter(
+            user=request.user, punkt__checkliste__camp=camp
+        ).values_list("punkt_id", flat=True)
+    )
+    daten = []
+    for liste in listen:
+        punkte = list(liste.punkte.all())
+        fertig = sum(1 for p in punkte if p.pk in erledigt_ids)
+        daten.append((liste, fertig, len(punkte)))
+
+    return render(request, "mobil/checklisten.html", {
+        "camp": camp,
+        "daten": daten,
+        "kann_bearbeiten": kann_bearbeiten(request.user),
+    })
+
+
+@login_required
+def checkliste_detail(request, pk):
+    camp = aktive_freizeit(request)
+    if camp is None:
+        return redirect("mobil:freizeiten")
+    liste = get_object_or_404(Checkliste, pk=pk, camp=camp)
+    if not liste.sichtbar_fuer_user(request.user):
+        messages.error(request, "Diese Checkliste ist fuer dich nicht sichtbar.")
+        return redirect("mobil:checklisten")
+
+    if request.method == "POST":
+        punkt = get_object_or_404(ChecklistenPunkt, pk=request.POST.get("punkt_id"), checkliste=liste)
+        haken = PunktErledigt.objects.filter(punkt=punkt, user=request.user)
+        if haken.exists():
+            haken.delete()
+        else:
+            PunktErledigt.objects.create(punkt=punkt, user=request.user)
+        return redirect("mobil:checkliste", pk=liste.pk)
+
+    erledigt_ids = set(
+        PunktErledigt.objects.filter(
+            user=request.user, punkt__checkliste=liste
+        ).values_list("punkt_id", flat=True)
+    )
+    punkte = [(p, p.pk in erledigt_ids) for p in liste.punkte.all()]
+    return render(request, "mobil/checkliste_detail.html", {
+        "camp": camp,
+        "liste": liste,
+        "punkte": punkte,
+        "fertig": sum(1 for _, e in punkte if e),
+        "kann_bearbeiten": kann_bearbeiten(request.user),
+    })
+
+
+@login_required
+def checkliste_verwalten(request, pk=None):
+    """Anlegen und Bearbeiten einer Checkliste inkl. Punkte (Leitung/Admin)."""
+    camp = aktive_freizeit(request)
+    if camp is None:
+        return redirect("mobil:freizeiten")
+    if not kann_bearbeiten(request.user):
+        messages.error(request, "Keine Berechtigung fuer Checklisten-Verwaltung.")
+        return redirect("mobil:checklisten")
+
+    liste = get_object_or_404(Checkliste, pk=pk, camp=camp) if pk else None
+
+    if request.method == "POST":
+        aktion = request.POST.get("aktion")
+
+        if aktion == "speichern":
+            form = ChecklisteForm(request.POST, instance=liste)
+            if form.is_valid():
+                neu = liste is None
+                liste = form.save(commit=False)
+                liste.camp = camp
+                liste.save()
+                messages.success(
+                    request,
+                    f"Checkliste „{liste.titel}“ {'angelegt' if neu else 'gespeichert'}.",
+                )
+                return redirect("mobil:checkliste_verwalten", pk=liste.pk)
+
+        elif aktion == "loeschen" and liste:
+            titel = liste.titel
+            liste.delete()
+            messages.success(request, f"Checkliste „{titel}“ geloescht.")
+            return redirect("mobil:checklisten")
+
+        elif aktion == "punkt_hinzufuegen" and liste:
+            text = request.POST.get("text", "").strip()
+            if text:
+                max_rf = liste.punkte.count()
+                ChecklistenPunkt.objects.create(
+                    checkliste=liste, text=text, reihenfolge=max_rf + 1
+                )
+            return redirect("mobil:checkliste_verwalten", pk=liste.pk)
+
+        elif aktion == "punkt_loeschen" and liste:
+            get_object_or_404(
+                ChecklistenPunkt, pk=request.POST.get("punkt_id"), checkliste=liste
+            ).delete()
+            return redirect("mobil:checkliste_verwalten", pk=liste.pk)
+
+    form = ChecklisteForm(instance=liste)
+    return render(request, "mobil/checkliste_verwalten.html", {
+        "camp": camp,
+        "liste": liste,
+        "form": form,
     })

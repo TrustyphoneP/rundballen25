@@ -1,0 +1,56 @@
+{% extends "mobil/base_mobil.html" %}
+{% block title %}Checklisten · rundBallenMobil{% endblock %}
+
+{% block content %}
+<div class="flex items-baseline justify-between mb-1">
+  <h1 class="font-display text-2xl">Checklisten</h1>
+  <span class="text-xs text-white/45">{{ camp.name }}</span>
+</div>
+<p class="text-sm text-white/55 mb-5">Dein persoenlicher Stand pro Liste.</p>
+
+{% if not daten %}
+  <div class="rounded-xl border border-white/10 bg-p/40 p-8 text-center">
+    <div class="text-3xl mb-2">📋</div>
+    <p class="text-sm text-white/50">Noch keine Checklisten vorhanden.</p>
+  </div>
+{% endif %}
+
+<div class="space-y-2.5">
+  {% for liste, fertig, gesamt in daten %}
+    <a href="{% url 'mobil:checkliste' liste.pk %}"
+       class="block rounded-xl border border-white/10 bg-p/40 p-3.5 hover:border-acc/40">
+      <div class="flex items-center justify-between gap-3">
+        <div class="min-w-0">
+          <div class="font-medium truncate">{{ liste.titel }}</div>
+          <div class="text-xs text-white/45 mt-0.5">
+            {{ liste.get_sichtbar_fuer_display }}
+            {% if liste.beschreibung %} · {{ liste.beschreibung|truncatechars:40 }}{% endif %}
+          </div>
+        </div>
+        <div class="shrink-0 text-right">
+          <div class="font-mono text-sm {% if fertig == gesamt and gesamt %}text-ok{% else %}text-acc{% endif %}">
+            {{ fertig }}/{{ gesamt }}
+          </div>
+        </div>
+      </div>
+      {% if gesamt %}
+        <div class="mt-2.5 h-1 rounded-full bg-white/10 overflow-hidden">
+          <div class="h-full {% if fertig == gesamt %}bg-ok{% else %}bg-acc{% endif %}"
+               style="width: {% widthratio fertig gesamt 100 %}%"></div>
+        </div>
+      {% endif %}
+    </a>
+  {% endfor %}
+</div>
+
+{% if kann_bearbeiten %}
+  <a href="{% url 'mobil:checkliste_neu' %}"
+     class="fixed bottom-20 right-4 z-10 w-12 h-12 rounded-full bg-acc text-p-dark
+            flex items-center justify-center shadow-lg"
+     aria-label="Checkliste anlegen">
+    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <path d="M12 5v14M5 12h14"/>
+    </svg>
+  </a>
+{% endif %}
+{% endblock %}

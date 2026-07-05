@@ -3,7 +3,57 @@
 
 {% block content %}
 <h1 class="font-display text-2xl mb-1">Gruppen</h1>
-<p class="text-sm text-white/55 mb-5">{{ camp.name }} · Gruppen anlegen und Betreuer zuordnen.</p>
+<p class="text-sm text-white/55 mb-5">{{ camp.name }} · Zugangscode, Gruppen, Rollen.</p>
+
+<!-- Zugangscode -->
+<h2 class="text-xs uppercase tracking-widest text-white/45 mb-2">Zugangscode</h2>
+<div class="rounded-xl border border-white/10 bg-p/40 p-3.5 mb-7">
+  {% if zugang %}
+    <div class="flex items-center justify-between gap-2 mb-3">
+      <div>
+        <span class="font-mono text-lg tracking-widest text-acc">{{ zugang.code }}</span>
+        <span class="text-[0.65rem] uppercase tracking-wide ml-2 rounded-full border px-2 py-0.5
+                     {% if zugang.aktiv %}border-ok/40 text-ok{% else %}border-warn/40 text-warn{% endif %}">
+          {% if zugang.aktiv %}Registrierung offen{% else %}Geschlossen{% endif %}
+        </span>
+      </div>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="aktion" value="code_toggle">
+        <button type="submit" class="text-xs text-white/60 underline underline-offset-2">
+          {% if zugang.aktiv %}Schliessen{% else %}Oeffnen{% endif %}
+        </button>
+      </form>
+    </div>
+    <p class="text-xs text-white/45 mb-3">
+      Mit diesem Code koennen sich Betreuer unter
+      <span class="font-mono">rundballen24.de/mobil/registrieren/</span>
+      selbst registrieren und sind automatisch mit dieser Freizeit verbunden.
+    </p>
+  {% else %}
+    <p class="text-xs text-white/45 mb-3">
+      Noch kein Zugangscode. Lege einen fest oder lass einen generieren.
+    </p>
+  {% endif %}
+  <div class="flex gap-2">
+    <form method="post" class="flex flex-1 gap-2">
+      {% csrf_token %}
+      <input type="hidden" name="aktion" value="code_setzen">
+      <input type="text" name="code" placeholder="Eigenen Code festlegen"
+             autocapitalize="characters" class="flex-1">
+      <button type="submit" class="shrink-0 rounded-lg border border-white/20 px-3 text-xs">
+        Speichern
+      </button>
+    </form>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="aktion" value="code_generieren">
+      <button type="submit" class="rounded-lg bg-acc text-p-dark font-medium px-3 text-xs h-full">
+        Generieren
+      </button>
+    </form>
+  </div>
+</div>
 
 <!-- Neue Gruppe -->
 <form method="post" class="flex gap-2 mb-6">
@@ -53,21 +103,38 @@
 <div class="space-y-2">
   {% for m in mitglieder %}
     <form method="post"
-          class="rounded-xl border border-white/10 bg-p/40 p-3 flex items-center gap-3">
+          class="rounded-t-xl border border-white/10 bg-p/40 p-3 flex items-center gap-3">
       {% csrf_token %}
       <input type="hidden" name="aktion" value="zuordnen">
       <input type="hidden" name="mitglied_id" value="{{ m.pk }}">
       <div class="flex-1 min-w-0">
         <div class="text-sm truncate">{{ m.user.get_full_name|default:m.user.username }}</div>
-        <div class="text-[0.65rem] text-white/40">{{ m.user.username }}</div>
+        <div class="text-[0.65rem] text-white/40">{{ m.user.username }} · {{ m.user.get_role_display }}</div>
       </div>
-      <select name="gruppe_id" class="!w-36 shrink-0 text-sm" onchange="this.form.submit()">
+      <select name="gruppe_id" class="!w-32 shrink-0 text-sm" onchange="this.form.submit()">
         <option value="">Keine Gruppe</option>
         {% for gruppe in gruppen %}
           <option value="{{ gruppe.pk }}" {% if m.gruppe_id == gruppe.pk %}selected{% endif %}>
             {{ gruppe.name }}
           </option>
         {% endfor %}
+      </select>
+      <noscript><button type="submit" class="text-acc text-xs">OK</button></noscript>
+    </form>
+    <form method="post" class="rounded-b-xl border border-t-0 border-white/10 bg-p/20 px-3 py-2
+                               flex items-center gap-3 -mt-2 mb-2">
+      {% csrf_token %}
+      <input type="hidden" name="aktion" value="rolle_setzen">
+      <input type="hidden" name="mitglied_id" value="{{ m.pk }}">
+      <span class="text-[0.65rem] uppercase tracking-wide text-white/40 flex-1">Rolle</span>
+      <select name="rolle" class="!w-32 shrink-0 text-sm" onchange="this.form.submit()"
+              {% if m.user.is_admin and not request.user.is_admin %}disabled{% endif %}>
+        {% for wert, name in rollen %}
+          <option value="{{ wert }}" {% if m.user.role == wert %}selected{% endif %}>{{ name }}</option>
+        {% endfor %}
+        {% if m.user.is_admin and not request.user.is_admin %}
+          <option selected>Admin (root)</option>
+        {% endif %}
       </select>
       <noscript><button type="submit" class="text-acc text-xs">OK</button></noscript>
     </form>

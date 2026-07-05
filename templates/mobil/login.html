@@ -37,8 +37,14 @@
     </button>
   </form>
 
-  <p class="text-xs text-white/35 text-center mt-8">
-    Zugangsdaten bekommst du von der Freizeitleitung.
+  <p class="text-sm text-white/45 text-center mt-6">
+    Neu hier?
+    <a href="{% url 'mobil:registrieren' %}" class="text-acc underline underline-offset-2">
+      Mit Zugangscode registrieren
+    </a>
+  </p>
+  <p class="text-xs text-white/35 text-center mt-3">
+    Den Code bekommst du von der Freizeitleitung.
   </p>
 </div>
 {% endblock %}

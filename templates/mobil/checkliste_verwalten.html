@@ -1,0 +1,79 @@
+{% extends "mobil/base_mobil.html" %}
+{% block title %}Checkliste verwalten · rundBallenMobil{% endblock %}
+
+{% block content %}
+<h1 class="font-display text-2xl mb-1">
+  {% if liste %}Checkliste bearbeiten{% else %}Neue Checkliste{% endif %}
+</h1>
+<p class="text-sm text-white/55 mb-5">{{ camp.name }}</p>
+
+<form method="post" class="space-y-4 mb-7">
+  {% csrf_token %}
+  <input type="hidden" name="aktion" value="speichern">
+  <div>
+    <label>Titel</label>
+    {{ form.titel }} {{ form.titel.errors }}
+  </div>
+  <div>
+    <label>Beschreibung</label>
+    {{ form.beschreibung }} {{ form.beschreibung.errors }}
+  </div>
+  <div>
+    <label>Sichtbar fuer</label>
+    {{ form.sichtbar_fuer }} {{ form.sichtbar_fuer.errors }}
+  </div>
+  <button type="submit"
+          class="w-full rounded-xl bg-acc text-p-dark font-medium py-3
+                 active:scale-[0.98] transition-transform">
+    {% if liste %}Speichern{% else %}Checkliste anlegen{% endif %}
+  </button>
+</form>
+
+{% if liste %}
+  <h2 class="text-xs uppercase tracking-widest text-white/45 mb-2">Punkte</h2>
+  <div class="space-y-1.5 mb-3">
+    {% for punkt in liste.punkte.all %}
+      <div class="flex items-center gap-2 rounded-lg border border-white/10 bg-p/40 px-3 py-2">
+        <span class="text-sm flex-1">{{ punkt.text }}</span>
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="aktion" value="punkt_loeschen">
+          <input type="hidden" name="punkt_id" value="{{ punkt.pk }}">
+          <button type="submit" class="text-warn/60 hover:text-warn px-1" aria-label="Punkt loeschen">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24">
+              <path d="M6 6l12 12M18 6L6 18"/>
+            </svg>
+          </button>
+        </form>
+      </div>
+    {% empty %}
+      <p class="text-sm text-white/40">Noch keine Punkte.</p>
+    {% endfor %}
+  </div>
+
+  <form method="post" class="flex gap-2 mb-8">
+    {% csrf_token %}
+    <input type="hidden" name="aktion" value="punkt_hinzufuegen">
+    <input type="text" name="text" placeholder="Neuer Punkt" required class="flex-1">
+    <button type="submit"
+            class="shrink-0 rounded-xl bg-acc text-p-dark font-medium px-4 text-sm">
+      Hinzufuegen
+    </button>
+  </form>
+
+  <div class="space-y-2.5">
+    <a href="{% url 'mobil:checkliste' liste.pk %}"
+       class="block text-center rounded-xl border border-white/20 py-3 text-sm">
+      Zur Listenansicht
+    </a>
+    <form method="post" onsubmit="return confirm('Checkliste samt aller Haken wirklich loeschen?');">
+      {% csrf_token %}
+      <input type="hidden" name="aktion" value="loeschen">
+      <button type="submit"
+              class="w-full rounded-xl border border-warn/40 text-warn py-3 text-sm">
+        Checkliste loeschen
+      </button>
+    </form>
+  </div>
+{% endif %}
+{% endblock %}

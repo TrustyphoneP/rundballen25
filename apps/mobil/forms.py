@@ -1,8 +1,9 @@
 from django import forms
 from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
 
 from apps.mobile_api.models import Wochenplan, Aktion, WOCHENTAG_CHOICES
-from .models import Gruppe
+from .models import Gruppe, FreizeitZugang, Checkliste
 
 User = get_user_model()
 
@@ -80,4 +81,76 @@ class GruppeForm(forms.ModelForm):
         fields = ["name"]
         widgets = {
             "name": forms.TextInput(attrs={"placeholder": "z. B. Igel"}),
+        }
+
+
+class RegistrierungForm(forms.Form):
+    code = forms.CharField(
+        label="Zugangscode",
+        widget=forms.TextInput(attrs={
+            "placeholder": "Code von der Freizeitleitung",
+            "autocapitalize": "characters",
+            "autocomplete": "one-time-code",
+        }),
+    )
+    name = forms.CharField(
+        label="Dein Name",
+        max_length=150,
+        widget=forms.TextInput(attrs={"placeholder": "z. B. Mia", "autocomplete": "name"}),
+    )
+    username = forms.CharField(
+        label="Benutzername",
+        max_length=150,
+        widget=forms.TextInput(attrs={
+            "placeholder": "fuer die Anmeldung",
+            "autocapitalize": "none",
+            "autocomplete": "username",
+        }),
+    )
+    password1 = forms.CharField(
+        label="Passwort",
+        widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}),
+    )
+    password2 = forms.CharField(
+        label="Passwort wiederholen",
+        widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}),
+    )
+
+    def clean_code(self):
+        code = self.cleaned_data["code"].strip()
+        zugang = (
+            FreizeitZugang.objects
+            .filter(code__iexact=code, aktiv=True, camp__is_active=True)
+            .select_related("camp")
+            .first()
+        )
+        if zugang is None:
+            raise forms.ValidationError("Dieser Zugangscode ist nicht gueltig.")
+        self.zugang = zugang
+        return code
+
+    def clean_username(self):
+        username = self.cleaned_data["username"].strip()
+        if User.objects.filter(username__iexact=username).exists():
+            raise forms.ValidationError("Dieser Benutzername ist schon vergeben.")
+        return username
+
+    def clean(self):
+        cleaned = super().clean()
+        p1, p2 = cleaned.get("password1"), cleaned.get("password2")
+        if p1 and p2:
+            if p1 != p2:
+                self.add_error("password2", "Die Passwoerter stimmen nicht ueberein.")
+            else:
+                validate_password(p1)
+        return cleaned
+
+
+class ChecklisteForm(forms.ModelForm):
+    class Meta:
+        model = Checkliste
+        fields = ["titel", "beschreibung", "sichtbar_fuer"]
+        widgets = {
+            "titel": forms.TextInput(attrs={"placeholder": "z. B. Packliste Ausflug"}),
+            "beschreibung": forms.Textarea(attrs={"rows": 2}),
         }
