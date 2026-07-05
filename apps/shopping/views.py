@@ -385,7 +385,7 @@ def export_csv(request, pk):
         days_str    = ", ".join(str(d) for d in sorted(info.get("days", [])))
         recipes_str = ", ".join(sorted(info.get("recipes", [])))
         fmt = format_amount(item.amount, item.unit)
-        # Split formatted "12,8 kg" into number and unit
+        # "5,40 kg" -> Menge/Einheit fuer getrennte Spalten aufteilen
         parts_fmt = fmt.rsplit(" ", 1)
         menge = parts_fmt[0] if len(parts_fmt) == 2 else fmt
         einheit = parts_fmt[1] if len(parts_fmt) == 2 else ""
@@ -462,12 +462,16 @@ def export_csv_combined(request, camp_pk):
         for extra in _parse_fruehstueck_extras(sl.notes):
             from apps.recipes.models import Ingredient
             is_fresh = Ingredient.objects.filter(name=extra["name"]).values_list("is_fresh", flat=True).first()
+            fmt = format_amount(extra["amount"], extra["unit"])
+            parts_fmt = fmt.rsplit(" ", 1)
+            menge = parts_fmt[0] if len(parts_fmt) == 2 else fmt
+            einheit = parts_fmt[1] if len(parts_fmt) == 2 else ""
             writer.writerow([
                 label, datum, "Frühstück/Mittag",
                 "frisch" if is_fresh else "trocken",
                 extra["name"],
-                str(extra["amount"]).replace(".", ","),
-                extra["unit"], "", "", "",
+                menge,
+                einheit, "", "", "",
             ])
 
     return response

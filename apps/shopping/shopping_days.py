@@ -20,6 +20,7 @@ aber NICHT für Frühstück/Mittagessen desselben Tages.
 Daher: Belag/Frühstück wird der Lieferung VOR dem jeweiligen Tag zugeordnet.
 """
 import logging
+from decimal import Decimal, ROUND_HALF_UP
 from datetime import timedelta
 from dataclasses import dataclass, field
 from typing import List
@@ -147,6 +148,27 @@ def _lookup_ingredient(name):
     return qs.first()
 
 
+# Namen der frischen Aufschnitt-Sorten, aus _TOPPING_DEFS abgeleitet. Diese
+# Zutaten werden beim Metzger/Frischeteller in runden Mengen bestellt, nicht
+# grammgenau. Andere g-Zutaten (Gewuerze etc.) bleiben unverrundet, da dort
+# 70 g auf 100 g aufzurunden das Rezept verfaelschen wuerde.
+_AUFSCHNITT_NAMES = {name for _, name in _TOPPING_DEFS}
+
+
+def _round_to_100g(aggregated):
+    """Rundet die aggregierte Menge der vier Aufschnitt-Sorten auf die
+    naechsten 100 g, kaufmaennisch gerundet (0,5 aufwaerts). Wird als
+    letzter Schritt vor der Rueckgabe angewendet, damit Mittag- und
+    Halbweck-Anteil bereits vollstaendig summiert sind, bevor gerundet
+    wird (Runden vor dem Summieren wuerde den Fehler vervielfachen)."""
+    for entry in aggregated.values():
+        if entry["unit"] == "g" and entry["ingredient"].name in _AUFSCHNITT_NAMES:
+            entry["amount"] = (Decimal(entry["amount"]) / 100).quantize(
+                Decimal("1"), rounding=ROUND_HALF_UP
+            ) * 100
+    return aggregated
+
+
 def _merge_extras(extras):
     """Fuehrt Fallback-Extras nach (Name, Einheit) zusammen: wenn mehrere
     Bloecke fuer dieselbe Zutat in den Fallback laufen (z.B. Mittag- und
@@ -259,7 +281,7 @@ def build_shopping_day_items(camp, shopping_day, all_day_meals):
             # Bread days in this delivery (exclude day 0 = first camp day, no bread)
             bread_days_this_delivery = sum(1 for i in shopping_day.breakfast_indices if i > 0)
             if bread_days_this_delivery == 0 and not shopping_day.include_dry:
-                return aggregated, _merge_extras(fruehstueck_extras)
+                return _round_to_100g(aggregated), _merge_extras(fruehstueck_extras)
 
             total_loaves = loaves_per_day * bread_days_this_delivery
             total_slices = total_loaves * SLICES_PER_LOAF
@@ -494,4 +516,4 @@ def build_shopping_day_items(camp, shopping_day, all_day_meals):
     except Exception:
         pass
 
-    return aggregated, _merge_extras(fruehstueck_extras)
+    return _round_to_100g(aggregated), _merge_extras(fruehstueck_extras)

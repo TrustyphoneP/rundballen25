@@ -503,14 +503,14 @@ def fruehstueck(request, camp_pk=None):
         {
             "name":  "H-Milch",
             "per_day": "15 l",
-            "total": f"{num_bread_days * 15} l",
-            "note":  "15 l / Tag",
+            "total": f"{num_bread_days * 15 + 9} l",
+            "note":  "15 l / Tag + 9 l Reserve",
         },
         {
             "name":  "G&G Choco Drink",
             "per_day": "1 Pck",
-            "total": f"{num_bread_days} Pck",
-            "note":  "1 Pck / Tag",
+            "total": f"{num_bread_days + 1} Pck",
+            "note":  "1 Pck / Tag + 1 Pck Reserve (Tag danach)",
         },
         {
             "name":  "G&G Pflanzenmargarine",
