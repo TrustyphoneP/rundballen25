@@ -6,7 +6,7 @@
   <h1 class="font-display text-2xl">Wochenplan</h1>
   <span class="text-xs text-white/45">{{ camp.name }}</span>
 </div>
-<p class="text-sm text-white/55 mb-5">Alle Aktionen der Woche im Ueberblick.</p>
+<p class="text-sm text-white/55 mb-5">Alle Aktionen der Woche im Überblick.</p>
 
 {% if kann_bearbeiten %}
   <a href="{% url 'mobil:gruppen' %}"
@@ -17,7 +17,7 @@
 
 {% if kann_bearbeiten and not plaene %}
   <div class="rounded-xl border border-acc/30 bg-acc-dim p-4 mb-5 text-sm">
-    Fuer diese Freizeit gibt es noch keinen Wochenplan.
+    Für diese Freizeit gibt es noch keinen Wochenplan.
     <a href="{% url 'mobil:plan_neu' %}" class="text-acc underline underline-offset-2">Jetzt anlegen</a>
   </div>
 {% endif %}
@@ -38,7 +38,7 @@
         {% if kann_bearbeiten %}
           <a href="{% url 'mobil:aktion_neu' %}?tag={{ nr }}"
              class="text-white/35 hover:text-acc text-lg leading-none px-1"
-             aria-label="Aktion fuer {{ name }} hinzufuegen">+</a>
+             aria-label="Aktion für {{ name }} hinzufuegen">+</a>
         {% endif %}
       </div>
 

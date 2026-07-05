@@ -21,12 +21,12 @@
         {% csrf_token %}
         <input type="hidden" name="aktion" value="code_toggle">
         <button type="submit" class="text-xs text-white/60 underline underline-offset-2">
-          {% if zugang.aktiv %}Schliessen{% else %}Oeffnen{% endif %}
+          {% if zugang.aktiv %}Schließen{% else %}Öffnen{% endif %}
         </button>
       </form>
     </div>
     <p class="text-xs text-white/45 mb-3">
-      Mit diesem Code koennen sich Betreuer unter
+      Mit diesem Code können sich Betreuer unter
       <span class="font-mono">rundballen24.de/mobil/registrieren/</span>
       selbst registrieren und sind automatisch mit dieser Freizeit verbunden.
     </p>
@@ -76,11 +76,11 @@
     <div class="rounded-xl border border-white/10 bg-p/40 p-3.5">
       <div class="flex items-center justify-between gap-2">
         <div class="font-medium">{{ gruppe.name }}</div>
-        <form method="post" onsubmit="return confirm('Gruppe wirklich loeschen? Die Zuordnungen der Betreuer werden entfernt.');">
+        <form method="post" onsubmit="return confirm('Gruppe wirklich löschen? Die Zuordnungen der Betreuer werden entfernt.');">
           {% csrf_token %}
           <input type="hidden" name="aktion" value="loeschen">
           <input type="hidden" name="gruppe_id" value="{{ gruppe.pk }}">
-          <button type="submit" class="text-warn/70 hover:text-warn text-xs">Loeschen</button>
+          <button type="submit" class="text-warn/70 hover:text-warn text-xs">Löschen</button>
         </form>
       </div>
       <div class="flex flex-wrap gap-1 mt-2">

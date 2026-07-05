@@ -21,12 +21,12 @@ SESSION_CAMP_KEY = "mobil_camp_id"
 # ---------------------------------------------------------------------------
 
 def kann_bearbeiten(user):
-    """Leitung, Admin (root) und Staff duerfen verwalten."""
+    """Leitung, Admin (root) und Staff dürfen verwalten."""
     return user.is_authenticated and (user.is_leitung() or user.is_staff)
 
 
 def aktive_freizeit(request):
-    """Aktuell in der Session gewaehlte Freizeit, sonst einzige Mitgliedschaft."""
+    """Aktuell in der Session gewählte Freizeit, sonst einzige Mitgliedschaft."""
     camp_id = request.session.get(SESSION_CAMP_KEY)
     qs = Camp.objects.filter(is_active=True)
     if camp_id:
@@ -50,7 +50,7 @@ def zeitspanne(a):
 def aktionen_fuer_tag(camp, user, wochentag):
     """
     Individualisierter Tagesplan:
-    - Aktionen ohne Verantwortliche UND ohne Gruppen gelten fuer alle
+    - Aktionen ohne Verantwortliche UND ohne Gruppen gelten für alle
     - plus Aktionen, bei denen der Nutzer verantwortlich ist
     - plus Aktionen, an denen die Gruppe des Nutzers teilnimmt
     """
@@ -322,7 +322,7 @@ def aktion_bearbeiten(request, pk):
         if request.POST.get("loeschen") == "1":
             tag = aktion.wochentag
             aktion.delete()
-            messages.success(request, "Aktion geloescht.")
+            messages.success(request, "Aktion gelöscht.")
             return redirect(f"/mobil/heute/?tag={tag}")
         form = AktionForm(request.POST, instance=aktion, camp=camp)
         if form.is_valid():
@@ -361,7 +361,7 @@ def gruppen_view(request):
     if camp is None:
         return redirect("mobil:freizeiten")
     if not kann_bearbeiten(request.user):
-        messages.error(request, "Keine Berechtigung fuer die Gruppenverwaltung.")
+        messages.error(request, "Keine Berechtigung für die Gruppenverwaltung.")
         return redirect("mobil:heute")
 
     form = GruppeForm()
@@ -385,7 +385,7 @@ def gruppen_view(request):
             gruppe = get_object_or_404(Gruppe, pk=request.POST.get("gruppe_id"), camp=camp)
             name = gruppe.name
             gruppe.delete()
-            messages.success(request, f"Gruppe „{name}“ geloescht.")
+            messages.success(request, f"Gruppe „{name}“ gelöscht.")
             return redirect("mobil:gruppen")
 
         elif aktion == "code_setzen":
@@ -429,7 +429,7 @@ def gruppen_view(request):
                 erlaubte.append("admin")
             ziel = mitglied.user
             if ziel.is_admin() and not request.user.is_admin():
-                messages.error(request, "Nur Admin (root) kann Admin-Rollen aendern.")
+                messages.error(request, "Nur Admin (root) kann Admin-Rollen ändern.")
             elif neue_rolle in erlaubte:
                 ziel.role = neue_rolle
                 ziel.save(update_fields=["role"])
@@ -514,7 +514,7 @@ def checkliste_detail(request, pk):
         return redirect("mobil:freizeiten")
     liste = get_object_or_404(Checkliste, pk=pk, camp=camp)
     if not liste.sichtbar_fuer_user(request.user):
-        messages.error(request, "Diese Checkliste ist fuer dich nicht sichtbar.")
+        messages.error(request, "Diese Checkliste ist für dich nicht sichtbar.")
         return redirect("mobil:checklisten")
 
     if request.method == "POST":
@@ -548,7 +548,7 @@ def checkliste_verwalten(request, pk=None):
     if camp is None:
         return redirect("mobil:freizeiten")
     if not kann_bearbeiten(request.user):
-        messages.error(request, "Keine Berechtigung fuer Checklisten-Verwaltung.")
+        messages.error(request, "Keine Berechtigung für Checklisten-Verwaltung.")
         return redirect("mobil:checklisten")
 
     liste = get_object_or_404(Checkliste, pk=pk, camp=camp) if pk else None
@@ -572,7 +572,7 @@ def checkliste_verwalten(request, pk=None):
         elif aktion == "loeschen" and liste:
             titel = liste.titel
             liste.delete()
-            messages.success(request, f"Checkliste „{titel}“ geloescht.")
+            messages.success(request, f"Checkliste „{titel}“ gelöscht.")
             return redirect("mobil:checklisten")
 
         elif aktion == "punkt_hinzufuegen" and liste:

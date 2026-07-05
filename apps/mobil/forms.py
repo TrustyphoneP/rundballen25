@@ -29,14 +29,14 @@ class AktionForm(forms.ModelForm):
         queryset=Gruppe.objects.none(),
         required=False,
         label="Teilnehmende Gruppen",
-        help_text="Leer lassen = keine Gruppeneinschraenkung.",
+        help_text="Leer lassen = keine Gruppeneinschränkung.",
         widget=forms.CheckboxSelectMultiple,
     )
     verantwortlich = forms.ModelMultipleChoiceField(
         queryset=User.objects.none(),
         required=False,
         label="Verantwortliche Betreuer",
-        help_text="Leer lassen = Aktion gilt fuer alle Betreuer.",
+        help_text="Leer lassen = Aktion gilt für alle Betreuer.",
         widget=forms.CheckboxSelectMultiple,
     )
 
@@ -102,7 +102,7 @@ class RegistrierungForm(forms.Form):
         label="Benutzername",
         max_length=150,
         widget=forms.TextInput(attrs={
-            "placeholder": "fuer die Anmeldung",
+            "placeholder": "für die Anmeldung",
             "autocapitalize": "none",
             "autocomplete": "username",
         }),
@@ -125,7 +125,7 @@ class RegistrierungForm(forms.Form):
             .first()
         )
         if zugang is None:
-            raise forms.ValidationError("Dieser Zugangscode ist nicht gueltig.")
+            raise forms.ValidationError("Dieser Zugangscode ist nicht gültig.")
         self.zugang = zugang
         return code
 
@@ -140,7 +140,7 @@ class RegistrierungForm(forms.Form):
         p1, p2 = cleaned.get("password1"), cleaned.get("password2")
         if p1 and p2:
             if p1 != p2:
-                self.add_error("password2", "Die Passwoerter stimmen nicht ueberein.")
+                self.add_error("password2", "Die Passwörter stimmen nicht überein.")
             else:
                 validate_password(p1)
         return cleaned

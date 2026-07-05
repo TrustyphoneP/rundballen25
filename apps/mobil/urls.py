@@ -15,7 +15,7 @@ urlpatterns = [
     path("freizeiten/<int:camp_pk>/beitreten/", views.freizeit_beitreten, name="beitreten"),
     path("freizeiten/<int:camp_pk>/waehlen/",   views.freizeit_waehlen,   name="waehlen"),
 
-    # Plaene
+    # Pläne
     path("heute/",              views.heute_view,        name="heute"),
     path("woche/",              views.woche_view,        name="woche"),
     path("plan/neu/",           views.plan_anlegen,      name="plan_neu"),

@@ -30,7 +30,7 @@ class User(AbstractUser):
         return self.role == self.Role.ADMIN or self.is_superuser
 
     def is_leitung(self):
-        """Leitung oder hoeher: darf in rundBallenMobil verwalten."""
+        """Leitung oder höher: darf in rundBallenMobil verwalten."""
         return self.role in (self.Role.ADMIN, self.Role.LEITUNG) or self.is_superuser
 
     def __str__(self):

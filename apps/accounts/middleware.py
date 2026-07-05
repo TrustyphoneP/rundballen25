@@ -4,7 +4,7 @@ from django.urls import reverse
 EXEMPT_URLS = (
     "/accounts/login/",
     "/accounts/logout/",
-    "/accounts/passwort-aendern/",
+    "/accounts/passwort-ändern/",
     "/admin/",
     "/mobil/passwort/",
     "/mobil/logout/",

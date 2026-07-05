@@ -19,7 +19,7 @@
     {{ form.beschreibung }} {{ form.beschreibung.errors }}
   </div>
   <div>
-    <label>Sichtbar fuer</label>
+    <label>Sichtbar für</label>
     {{ form.sichtbar_fuer }} {{ form.sichtbar_fuer.errors }}
   </div>
   <button type="submit"
@@ -39,7 +39,7 @@
           {% csrf_token %}
           <input type="hidden" name="aktion" value="punkt_loeschen">
           <input type="hidden" name="punkt_id" value="{{ punkt.pk }}">
-          <button type="submit" class="text-warn/60 hover:text-warn px-1" aria-label="Punkt loeschen">
+          <button type="submit" class="text-warn/60 hover:text-warn px-1" aria-label="Punkt löschen">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24">
               <path d="M6 6l12 12M18 6L6 18"/>
             </svg>
@@ -57,7 +57,7 @@
     <input type="text" name="text" placeholder="Neuer Punkt" required class="flex-1">
     <button type="submit"
             class="shrink-0 rounded-xl bg-acc text-p-dark font-medium px-4 text-sm">
-      Hinzufuegen
+      Hinzufügen
     </button>
   </form>
 
@@ -66,12 +66,12 @@
        class="block text-center rounded-xl border border-white/20 py-3 text-sm">
       Zur Listenansicht
     </a>
-    <form method="post" onsubmit="return confirm('Checkliste samt aller Haken wirklich loeschen?');">
+    <form method="post" onsubmit="return confirm('Checkliste samt aller Haken wirklich löschen?');">
       {% csrf_token %}
       <input type="hidden" name="aktion" value="loeschen">
       <button type="submit"
               class="w-full rounded-xl border border-warn/40 text-warn py-3 text-sm">
-        Checkliste loeschen
+        Checkliste löschen
       </button>
     </form>
   </div>

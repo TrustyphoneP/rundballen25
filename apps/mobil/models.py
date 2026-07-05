@@ -5,7 +5,7 @@ from django.db import models
 class FreizeitMitglied(models.Model):
     """
     Verbindet einen Nutzer (Betreuer) mit einer Freizeit (Camp).
-    Wochenplaene und Aktionen leben weiterhin in apps.mobile_api,
+    Wochenpläne und Aktionen leben weiterhin in apps.mobile_api,
     damit Webapp und React-Native-App dieselben Daten nutzen.
     """
     user = models.ForeignKey(
@@ -41,8 +41,8 @@ class FreizeitMitglied(models.Model):
 class Gruppe(models.Model):
     """
     Betreuergruppe innerhalb einer Freizeit.
-    Aktionen koennen Gruppen zugeordnet werden. Die M2M-Beziehung liegt
-    bewusst auf dieser Seite, damit apps.mobile_api unveraendert bleibt.
+    Aktionen können Gruppen zugeordnet werden. Die M2M-Beziehung liegt
+    bewusst auf dieser Seite, damit apps.mobile_api unverändert bleibt.
     """
     camp = models.ForeignKey(
         "camps.Camp",
@@ -71,7 +71,7 @@ class Gruppe(models.Model):
 class FreizeitZugang(models.Model):
     """
     Zugangscode pro Freizeit. Wer den Code kennt, kann sich selbst
-    registrieren (Name und Passwort selbst waehlen) und wird automatisch
+    registrieren (Name und Passwort selbst wählen) und wird automatisch
     mit der Freizeit verbunden.
     """
     camp = models.OneToOneField(
@@ -98,7 +98,7 @@ class FreizeitZugang(models.Model):
 class Checkliste(models.Model):
     """
     Checkliste einer Freizeit. Wird von Leitung/Admin angelegt,
-    Betreuer haken die Punkte persoenlich ab.
+    Betreuer haken die Punkte persönlich ab.
     """
     SICHTBARKEIT_CHOICES = [
         ("alle", "Alle"),
@@ -157,7 +157,7 @@ class ChecklistenPunkt(models.Model):
 
 
 class PunktErledigt(models.Model):
-    """Persoenlicher Haken eines Nutzers an einem Checklisten-Punkt."""
+    """Persönlicher Haken eines Nutzers an einem Checklisten-Punkt."""
     punkt = models.ForeignKey(
         ChecklistenPunkt,
         on_delete=models.CASCADE,
