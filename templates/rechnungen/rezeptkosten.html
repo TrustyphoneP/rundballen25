@@ -1,0 +1,60 @@
+{% extends "base/base.html" %}
+{% load rechnungen_tags %}
+{% block title %}Rezeptkosten – Rechnungsführung{% endblock %}
+{% block page_title %}Rezeptkosten{% endblock %}
+
+{% block content %}
+
+<div class="section-mono mb-4">
+  Kosten je Rezept auf Basis der hinterlegten Zutatenpreise ·
+  Zutaten ohne Preis werden ausgewiesen statt geschätzt
+</div>
+
+<div class="card overflow-hidden">
+  <table>
+    <thead>
+      <tr>
+        <th>Rezept</th>
+        <th>Basis-Portionen</th>
+        <th>Kosten (Basis)</th>
+        <th>Kosten pro Person</th>
+        <th>Preisabdeckung</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for e in ergebnisse %}
+      <tr>
+        <td>
+          <a href="{% url 'recipes:detail' pk=e.recipe.pk %}" class="hover:underline" style="color:#e8a444;">
+            {{ e.recipe.name }}
+          </a>
+        </td>
+        <td>{{ e.recipe.base_servings }}</td>
+        <td>{{ e.summe|euro }}</td>
+        <td class="font-mono">{{ e.pro_person|euro }}</td>
+        <td>
+          {% if e.zutaten == 0 %}
+            <span class="badge badge-muted">keine Zutaten</span>
+          {% elif e.vollstaendig %}
+            <span class="badge badge-ok">vollständig</span>
+          {% else %}
+            <span class="badge badge-warn" title="{{ e.ohne_preis|join:", " }}">
+              {{ e.ohne_preis|length }} ohne Preis
+            </span>
+          {% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5" class="text-center" style="color:rgba(240,237,232,0.45);">Keine Rezepte vorhanden.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="text-xs mt-3" style="color:rgba(240,237,232,0.45);">
+  Fehlende Preise am schnellsten ergänzen: Belege hochladen und Grundpreise
+  übernehmen, oder in der <a href="{% url 'rechnungen:preisliste' %}" class="underline">Preisliste</a>
+  nach Zutaten ohne Preis filtern.
+</div>
+
+{% endblock %}

@@ -56,7 +56,7 @@ INSTALLED_APPS = [
     "apps.shopping.apps.ShoppingConfig",
     "apps.feedback.apps.FeedbackConfig",
     "apps.voting.apps.VotingConfig",
-    
+    "apps.rechnungen.apps.RechnungenConfig",
 ]
 
 MIDDLEWARE = [
@@ -195,6 +195,15 @@ EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
 EMAIL_USE_TLS = True
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="rundballen25@example.com")
+
+# ---------------------------------------------------------------------------
+# Anthropic API (Rechnungsführung: Beleg-Analyse per Claude)
+# ---------------------------------------------------------------------------
+# API-Key unter https://platform.claude.com erstellen und in der .env
+# hinterlegen. Ohne Key funktionieren Upload und manuelle Preispflege
+# weiterhin -- nur die automatische Analyse meldet dann einen Fehler.
+ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
+ANTHROPIC_MODEL   = env("ANTHROPIC_MODEL", default="claude-sonnet-4-6")
 
 # ---------------------------------------------------------------------------
 # rundballen25 Konfiguration

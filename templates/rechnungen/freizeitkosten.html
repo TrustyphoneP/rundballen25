@@ -1,0 +1,97 @@
+{% extends "base/base.html" %}
+{% load rechnungen_tags %}
+{% block title %}Freizeitkosten – {{ camp.name }}{% endblock %}
+{% block page_title %}Freizeitkosten{% endblock %}
+
+{% block content %}
+
+<div class="section-mono mb-5">
+  {{ camp.name }} · {{ camp.start_date|date:"d.m.Y" }} – {{ camp.end_date|date:"d.m.Y" }}
+  · {{ personen }} Personen · {{ tage }} Tage
+</div>
+
+<!-- Kennzahlen -->
+<div class="grid gap-4 mb-6" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+  <div class="card px-5 py-4">
+    <div class="section-mono mb-1">Geplant (Einkaufsliste)</div>
+    <div class="font-display text-2xl">{{ kosten.summe|euro }}</div>
+  </div>
+  <div class="card px-5 py-4">
+    <div class="section-mono mb-1">Ist (Belege)</div>
+    <div class="font-display text-2xl">{{ ist_summe|euro }}</div>
+  </div>
+  <div class="card px-5 py-4">
+    <div class="section-mono mb-1">Pro Person</div>
+    <div class="font-display text-2xl">{{ pro_person|euro }}</div>
+  </div>
+  <div class="card px-5 py-4">
+    <div class="section-mono mb-1">Pro Person &amp; Tag</div>
+    <div class="font-display text-2xl">{{ pro_person_tag|euro }}</div>
+  </div>
+</div>
+
+{% if kosten.ohne_preis %}
+<div class="flash flash-warning">
+  {{ kosten.ohne_preis|length }} Zutat(en) ohne verwendbaren Preis -- fehlen in
+  der Summe: {{ kosten.ohne_preis|join:", " }}
+</div>
+{% endif %}
+
+<!-- Zwischensummen je Quelle -->
+{% if kosten.quellen %}
+<div class="card overflow-hidden mb-6" style="max-width:520px;">
+  <table>
+    <thead><tr><th>Kategorie</th><th class="text-right">Kosten</th></tr></thead>
+    <tbody>
+      {% for quelle, betrag in kosten.quellen %}
+      <tr>
+        <td>{{ quelle }}</td>
+        <td class="text-right font-mono">{{ betrag|euro }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<!-- Je Lieferung -->
+<div class="grid gap-6" style="grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));">
+  {% for lf in kosten.lieferungen %}
+  <div class="card overflow-hidden">
+    <div class="px-5 py-4 border-b" style="border-color:rgba(240,237,232,0.08);">
+      <div class="flex items-start justify-between">
+        <div>
+          <div class="font-display text-lg">{{ lf.label }}</div>
+          <div class="section-mono mt-1">{{ lf.datum|date:"l, d. F Y" }}</div>
+        </div>
+        <span class="badge badge-blü">{{ lf.summe|euro }}</span>
+      </div>
+      <div class="text-xs mt-2" style="color:rgba(240,237,232,0.45);">{{ lf.beschreibung }}</div>
+    </div>
+    <div style="max-height:400px; overflow-y:auto;">
+      <table>
+        <tbody>
+          {% for p in lf.positionen %}
+          <tr>
+            <td>
+              {{ p.name }}
+              <div class="text-xs" style="color:rgba(240,237,232,0.35);">{{ p.source }}</div>
+            </td>
+            <td class="text-xs whitespace-nowrap" style="color:rgba(240,237,232,0.5);">
+              {{ p.amount|menge:p.unit }}
+            </td>
+            <td class="text-right font-mono whitespace-nowrap">
+              {% if p.kosten is not None %}{{ p.kosten|euro }}{% else %}<span class="badge badge-warn">o. Preis</span>{% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td class="text-center" style="color:rgba(240,237,232,0.4);">Keine Positionen.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% endblock %}

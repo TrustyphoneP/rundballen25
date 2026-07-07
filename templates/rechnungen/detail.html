@@ -1,0 +1,159 @@
+{% extends "base/base.html" %}
+{% load rechnungen_tags %}
+{% block title %}Beleg – {{ beleg.haendler|default:"Analyse" }}{% endblock %}
+{% block page_title %}Beleg{% if beleg.haendler %}: {{ beleg.haendler }}{% endif %}{% endblock %}
+
+{% block topbar_actions %}
+  <form method="post" action="{% url 'rechnungen:analysieren' pk=beleg.pk %}">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-ghost">
+      {% if beleg.status == "neu" %}Analysieren{% else %}Erneut analysieren{% endif %}
+    </button>
+  </form>
+  {% if positionen %}
+  <form method="post" action="{% url 'rechnungen:alle_uebernehmen' pk=beleg.pk %}">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-primary">Alle Preise übernehmen</button>
+  </form>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+
+<div class="section-mono mb-4">
+  {{ beleg.camp.name }}
+  {% if beleg.kaufdatum %} · Kaufdatum {{ beleg.kaufdatum|date:"d.m.Y" }}{% endif %}
+  {% if beleg.gesamtbetrag %} · Gesamtbetrag {{ beleg.gesamtbetrag|euro }}{% endif %}
+  · Status:
+  {% if beleg.status == "analysiert" %}Analysiert{% elif beleg.status == "geprueft" %}Geprüft{% elif beleg.status == "fehler" %}Fehler{% else %}Neu{% endif %}
+</div>
+
+{% if beleg.status == "fehler" and beleg.analyse_fehler %}
+<div class="flash flash-error">{{ beleg.analyse_fehler }}</div>
+{% endif %}
+
+{% if differenz and differenz != 0 %}
+<div class="flash flash-warning">
+  Positions-Summe ({{ beleg.positionen_summe|euro }}) weicht um
+  {{ differenz|euro }} vom Bon-Gesamtbetrag ab -- bitte Positionen prüfen.
+</div>
+{% endif %}
+
+<div class="grid gap-6" style="grid-template-columns: minmax(240px, 320px) 1fr;">
+
+  <!-- Belegfoto -->
+  <div>
+    <div class="card overflow-hidden">
+      <a href="{{ beleg.image.url }}" target="_blank" rel="noopener">
+        <img src="{{ beleg.image.url }}" alt="Belegfoto"
+             style="width:100%; display:block; max-height:70vh; object-fit:contain; background:rgba(0,0,0,0.25);">
+      </a>
+    </div>
+    <div class="mt-3 flex items-center gap-2">
+      <form method="post" action="{% url 'rechnungen:loeschen' pk=beleg.pk %}"
+            onsubmit="return confirm('Beleg samt Positionen wirklich löschen?');">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">Beleg löschen</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Positionen -->
+  <div>
+    {% if positionen %}
+    <div class="card overflow-x-auto">
+      <table style="min-width:900px;">
+        <thead>
+          <tr>
+            <th>Artikel</th>
+            <th style="width:90px;">Menge</th>
+            <th style="width:80px;">Einheit</th>
+            <th style="width:100px;">Summe €</th>
+            <th style="width:110px;">Grundpreis €</th>
+            <th style="width:80px;">je</th>
+            <th style="width:180px;">Zutat</th>
+            <th style="width:170px;"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for pos in positionen %}
+          <tr {% if pos.hinweis %}title="{{ pos.hinweis }}"{% endif %}>
+            <td>
+              <input type="text" name="artikel_name" value="{{ pos.artikel_name }}" form="pos-{{ pos.pk }}">
+              {% if pos.text_original and pos.text_original != pos.artikel_name %}
+              <div class="text-xs mt-1 font-mono" style="color:rgba(240,237,232,0.35);">{{ pos.text_original }}</div>
+              {% endif %}
+              {% if pos.hinweis %}
+              <span class="badge badge-warn mt-1">{{ pos.hinweis }}</span>
+              {% endif %}
+            </td>
+            <td><input type="text" name="menge" value="{{ pos.menge|dezimal_de }}" form="pos-{{ pos.pk }}" inputmode="decimal"></td>
+            <td>
+              <select name="einheit" form="pos-{{ pos.pk }}">
+                <option value="">–</option>
+                {% for code, label in einheiten %}
+                <option value="{{ code }}" {% if pos.einheit == code %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </td>
+            <td><input type="text" name="gesamtpreis" value="{{ pos.gesamtpreis|dezimal_de }}" form="pos-{{ pos.pk }}" inputmode="decimal"></td>
+            <td><input type="text" name="grundpreis" value="{{ pos.grundpreis|dezimal_de }}" form="pos-{{ pos.pk }}" inputmode="decimal"></td>
+            <td>
+              <select name="grundpreis_einheit" form="pos-{{ pos.pk }}">
+                <option value="">–</option>
+                {% for code, label in grundpreis_einheiten %}
+                <option value="{{ code }}" {% if pos.grundpreis_einheit == code %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </td>
+            <td>
+              <input type="text" name="zutat" list="zutaten-datalist"
+                     value="{{ pos.ingredient.name|default:'' }}"
+                     placeholder="Zutat wählen…" form="pos-{{ pos.pk }}">
+              {% if pos.ist_uebernommen %}
+              <span class="badge badge-ok mt-1">übernommen</span>
+              {% endif %}
+            </td>
+            <td class="text-right whitespace-nowrap">
+              <button type="submit" name="action" value="speichern" form="pos-{{ pos.pk }}" class="btn btn-ghost">Speichern</button>
+              <button type="submit" name="action" value="uebernehmen" form="pos-{{ pos.pk }}" class="btn btn-primary"
+                      {% if not pos.grundpreis %}disabled style="opacity:0.4;"{% endif %}>€ übernehmen</button>
+              <button type="submit" form="del-{{ pos.pk }}" class="btn btn-danger" title="Position löschen">✕</button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <datalist id="zutaten-datalist">
+      {% for name in zutaten_namen %}<option value="{{ name }}">{% endfor %}
+    </datalist>
+
+    {# Formulare außerhalb der Tabelle, referenziert über das form-Attribut #}
+    {% for pos in positionen %}
+    <form id="pos-{{ pos.pk }}" method="post" action="{% url 'rechnungen:position_aktualisieren' pk=pos.pk %}">{% csrf_token %}</form>
+    <form id="del-{{ pos.pk }}" method="post" action="{% url 'rechnungen:position_loeschen' pk=pos.pk %}"
+          onsubmit="return confirm('Position löschen?');">{% csrf_token %}</form>
+    {% endfor %}
+
+    <div class="text-xs mt-3" style="color:rgba(240,237,232,0.45);">
+      Positions-Summe: {{ beleg.positionen_summe|euro }} ·
+      „€ übernehmen" schreibt den Grundpreis in die Zutaten-Stammdaten
+      (mit automatischer kg/g- bzw. l/ml-Umrechnung) und legt einen
+      Preishistorie-Eintrag an.
+    </div>
+
+    {% elif beleg.status == "neu" %}
+    <div class="card px-5 py-8 text-center text-sm" style="color:rgba(240,237,232,0.5);">
+      Noch nicht analysiert. Oben rechts „Analysieren" starten.
+    </div>
+    {% else %}
+    <div class="card px-5 py-8 text-center text-sm" style="color:rgba(240,237,232,0.5);">
+      Keine Positionen erkannt.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

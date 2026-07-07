@@ -1,0 +1,52 @@
+{% extends "base/base.html" %}
+{% block title %}Beleg hochladen – Rechnungsführung{% endblock %}
+{% block page_title %}Beleg hochladen{% endblock %}
+
+{% block content %}
+
+<div class="section-mono mb-5">{{ camp.name }} · Kassenbons &amp; A4-Rechnungen</div>
+
+<div class="card px-5 py-5 max-w-xl">
+  <form method="post" enctype="multipart/form-data" x-data="{ dateien: [] }">
+    {% csrf_token %}
+
+    <label class="block text-sm mb-2" for="{{ form.bilder.id_for_label }}">Belegfotos</label>
+    {{ form.bilder }}
+    <p class="text-xs mt-2" style="color:rgba(240,237,232,0.45);">
+      {{ form.bilder.help_text }} Lange Kassenbons bitte komplett und möglichst
+      gerade fotografieren -- sie werden für die Analyse automatisch in
+      Abschnitte zerlegt.
+    </p>
+    {% if form.bilder.errors %}
+    <div class="flash flash-error mt-3">{{ form.bilder.errors|join:" " }}</div>
+    {% endif %}
+
+    <div class="mt-5">
+      <label class="check-label">
+        {{ form.sofort_analysieren }} Direkt per Claude analysieren
+      </label>
+      <p class="text-xs mt-1" style="color:rgba(240,237,232,0.45);">
+        {{ form.sofort_analysieren.help_text }}
+      </p>
+    </div>
+
+    <div class="mt-5">
+      <label class="block text-sm mb-2" for="{{ form.notiz.id_for_label }}">Notiz (optional)</label>
+      {{ form.notiz }}
+    </div>
+
+    <div class="mt-6 flex items-center gap-3">
+      <button type="submit" class="btn btn-primary">Hochladen</button>
+      <a href="{% url 'rechnungen:index' %}" class="btn btn-ghost">Abbrechen</a>
+    </div>
+  </form>
+</div>
+
+<div class="card px-5 py-4 max-w-xl mt-4 text-xs" style="color:rgba(240,237,232,0.5);">
+  <div class="section-mono mb-2">Tipps für gute Erkennung</div>
+  Bon flach auf einen einfarbigen Untergrund legen, gutes Licht, keine
+  Schatten über den Preisen. A4-Rechnungen im Hochformat fotografieren.
+  Mehrere Belege können in einem Rutsch ausgewählt werden.
+</div>
+
+{% endblock %}

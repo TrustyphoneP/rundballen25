@@ -44,3 +44,5 @@ django-ratelimit==4.1.0
 
 # CORS
 django-cors-headers==4.3.1
+# Anthropic API (Rechnungsführung: Beleg-Analyse)
+anthropic==0.116.0

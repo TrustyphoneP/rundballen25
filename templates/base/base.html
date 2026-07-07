@@ -213,6 +213,32 @@
            class="nav-link {% if 'voting' in request.resolver_match.app_name %}active{% endif %}">
           <div class="nav-dot"></div> Abstimmung
         </a>
+
+        <div class="section-mono px-2 mb-2 mt-4">Rechnungsführung</div>
+        <a href="{% url 'rechnungen:index' %}" @click="sidebarOpen = false"
+           class="nav-link {% if request.resolver_match.app_name == 'rechnungen' and request.resolver_match.url_name == 'index' or request.resolver_match.app_name == 'rechnungen' and request.resolver_match.url_name == 'detail' %}active{% endif %}">
+          <div class="nav-dot"></div> Belege
+        </a>
+        <a href="{% url 'rechnungen:upload' %}" @click="sidebarOpen = false"
+           class="nav-link {% if request.resolver_match.app_name == 'rechnungen' and request.resolver_match.url_name == 'upload' %}active{% endif %}">
+          <div class="nav-dot"></div> Beleg hochladen
+        </a>
+        <a href="{% url 'rechnungen:preisliste' %}" @click="sidebarOpen = false"
+           class="nav-link {% if request.resolver_match.url_name == 'preisliste' %}active{% endif %}">
+          <div class="nav-dot"></div> Preisliste
+        </a>
+        <a href="{% url 'rechnungen:rezeptkosten' %}" @click="sidebarOpen = false"
+           class="nav-link {% if request.resolver_match.url_name == 'rezeptkosten' %}active{% endif %}">
+          <div class="nav-dot"></div> Rezeptkosten
+        </a>
+        <a href="{% url 'rechnungen:freizeitkosten' %}" @click="sidebarOpen = false"
+           class="nav-link {% if request.resolver_match.url_name == 'freizeitkosten' %}active{% endif %}">
+          <div class="nav-dot"></div> Freizeitkosten
+        </a>
+        <a href="{% url 'rechnungen:preistreiber' %}" @click="sidebarOpen = false"
+           class="nav-link {% if request.resolver_match.url_name == 'preistreiber' %}active{% endif %}">
+          <div class="nav-dot"></div> Preistreiber
+        </a>
         {% endif %}
       </nav>
 

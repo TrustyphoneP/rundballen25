@@ -1,0 +1,79 @@
+{% extends "base/base.html" %}
+{% load rechnungen_tags %}
+{% block title %}Belege – Rechnungsführung{% endblock %}
+{% block page_title %}Belege{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{% url 'rechnungen:upload' %}" class="btn btn-primary">Beleg hochladen</a>
+{% endblock %}
+
+{% block content %}
+
+{% if not camp %}
+<div class="card px-5 py-6 text-sm" style="color:rgba(240,237,232,0.6);">
+  Keine aktive Freizeit vorhanden. Belege werden immer der aktiven Freizeit zugeordnet.
+</div>
+{% else %}
+
+<div class="section-mono mb-5">
+  {{ camp.name }} · {{ belege|length }} Beleg{{ belege|length|pluralize:"e" }}
+  {% if ist_summe %} · Ist-Ausgaben: {{ ist_summe|euro }}{% endif %}
+</div>
+
+{% if belege %}
+<div class="card overflow-hidden">
+  <table>
+    <thead>
+      <tr>
+        <th>Händler</th>
+        <th>Kaufdatum</th>
+        <th>Betrag</th>
+        <th>Positionen</th>
+        <th>Status</th>
+        <th>Hochgeladen</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for beleg in belege %}
+      <tr>
+        <td>
+          <a href="{% url 'rechnungen:detail' pk=beleg.pk %}" class="hover:underline" style="color:#e8a444;">
+            {{ beleg.haendler|default:"(noch nicht analysiert)" }}
+          </a>
+          {% if beleg.notiz %}<div class="text-xs" style="color:rgba(240,237,232,0.4);">{{ beleg.notiz }}</div>{% endif %}
+        </td>
+        <td>{{ beleg.kaufdatum|date:"d.m.Y"|default:"–" }}</td>
+        <td>{{ beleg.gesamtbetrag|euro }}</td>
+        <td>{{ beleg.anzahl_positionen }}</td>
+        <td>
+          {% if beleg.status == "analysiert" %}<span class="badge badge-ok">Analysiert</span>
+          {% elif beleg.status == "geprueft" %}<span class="badge badge-blü">Geprüft</span>
+          {% elif beleg.status == "fehler" %}<span class="badge badge-warn">Fehler</span>
+          {% else %}<span class="badge badge-muted">Neu</span>{% endif %}
+        </td>
+        <td class="text-xs" style="color:rgba(240,237,232,0.45);">
+          {{ beleg.hochgeladen_am|date:"d.m.Y H:i" }}
+          {% if beleg.hochgeladen_von %}· {{ beleg.hochgeladen_von.get_full_name|default:beleg.hochgeladen_von.username }}{% endif %}
+        </td>
+        <td class="text-right">
+          <a href="{% url 'rechnungen:detail' pk=beleg.pk %}" class="btn btn-ghost">Öffnen</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="card px-5 py-10 text-center">
+  <div class="font-display text-lg mb-2">Noch keine Belege</div>
+  <p class="text-sm mb-4" style="color:rgba(240,237,232,0.5);">
+    Fotografiere Kassenbons oder A4-Rechnungen mit dem Handy und lade sie hier hoch.
+    Claude erkennt Artikel, Mengen und Grundpreise automatisch.
+  </p>
+  <a href="{% url 'rechnungen:upload' %}" class="btn btn-primary">Ersten Beleg hochladen</a>
+</div>
+{% endif %}
+
+{% endif %}
+{% endblock %}

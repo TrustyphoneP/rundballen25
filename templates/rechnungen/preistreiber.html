@@ -1,0 +1,110 @@
+{% extends "base/base.html" %}
+{% load rechnungen_tags %}
+{% block title %}Preistreiber – Rechnungsführung{% endblock %}
+{% block page_title %}Preistreiber{% endblock %}
+
+{% block content %}
+
+<div class="section-mono mb-5">
+  Teure Artikel nach Gewicht/Volumen isolieren · größte Kostenblöcke der Freizeit
+</div>
+
+<div class="grid gap-6" style="grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));">
+
+  <!-- €/kg -->
+  <div class="card overflow-hidden">
+    <div class="px-5 py-4 border-b" style="border-color:rgba(240,237,232,0.08);">
+      <div class="font-display text-lg">Teuerste Zutaten je kg</div>
+    </div>
+    <div style="max-height:420px; overflow-y:auto;">
+      <table>
+        <tbody>
+          {% for e in treiber.gewicht %}
+          <tr>
+            <td>{{ e.ingredient.name }}</td>
+            <td class="text-right font-mono whitespace-nowrap">{{ e.preis|euro }} / kg</td>
+          </tr>
+          {% empty %}
+          <tr><td class="text-center" style="color:rgba(240,237,232,0.4);">Keine Gewichtspreise hinterlegt.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- €/l -->
+  <div class="card overflow-hidden">
+    <div class="px-5 py-4 border-b" style="border-color:rgba(240,237,232,0.08);">
+      <div class="font-display text-lg">Teuerste Zutaten je Liter</div>
+    </div>
+    <div style="max-height:420px; overflow-y:auto;">
+      <table>
+        <tbody>
+          {% for e in treiber.volumen %}
+          <tr>
+            <td>{{ e.ingredient.name }}</td>
+            <td class="text-right font-mono whitespace-nowrap">{{ e.preis|euro }} / l</td>
+          </tr>
+          {% empty %}
+          <tr><td class="text-center" style="color:rgba(240,237,232,0.4);">Keine Volumenpreise hinterlegt.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- €/Stk, €/Pck -->
+  <div class="card overflow-hidden">
+    <div class="px-5 py-4 border-b" style="border-color:rgba(240,237,232,0.08);">
+      <div class="font-display text-lg">Teuerste Zutaten je Stück / Packung</div>
+    </div>
+    <div style="max-height:420px; overflow-y:auto;">
+      <table>
+        <tbody>
+          {% for e in treiber.stueck %}
+          <tr>
+            <td>{{ e.ingredient.name }}</td>
+            <td class="text-right font-mono whitespace-nowrap">{{ e.preis|euro }} / {{ e.einheit }}</td>
+          </tr>
+          {% empty %}
+          <tr><td class="text-center" style="color:rgba(240,237,232,0.4);">Keine Stückpreise hinterlegt.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% if camp %}
+<div class="card overflow-hidden mt-6">
+  <div class="px-5 py-4 border-b" style="border-color:rgba(240,237,232,0.08);">
+    <div class="font-display text-lg">Größte Kostenblöcke: {{ camp.name }}</div>
+    <div class="text-xs mt-1" style="color:rgba(240,237,232,0.45);">
+      Menge × Preis über alle drei Lieferungen -- hier lohnt Preisverhandlung
+      oder ein Rezepttausch am meisten.
+    </div>
+  </div>
+  <table>
+    <thead>
+      <tr><th>#</th><th>Zutat</th><th>Menge</th><th>Kategorie</th><th class="text-right">Kosten</th></tr>
+    </thead>
+    <tbody>
+      {% for p in top_positionen %}
+      <tr>
+        <td class="font-mono" style="color:rgba(240,237,232,0.4);">{{ forloop.counter }}</td>
+        <td>{{ p.name }}</td>
+        <td>{{ p.amount|menge:p.unit }}</td>
+        <td class="text-xs" style="color:rgba(240,237,232,0.5);">{{ p.source }}</td>
+        <td class="text-right font-mono">{{ p.kosten|euro }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5" class="text-center" style="color:rgba(240,237,232,0.45);">
+        Noch keine bepreisbaren Positionen -- Wochenplan füllen und Zutatenpreise hinterlegen.
+      </td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{% endblock %}

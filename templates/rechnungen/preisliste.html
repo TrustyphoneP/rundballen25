@@ -1,0 +1,63 @@
+{% extends "base/base.html" %}
+{% load rechnungen_tags %}
+{% block title %}Preisliste – Rechnungsführung{% endblock %}
+{% block page_title %}Preisliste{% endblock %}
+
+{% block content %}
+
+<div class="section-mono mb-4">
+  {{ mit_preis }} von {{ gesamt }} Zutaten mit hinterlegtem Preis
+</div>
+
+<form method="get" class="flex items-center gap-3 mb-5 flex-wrap">
+  <div style="max-width:280px;">
+    <input type="text" name="q" value="{{ q }}" placeholder="Zutat suchen…">
+  </div>
+  <label class="check-label">
+    <input type="checkbox" name="ohne" value="1" {% if nur_ohne %}checked{% endif %}>
+    Nur Zutaten ohne Preis
+  </label>
+  <button type="submit" class="btn btn-ghost">Filtern</button>
+</form>
+
+<div class="card overflow-hidden">
+  <table>
+    <thead>
+      <tr>
+        <th>Zutat</th>
+        <th>Preis</th>
+        <th>Letzte Quelle</th>
+        <th>Preispunkte</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for e in eintraege %}
+      <tr>
+        <td>{{ e.ingredient.name }}</td>
+        <td>
+          {% if e.ingredient.price is not None %}
+            {{ e.ingredient.price|euro }}{% if e.ingredient.price_unit %} / {{ e.ingredient.price_unit }}{% endif %}
+          {% else %}
+            <span class="badge badge-warn">kein Preis</span>
+          {% endif %}
+        </td>
+        <td class="text-xs" style="color:rgba(240,237,232,0.5);">
+          {% if e.letzter %}
+            {{ e.letzter.haendler|default:"manuell" }}
+            {% if e.letzter.kaufdatum %} · {{ e.letzter.kaufdatum|date:"d.m.Y" }}{% endif %}
+          {% else %}–{% endif %}
+        </td>
+        <td>{{ e.anzahl }}</td>
+        <td class="text-right">
+          <a href="{% url 'recipes:ingredient_edit' pk=e.ingredient.pk %}" class="btn btn-ghost">Bearbeiten</a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5" class="text-center" style="color:rgba(240,237,232,0.45);">Keine Zutaten gefunden.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}
