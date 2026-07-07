@@ -409,101 +409,25 @@ def skf_list(request, camp_pk):
     })
 
 
-@login_required
-def skf_briefing_days(request, camp_pk):
-    """Übersicht aller Tage mit SKF-Konflikten."""
-    from apps.meals.models import DayMeal
-    from apps.recipes.models import RecipeIngredient
+def _compute_skf_briefing(dm, skf_participants):
+    """
+    Ermittelt für einen DayMeal (Hauptgericht/Dessert/Salat) und eine Liste
+    von SKF-Teilis/Betreuern (vegan/vegetarisch/halal/koscher/Intoleranzen),
+    welche PERSONEN tatsächlich einen Konflikt mit mindestens einem der
+    Tagesrezepte haben, inklusive der konkreten Zutaten/Allergene.
 
-    camp = get_object_or_404(Camp, pk=camp_pk)
-
-    # All SKF participants
-    skf_participants = list(
-        camp.participants
-        .prefetch_related("intolerances")
-        .filter(
-            Q(is_vegan=True) | Q(is_vegetarian=True) |
-            Q(is_halal=True) | Q(is_kosher=True) |
-            Q(intolerances__isnull=False)
-        )
-        .distinct()
-    )
-    skf_allergen_ids = set()
-    for p in skf_participants:
-        for a in p.intolerances.all():
-            skf_allergen_ids.add(a.pk)
-
-    day_meals = (
-        DayMeal.objects
-        .filter(day__camp=camp)
-        .select_related("day", "main_course", "dessert", "salad")
-        .order_by("day__date")
-    )
-
-    days = []
-    for dm in day_meals:
-        conflict_count = 0
-        for recipe in [dm.main_course, dm.dessert, dm.salad]:
-            if not recipe:
-                continue
-            ingredient_ids = RecipeIngredient.objects.filter(recipe=recipe).values_list("ingredient_id", flat=True)
-            recipe_allergen_ids = set(
-                type(skf_participants[0].intolerances.first()).objects
-                .filter(ingredients__in=ingredient_ids)
-                .values_list("pk", flat=True)
-            ) if skf_participants and skf_participants[0].intolerances.exists() else set()
-            recipe_allergen_ids |= set(recipe.allergens.values_list("pk", flat=True))
-
-            diet_types = set(
-                RecipeIngredient.objects
-                .filter(recipe=recipe)
-                .values_list("ingredient__diet_type", flat=True)
-            )
-            has_meat = "meat" in diet_types
-            has_allergen = bool(skf_allergen_ids & recipe_allergen_ids)
-            if has_meat or has_allergen:
-                conflict_count += 1
-
-        days.append({
-            "day":            dm.day,
-            "dm":             dm,
-            "conflict_count": conflict_count,
-        })
-
-    return render(request, "camps/skf_briefing_days.html", {
-        "camp":              camp,
-        "days":              days,
-        "skf_count":         len(skf_participants),
-    })
-
-
-@login_required
-def skf_briefing_day(request, camp_pk, day_pk):
-    """SKF-Briefing für einen einzelnen Tag."""
-    from apps.meals.models import DayMeal
+    Gibt eine Liste von {"person": ..., "issues": [...]} zurück -- nur für
+    Personen, die WIRKLICH betroffen sind (leere issues werden ausgelassen).
+    Wird sowohl von der Tages-Detailansicht (skf_briefing_day) als auch von
+    der Übersicht (skf_briefing_days) verwendet, damit beide exakt dieselbe
+    Person-für-Person-Logik nutzen, statt sie zweimal leicht unterschiedlich
+    zu implementieren.
+    """
     from apps.recipes.models import RecipeIngredient, Allergen
-    from apps.camps.models import CampDay
-
-    camp    = get_object_or_404(Camp, pk=camp_pk)
-    day     = get_object_or_404(CampDay, pk=day_pk, camp=camp)
-    dm      = getattr(day, "day_meal", None)
-
-    skf_participants = list(
-        camp.participants
-        .prefetch_related("intolerances")
-        .filter(
-            Q(is_vegan=True) | Q(is_vegetarian=True) |
-            Q(is_halal=True) | Q(is_kosher=True) |
-            Q(intolerances__isnull=False)
-        )
-        .distinct()
-        .order_by("last_name", "first_name")
-    )
 
     briefing = []
 
     for p in skf_participants:
-        person_allergen_ids = set(p.intolerances.values_list("pk", flat=True))
         issues = []
 
         if dm:
@@ -538,7 +462,6 @@ def skf_briefing_day(request, camp_pk, day_pk):
                 # Allergen conflicts
                 for allergen in p.intolerances.all():
                     if allergen.pk in recipe_allergen_ids:
-                        # Find the specific ingredients causing the issue
                         bad_ingredients = list(
                             RecipeIngredient.objects
                             .filter(recipe=recipe, ingredient__allergens=allergen)
@@ -596,6 +519,74 @@ def skf_briefing_day(request, camp_pk, day_pk):
                 "person": p,
                 "issues": issues,
             })
+
+    return briefing
+
+
+@login_required
+def skf_briefing_days(request, camp_pk):
+    """Übersicht aller Tage mit SKF-Konflikten."""
+    from apps.meals.models import DayMeal
+
+    camp = get_object_or_404(Camp, pk=camp_pk)
+
+    # All SKF participants
+    skf_participants = list(
+        camp.participants
+        .prefetch_related("intolerances")
+        .filter(
+            Q(is_vegan=True) | Q(is_vegetarian=True) |
+            Q(is_halal=True) | Q(is_kosher=True) |
+            Q(intolerances__isnull=False)
+        )
+        .distinct()
+    )
+
+    day_meals = (
+        DayMeal.objects
+        .filter(day__camp=camp)
+        .select_related("day", "main_course", "dessert", "salad")
+        .order_by("day__date")
+    )
+
+    days = []
+    for dm in day_meals:
+        briefing = _compute_skf_briefing(dm, skf_participants)
+        days.append({
+            "day":            dm.day,
+            "dm":             dm,
+            "conflict_count": len(briefing),  # Anzahl betroffener Personen, nicht Rezepte
+        })
+
+    return render(request, "camps/skf_briefing_days.html", {
+        "camp":              camp,
+        "days":              days,
+        "skf_count":         len(skf_participants),
+    })
+
+
+@login_required
+def skf_briefing_day(request, camp_pk, day_pk):
+    """SKF-Briefing für einen einzelnen Tag."""
+    from apps.camps.models import CampDay
+
+    camp    = get_object_or_404(Camp, pk=camp_pk)
+    day     = get_object_or_404(CampDay, pk=day_pk, camp=camp)
+    dm      = getattr(day, "day_meal", None)
+
+    skf_participants = list(
+        camp.participants
+        .prefetch_related("intolerances")
+        .filter(
+            Q(is_vegan=True) | Q(is_vegetarian=True) |
+            Q(is_halal=True) | Q(is_kosher=True) |
+            Q(intolerances__isnull=False)
+        )
+        .distinct()
+        .order_by("last_name", "first_name")
+    )
+
+    briefing = _compute_skf_briefing(dm, skf_participants)
 
     return render(request, "camps/skf_briefing_day.html", {
         "camp":     camp,
