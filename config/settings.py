@@ -197,7 +197,7 @@ EMAIL_USE_TLS = True
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="rundballen25@example.com")
 
 # ---------------------------------------------------------------------------
-# Anthropic API (Rechnungsführung: Beleg-Analyse per Claude)
+# Analyse-API (Rechnungsführung: automatische Beleg-Analyse)
 # ---------------------------------------------------------------------------
 # API-Key unter https://platform.claude.com erstellen und in der .env
 # hinterlegen. Ohne Key funktionieren Upload und manuelle Preispflege

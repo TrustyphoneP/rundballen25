@@ -13,6 +13,10 @@ urlpatterns = [
     path("beleg/<int:pk>/alle-uebernehmen/",    views.alle_uebernehmen,       name="alle_uebernehmen"),
     path("position/<int:pk>/aktualisieren/",    views.position_aktualisieren, name="position_aktualisieren"),
     path("position/<int:pk>/loeschen/",         views.position_loeschen,      name="position_loeschen"),
+    path("beleg/<int:pk>/kategorie/",           views.beleg_kategorie,        name="beleg_kategorie"),
+
+    path("kategorien/",                         views.kategorien,             name="kategorien"),
+    path("kategorien/<int:pk>/loeschen/",       views.kategorie_loeschen,     name="kategorie_loeschen"),
 
     path("preisliste/",                         views.preisliste,             name="preisliste"),
     path("rezeptkosten/",                       views.rezeptkosten,           name="rezeptkosten"),

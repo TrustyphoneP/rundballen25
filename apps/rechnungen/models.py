@@ -2,10 +2,14 @@
 rechnungen – Rechnungsführung
 
 Belege (Kassenbons und A4-Rechnungen) werden als Handyfoto hochgeladen,
-per Claude API analysiert und in Positionen mit Grundpreisen zerlegt.
+automatisch analysiert und in Positionen mit Grundpreisen zerlegt.
 Die Grundpreise können in die Zutaten-Stammdaten (Ingredient.price)
 übernommen werden und speisen so die Kostenkalkulation für Rezepte,
 Lieferungen und ganze Freizeiten.
+
+Jeder Beleg gehört zu einer Kostenkategorie (Abendessen, SKF-Alternativen,
+Betreueressen usw.), sodass sich die Ist-Ausgaben je Kategorie auswerten
+lassen. Kategorien sind Stammdaten und können erweitert werden.
 
 Die Preishistorie hält fest, welcher Preis wann von welchem Beleg kam,
 damit Preisentwicklungen nachvollziehbar bleiben.
@@ -15,6 +19,25 @@ from decimal import Decimal
 from django.db import models
 
 from apps.recipes.models import Ingredient
+
+
+class Kostenkategorie(models.Model):
+    """
+    Kostenpunkt für die Zuordnung von Belegen (z.B. Abendessen,
+    Frühstück/Mittagessen, SKF-Alternativen, Betreueressen, Allgemein).
+    Über die Kategoriekosten-Seite erweiterbar.
+    """
+
+    name = models.CharField(max_length=100, unique=True, verbose_name="Name")
+    sortierung = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["sortierung", "name"]
+        verbose_name = "Kostenkategorie"
+        verbose_name_plural = "Kostenkategorien"
+
+    def __str__(self):
+        return self.name
 
 
 class Beleg(models.Model):
@@ -29,6 +52,11 @@ class Beleg(models.Model):
     camp = models.ForeignKey(
         "camps.Camp", on_delete=models.CASCADE,
         related_name="belege", verbose_name="Freizeit",
+    )
+    kategorie = models.ForeignKey(
+        Kostenkategorie, on_delete=models.PROTECT,
+        null=True, blank=True, related_name="belege",
+        verbose_name="Kostenkategorie",
     )
     image = models.ImageField(
         upload_to="belege/%Y/%m/",

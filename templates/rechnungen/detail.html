@@ -22,6 +22,7 @@
 
 <div class="section-mono mb-4">
   {{ beleg.camp.name }}
+  {% if beleg.kategorie %} · {{ beleg.kategorie.name }}{% endif %}
   {% if beleg.kaufdatum %} · Kaufdatum {{ beleg.kaufdatum|date:"d.m.Y" }}{% endif %}
   {% if beleg.gesamtbetrag %} · Gesamtbetrag {{ beleg.gesamtbetrag|euro }}{% endif %}
   · Status:
@@ -48,6 +49,19 @@
         <img src="{{ beleg.image.url }}" alt="Belegfoto"
              style="width:100%; display:block; max-height:70vh; object-fit:contain; background:rgba(0,0,0,0.25);">
       </a>
+    </div>
+    <div class="card px-4 py-4 mt-3">
+      <div class="section-mono mb-2">Kostenkategorie</div>
+      <form method="post" action="{% url 'rechnungen:beleg_kategorie' pk=beleg.pk %}" class="flex items-center gap-2">
+        {% csrf_token %}
+        <select name="kategorie">
+          <option value="">– keine –</option>
+          {% for k in kategorien %}
+          <option value="{{ k.pk }}" {% if beleg.kategorie_id == k.pk %}selected{% endif %}>{{ k.name }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-ghost">Setzen</button>
+      </form>
     </div>
     <div class="mt-3 flex items-center gap-2">
       <form method="post" action="{% url 'rechnungen:loeschen' pk=beleg.pk %}"

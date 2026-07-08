@@ -1,6 +1,6 @@
 from django import forms
 
-from .models import Beleg
+from .models import Beleg, Kostenkategorie
 
 
 class MultipleFileInput(forms.ClearableFileInput):
@@ -34,9 +34,16 @@ class BelegUploadForm(forms.Form):
         help_text="Handyfotos von Kassenbons oder A4-Rechnungen (JPG/PNG/HEIC-als-JPG). "
                   "Mehrere Dateien gleichzeitig möglich.",
     )
+    kategorie = forms.ModelChoiceField(
+        queryset=Kostenkategorie.objects.all(),
+        label="Kostenkategorie",
+        empty_label="– Kategorie wählen –",
+        help_text="Gilt für alle Belege dieses Uploads. Neue Kategorien "
+                  "lassen sich unter Kategoriekosten anlegen.",
+    )
     sofort_analysieren = forms.BooleanField(
         required=False, initial=True,
-        label="Direkt per Claude analysieren",
+        label="Direkt analysieren",
         help_text="Dauert wenige Sekunden pro Beleg. Kann auch später "
                   "einzeln angestoßen werden.",
     )
@@ -44,6 +51,15 @@ class BelegUploadForm(forms.Form):
         required=False, max_length=300, label="Notiz",
         widget=forms.TextInput(attrs={"placeholder": "z.B. Großeinkauf Lieferung 1"}),
     )
+
+
+class KostenkategorieForm(forms.ModelForm):
+    class Meta:
+        model = Kostenkategorie
+        fields = ["name"]
+        widgets = {
+            "name": forms.TextInput(attrs={"placeholder": "z.B. Ausflüge"}),
+        }
 
 
 class BelegNotizForm(forms.ModelForm):

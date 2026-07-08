@@ -22,8 +22,17 @@
     {% endif %}
 
     <div class="mt-5">
+      <label class="block text-sm mb-2" for="{{ form.kategorie.id_for_label }}">Kostenkategorie</label>
+      {{ form.kategorie }}
+      <p class="text-xs mt-1" style="color:rgba(240,237,232,0.45);">{{ form.kategorie.help_text }}</p>
+      {% if form.kategorie.errors %}
+      <div class="flash flash-error mt-2">{{ form.kategorie.errors|join:" " }}</div>
+      {% endif %}
+    </div>
+
+    <div class="mt-5">
       <label class="check-label">
-        {{ form.sofort_analysieren }} Direkt per Claude analysieren
+        {{ form.sofort_analysieren }} Direkt analysieren
       </label>
       <p class="text-xs mt-1" style="color:rgba(240,237,232,0.45);">
         {{ form.sofort_analysieren.help_text }}

@@ -1,6 +1,13 @@
 from django.contrib import admin
 
-from .models import Beleg, BelegPosition, Preishistorie
+from .models import Beleg, BelegPosition, Kostenkategorie, Preishistorie
+
+
+@admin.register(Kostenkategorie)
+class KostenkategorieAdmin(admin.ModelAdmin):
+    list_display = ["name", "sortierung"]
+    list_editable = ["sortierung"]
+    search_fields = ["name"]
 
 
 class BelegPositionInline(admin.TabularInline):
@@ -17,10 +24,10 @@ class BelegPositionInline(admin.TabularInline):
 @admin.register(Beleg)
 class BelegAdmin(admin.ModelAdmin):
     list_display = [
-        "pk", "camp", "haendler", "kaufdatum", "gesamtbetrag",
+        "pk", "camp", "kategorie", "haendler", "kaufdatum", "gesamtbetrag",
         "status", "hochgeladen_von", "hochgeladen_am",
     ]
-    list_filter = ["status", "camp"]
+    list_filter = ["status", "kategorie", "camp"]
     search_fields = ["haendler", "notiz"]
     readonly_fields = ["analyse_rohdaten", "analyse_fehler", "analysiert_am", "hochgeladen_am"]
     inlines = [BelegPositionInline]

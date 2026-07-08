@@ -1,7 +1,7 @@
 """
 apps/rechnungen/views.py – Rechnungsführung
 
-Belege hochladen, per Claude analysieren, Positionen prüfen und
+Belege hochladen, automatisch analysieren, Positionen prüfen und
 Grundpreise in die Zutaten-Stammdaten übernehmen. Darauf aufbauend:
 Preisliste, Rezeptkosten, Freizeitkosten und Preistreiber.
 """
@@ -18,8 +18,8 @@ from apps.camps.models import Camp
 from apps.recipes.models import Ingredient
 
 from . import services
-from .forms import BelegUploadForm
-from .models import Beleg, BelegPosition, Preishistorie
+from .forms import BelegUploadForm, KostenkategorieForm
+from .models import Beleg, BelegPosition, Kostenkategorie, Preishistorie
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ def index(request):
     if camp:
         belege = (
             Beleg.objects.filter(camp=camp)
-            .select_related("hochgeladen_von")
+            .select_related("hochgeladen_von", "kategorie")
             .annotate(anzahl_positionen=Count("positionen"))
         )
         ist_summe = belege.aggregate(s=Sum("gesamtbetrag"))["s"]
@@ -66,6 +66,7 @@ def upload(request):
     form = BelegUploadForm(request.POST or None, request.FILES or None)
     if request.method == "POST" and form.is_valid():
         bilder = request.FILES.getlist("bilder")
+        kategorie = form.cleaned_data["kategorie"]
         sofort = form.cleaned_data["sofort_analysieren"]
         notiz = form.cleaned_data["notiz"]
 
@@ -73,6 +74,7 @@ def upload(request):
         for bild in bilder:
             beleg = Beleg.objects.create(
                 camp=camp,
+                kategorie=kategorie,
                 image=bild,
                 notiz=notiz,
                 hochgeladen_von=request.user,
@@ -122,7 +124,26 @@ def detail(request, pk):
         "differenz":     differenz,
         "einheiten":     Ingredient.Unit.choices,
         "grundpreis_einheiten": BelegPosition.GrundpreisEinheit.choices,
+        "kategorien":    Kostenkategorie.objects.all(),
     })
+
+
+@login_required
+@require_POST
+def beleg_kategorie(request, pk):
+    """Ändert die Kostenkategorie eines Belegs."""
+    beleg = get_object_or_404(Beleg, pk=pk)
+    kategorie_id = request.POST.get("kategorie")
+    if kategorie_id:
+        kategorie = get_object_or_404(Kostenkategorie, pk=kategorie_id)
+        beleg.kategorie = kategorie
+        beleg.save(update_fields=["kategorie"])
+        messages.success(request, f"Kategorie auf '{kategorie.name}' gesetzt.")
+    else:
+        beleg.kategorie = None
+        beleg.save(update_fields=["kategorie"])
+        messages.success(request, "Kategorie entfernt.")
+    return redirect("rechnungen:detail", pk=beleg.pk)
 
 
 @login_required
@@ -263,6 +284,72 @@ def alle_uebernehmen(request, pk):
 
 
 # ---------------------------------------------------------------------------
+# Kategoriekosten: Ist-Ausgaben je Kostenkategorie, Kategorien verwalten
+# ---------------------------------------------------------------------------
+
+@login_required
+def kategorien(request):
+    """
+    Ist-Kosten der aktiven Freizeit je Kostenkategorie (Summe der
+    Beleg-Gesamtbeträge) plus Verwaltung: neue Kostenpunkte anlegen,
+    unbenutzte löschen.
+    """
+    camp = _aktive_freizeit()
+
+    form = KostenkategorieForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        kategorie = form.save(commit=False)
+        max_sort = Kostenkategorie.objects.order_by("-sortierung").first()
+        kategorie.sortierung = (max_sort.sortierung + 10) if max_sort else 10
+        kategorie.save()
+        messages.success(request, f"Kostenkategorie '{kategorie.name}' angelegt.")
+        return redirect("rechnungen:kategorien")
+
+    eintraege = []
+    gesamt = Decimal("0")
+    for kategorie in Kostenkategorie.objects.all():
+        belege = kategorie.belege.filter(camp=camp) if camp else kategorie.belege.none()
+        summe = belege.aggregate(s=Sum("gesamtbetrag"))["s"] or Decimal("0")
+        anzahl = belege.count()
+        gesamt += summe
+        eintraege.append({
+            "kategorie": kategorie,
+            "summe":     summe,
+            "anzahl":    anzahl,
+            "loeschbar": not kategorie.belege.exists(),
+        })
+
+    ohne = Beleg.objects.filter(camp=camp, kategorie__isnull=True) if camp else Beleg.objects.none()
+    ohne_summe = ohne.aggregate(s=Sum("gesamtbetrag"))["s"] or Decimal("0")
+    gesamt += ohne_summe
+
+    return render(request, "rechnungen/kategorien.html", {
+        "camp":        camp,
+        "eintraege":   eintraege,
+        "ohne_anzahl": ohne.count(),
+        "ohne_summe":  ohne_summe,
+        "gesamt":      gesamt,
+        "form":        form,
+    })
+
+
+@login_required
+@require_POST
+def kategorie_loeschen(request, pk):
+    kategorie = get_object_or_404(Kostenkategorie, pk=pk)
+    if kategorie.belege.exists():
+        messages.error(
+            request,
+            f"'{kategorie.name}' hat zugeordnete Belege und kann nicht gelöscht werden.",
+        )
+    else:
+        name = kategorie.name
+        kategorie.delete()
+        messages.success(request, f"Kostenkategorie '{name}' gelöscht.")
+    return redirect("rechnungen:kategorien")
+
+
+# ---------------------------------------------------------------------------
 # Preisliste
 # ---------------------------------------------------------------------------
 
@@ -280,8 +367,8 @@ def preisliste(request):
     eintraege = []
     mit_preis = 0
     for ing in zutaten:
-        # Prefetch nutzen statt zu slicen -- .all()[:1] wuerde pro Zutat
-        # eine neue Query ausloesen. Historie ist per Meta absteigend sortiert.
+        # Prefetch nutzen statt zu slicen -- .all()[:1] würde pro Zutat
+        # eine neue Query auslösen. Historie ist per Meta absteigend sortiert.
         historie = list(ing.preishistorie.all())
         letzter = historie[0] if historie else None
         if ing.price is not None:

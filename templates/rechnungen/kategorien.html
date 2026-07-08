@@ -1,0 +1,94 @@
+{% extends "base/base.html" %}
+{% load rechnungen_tags %}
+{% block title %}Kategoriekosten – Rechnungsführung{% endblock %}
+{% block page_title %}Kategoriekosten{% endblock %}
+
+{% block content %}
+
+<div class="section-mono mb-5">
+  {% if camp %}{{ camp.name }} · {% endif %}Ist-Ausgaben je Kostenkategorie
+  (Summe der Beleg-Gesamtbeträge)
+</div>
+
+{% if not camp %}
+<div class="flash flash-warning">
+  Keine aktive Freizeit -- es werden keine Beleg-Summen angezeigt.
+  Kategorien können trotzdem verwaltet werden.
+</div>
+{% endif %}
+
+<div class="grid gap-6" style="grid-template-columns: minmax(340px, 1fr) minmax(280px, 380px);">
+
+  <!-- Kosten je Kategorie -->
+  <div class="card overflow-hidden">
+    <table>
+      <thead>
+        <tr>
+          <th>Kategorie</th>
+          <th>Belege</th>
+          <th class="text-right">Ist-Kosten</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in eintraege %}
+        <tr>
+          <td>{{ e.kategorie.name }}</td>
+          <td>{{ e.anzahl }}</td>
+          <td class="text-right font-mono">{{ e.summe|euro }}</td>
+          <td class="text-right">
+            {% if e.loeschbar %}
+            <form method="post" action="{% url 'rechnungen:kategorie_loeschen' pk=e.kategorie.pk %}"
+                  onsubmit="return confirm('Kategorie {{ e.kategorie.name }} löschen?');" style="display:inline;">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-ghost" title="Kategorie löschen">✕</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+        {% if ohne_anzahl %}
+        <tr>
+          <td style="color:rgba(240,237,232,0.5);">
+            Ohne Kategorie
+            <span class="badge badge-warn ml-1">zuordnen!</span>
+          </td>
+          <td>{{ ohne_anzahl }}</td>
+          <td class="text-right font-mono">{{ ohne_summe|euro }}</td>
+          <td></td>
+        </tr>
+        {% endif %}
+      </tbody>
+      <tfoot>
+        <tr style="border-top:1px solid rgba(240,237,232,0.15);">
+          <td class="font-display">Gesamt</td>
+          <td></td>
+          <td class="text-right font-mono font-display">{{ gesamt|euro }}</td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <!-- Neue Kategorie anlegen -->
+  <div>
+    <div class="card px-5 py-5">
+      <div class="font-display text-lg mb-3">Neuen Kostenpunkt anlegen</div>
+      <form method="post">
+        {% csrf_token %}
+        {{ form.name }}
+        {% if form.name.errors %}
+        <div class="flash flash-error mt-2">{{ form.name.errors|join:" " }}</div>
+        {% endif %}
+        <button type="submit" class="btn btn-primary mt-3">Anlegen</button>
+      </form>
+      <p class="text-xs mt-4" style="color:rgba(240,237,232,0.45);">
+        Neue Kategorien stehen sofort beim Beleg-Upload und in der
+        Kategorie-Auswahl am Beleg zur Verfügung. Löschen ist nur möglich,
+        solange keine Belege zugeordnet sind.
+      </p>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

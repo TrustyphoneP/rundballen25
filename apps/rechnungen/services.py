@@ -1,11 +1,11 @@
 """
-apps/rechnungen/services.py – Beleg-Analyse per Claude API & Kostenrechnung
+apps/rechnungen/services.py – automatische Beleg-Analyse & Kostenrechnung
 
 Ablauf der Analyse:
 1. Belegfoto vorverarbeiten (EXIF-Drehung, Skalierung; sehr lange Kassenbons
    werden in überlappende Segmente geschnitten, damit die kleine Bonschrift
    für das Modell lesbar bleibt).
-2. Claude API (Vision) extrahiert Händler, Datum, Gesamtbetrag und alle
+2. Die Analyse-API (Vision) extrahiert Händler, Datum, Gesamtbetrag und alle
    Positionen als striktes JSON, inklusive Grundpreis (€/kg, €/l, €/Stk)
    und Vorschlag für die passende Zutat aus den Stammdaten.
 3. Antwort wird serverseitig validiert, fehlende Grundpreise werden aus
@@ -168,7 +168,7 @@ def bereite_bilder_vor(beleg):
 
 
 # ---------------------------------------------------------------------------
-# Claude API
+# Analyse-API
 # ---------------------------------------------------------------------------
 
 _SYSTEM_PROMPT = (
@@ -176,7 +176,7 @@ _SYSTEM_PROMPT = (
     "von Kinderferienfreizeiten. Du bekommst Fotos von deutschen Kassenbons "
     "oder A4-Rechnungen (bei langen Bons ggf. in überlappenden Segmenten "
     "desselben Belegs) und extrahierst alle Positionen als striktes JSON. "
-    "Antworte AUSSCHLIESSLICH mit einem JSON-Objekt, ohne Markdown, ohne "
+    "Antworte ausschließlich mit einem JSON-Objekt, ohne Markdown, ohne "
     "Erklärtext, ohne Codeblock-Zäune."
 )
 
@@ -224,10 +224,10 @@ Bekannte Zutaten der Stammdaten:
 {zutaten_liste}"""
 
 
-def _call_claude(bilder_b64, prompt):
+def _rufe_analyse_api(bilder_b64, prompt):
     """
-    Ruft die Claude API (Messages API) mit den Belegbildern auf und gibt
-    den Antworttext zurück. In Tests wird diese Funktion gemockt.
+    Ruft die Analyse-API mit den Belegbildern auf und gibt den
+    Antworttext zurück. In Tests wird diese Funktion gemockt.
     """
     import anthropic
 
@@ -314,7 +314,7 @@ def analysiere_beleg(beleg, user=None):
         zutaten_namen = list(
             Ingredient.objects.order_by("name").values_list("name", flat=True)
         )
-        antwort_text = _call_claude(bilder, _baue_prompt(zutaten_namen))
+        antwort_text = _rufe_analyse_api(bilder, _baue_prompt(zutaten_namen))
         daten = _parse_json_antwort(antwort_text)
     except Exception as exc:
         logger.exception("Beleg-Analyse fehlgeschlagen (Beleg %s)", beleg.pk)
@@ -429,8 +429,8 @@ def uebernehme_position(position, user=None):
     preis = preis.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
     # Hinweis: Ingredient.price hat 4 Nachkommastellen. Wird eine Zutat nur
     # in g/ml verwendet, leitet derive_price_unit "g"/"ml" ab und der Preis
-    # wird je Gramm gespeichert -- Aufloesung damit 0,1 €/kg. Fuer die
-    # Budgetierung unkritisch; die Preishistorie unten haelt den exakten
+    # wird je Gramm gespeichert -- Auflösung damit 0,1 €/kg. Für die
+    # Budgetierung unkritisch; die Preishistorie unten hält den exakten
     # Grundpreis in seiner Original-Einheit fest, es geht nichts verloren.
     ing.price = preis
     ing.save()  # save() leitet price_unit automatisch ab

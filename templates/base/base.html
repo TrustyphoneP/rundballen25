@@ -223,6 +223,10 @@
            class="nav-link {% if request.resolver_match.app_name == 'rechnungen' and request.resolver_match.url_name == 'upload' %}active{% endif %}">
           <div class="nav-dot"></div> Beleg hochladen
         </a>
+        <a href="{% url 'rechnungen:kategorien' %}" @click="sidebarOpen = false"
+           class="nav-link {% if request.resolver_match.url_name == 'kategorien' %}active{% endif %}">
+          <div class="nav-dot"></div> Kategoriekosten
+        </a>
         <a href="{% url 'rechnungen:preisliste' %}" @click="sidebarOpen = false"
            class="nav-link {% if request.resolver_match.url_name == 'preisliste' %}active{% endif %}">
           <div class="nav-dot"></div> Preisliste
