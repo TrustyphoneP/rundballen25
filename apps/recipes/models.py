@@ -122,12 +122,18 @@ FIXED_FRUEHSTUECK_UNITS = {
     "Salamiaufschnitt":      "g",
     "Fleischkäseaufschnitt": "g",
     "Fleischwurstaufschnitt":"g",
-    # Obst (used in FruitConfig block)
-    "Äpfel":                 "Stk",
-    "Bananen":               "Stk",
-    "Wassermelone":          "Stk",
-    "Nektarinen":            "Stk",
 }
+
+# Zuordnung Zutatenname -> FruitConfig-Feldpräfix (amount_<x> / weight_<x>).
+# "Wassermelone" ist bewusst dem Feldpräfix "birne" zugeordnet -- historisch
+# gewachsener Feldname in FruitConfig.
+OBST_FELD_PRAEFIX = {
+    "Äpfel":        "apfel",
+    "Bananen":      "banane",
+    "Wassermelone": "birne",
+    "Nektarinen":   "nektarine",
+}
+
 
 
 class Ingredient(models.Model):
@@ -236,20 +242,40 @@ class Ingredient(models.Model):
         from apps.meals.models import GeneralIngredient
         return GeneralIngredient.objects.filter(ingredient=self)
 
+    def _obst_einheiten_used(self):
+        """
+        Für Obst-Zutaten (Äpfel, Bananen, Wassermelone, Nektarinen):
+        ermittelt über ALLE Freizeiten (FruitConfig), ob "Stk" und/oder
+        "kg" TATSÄCHLICH irgendwo verwendet werden, statt pauschal eine
+        feste Einheit anzunehmen. Nur Felder mit einem Wert > 0 in
+        mindestens einer Freizeit zählen als verwendet.
+        """
+        feld = OBST_FELD_PRAEFIX.get(self.name)
+        if feld is None:
+            return []
+        from apps.meals.models import FruitConfig
+        einheiten = []
+        if FruitConfig.objects.filter(**{f"amount_{feld}__gt": 0}).exists():
+            einheiten.append("Stk")
+        if FruitConfig.objects.filter(**{f"weight_{feld}__gt": 0}).exists():
+            einheiten.append("kg")
+        return einheiten
+
     def all_units_used(self):
         """
         Alle tatsächlich verwendeten Einheiten dieser Zutat, aus Rezepten,
-        aus Allgemein/Betreueressen/Alternative, UND aus den fest
-        hinterlegten Frühstück/Mittag-Posten (FIXED_FRUEHSTUECK_UNITS)
-        zusammen, als distinkte Liste. Wird für die "uneinheitlich
-        verwendet (...)"-Warnung in Admin und Zutatenverwaltung genutzt,
-        damit dort wirklich ALLE Quellen auftauchen, nicht nur Rezepte.
+        aus Allgemein/Betreueressen/Alternative, aus den fest hinterlegten
+        Frühstück/Mittag-Posten (FIXED_FRUEHSTUECK_UNITS) UND aus den
+        Obst-Feldern in FruitConfig (dynamisch, siehe
+        _obst_einheiten_used) zusammen, als distinkte Liste.
         """
         recipe_units = list(self.recipe_uses_for_pricing().values_list("unit", flat=True).distinct())
         general_units = list(self.general_uses_for_pricing().values_list("unit", flat=True).distinct())
         fixed_unit = FIXED_FRUEHSTUECK_UNITS.get(self.name)
         fixed_units = [fixed_unit] if fixed_unit else []
-        return list(dict.fromkeys(recipe_units + general_units + fixed_units))
+        obst_units = self._obst_einheiten_used()
+        return list(dict.fromkeys(recipe_units + general_units + fixed_units + obst_units))
+
 
     def save(self, *args, **kwargs):
         # price_unit wird nicht manuell gepflegt, sondern automatisch aus den
