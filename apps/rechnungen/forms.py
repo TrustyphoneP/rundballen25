@@ -36,10 +36,18 @@ class BelegUploadForm(forms.Form):
     )
     kategorie = forms.ModelChoiceField(
         queryset=Kostenkategorie.objects.all(),
-        label="Kostenkategorie",
-        empty_label="– Kategorie wählen –",
-        help_text="Gilt für alle Belege dieses Uploads. Neue Kategorien "
-                  "lassen sich unter Kategoriekosten anlegen.",
+        required=False,
+        label="Kostenkategorie (optional)",
+        empty_label="– keine Kategorie –",
+        help_text="Ordnet die Ist-Kosten dieses Belegs einer Kategorie zu. "
+                  "Gilt für alle Belege dieses Uploads und kann am Beleg "
+                  "jederzeit geändert werden.",
+    )
+    nur_preiserfassung = forms.BooleanField(
+        required=False,
+        label="Nicht für aktuelle Freizeit",
+        help_text="Nur zur Preiserfassung, z.B. alte Belege vergangener "
+                  "Einkäufe. Zählt nicht zu den Ist-Kosten der Freizeit.",
     )
     sofort_analysieren = forms.BooleanField(
         required=False, initial=True,

@@ -42,10 +42,11 @@
           <a href="{% url 'rechnungen:detail' pk=beleg.pk %}" class="hover:underline" style="color:#e8a444;">
             {{ beleg.haendler|default:"(noch nicht analysiert)" }}
           </a>
+          {% if beleg.nur_preiserfassung %}<span class="badge badge-muted ml-1" title="Zählt nicht zu den Ist-Kosten">Preiserfassung</span>{% endif %}
           {% if beleg.notiz %}<div class="text-xs" style="color:rgba(240,237,232,0.4);">{{ beleg.notiz }}</div>{% endif %}
         </td>
         <td>
-          {% if beleg.kategorie %}{{ beleg.kategorie.name }}{% else %}<span class="badge badge-warn">ohne</span>{% endif %}
+          {% if beleg.kategorie %}{{ beleg.kategorie.name }}{% else %}<span style="color:rgba(240,237,232,0.35);">–</span>{% endif %}
         </td>
         <td>{{ beleg.kaufdatum|date:"d.m.Y"|default:"–" }}</td>
         <td>{{ beleg.gesamtbetrag|euro }}</td>

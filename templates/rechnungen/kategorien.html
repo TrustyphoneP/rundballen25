@@ -6,68 +6,122 @@
 {% block content %}
 
 <div class="section-mono mb-5">
-  {% if camp %}{{ camp.name }} · {% endif %}Ist-Ausgaben je Kostenkategorie
-  (Summe der Beleg-Gesamtbeträge)
+  {% if camp %}{{ camp.name }} · {% endif %}Tatsächliche Ausgaben aus Belegen,
+  darunter die Vorkalkulation aus Einkaufsliste und Zutatenpreisen
 </div>
 
 {% if not camp %}
 <div class="flash flash-warning">
-  Keine aktive Freizeit -- es werden keine Beleg-Summen angezeigt.
+  Keine aktive Freizeit -- es werden keine Summen angezeigt.
   Kategorien können trotzdem verwaltet werden.
 </div>
 {% endif %}
 
 <div class="grid gap-6" style="grid-template-columns: minmax(340px, 1fr) minmax(280px, 380px);">
 
-  <!-- Kosten je Kategorie -->
-  <div class="card overflow-hidden">
-    <table>
-      <thead>
-        <tr>
-          <th>Kategorie</th>
-          <th>Belege</th>
-          <th class="text-right">Ist-Kosten</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for e in eintraege %}
-        <tr>
-          <td>{{ e.kategorie.name }}</td>
-          <td>{{ e.anzahl }}</td>
-          <td class="text-right font-mono">{{ e.summe|euro }}</td>
-          <td class="text-right">
-            {% if e.loeschbar %}
-            <form method="post" action="{% url 'rechnungen:kategorie_loeschen' pk=e.kategorie.pk %}"
-                  onsubmit="return confirm('Kategorie {{ e.kategorie.name }} löschen?');" style="display:inline;">
-              {% csrf_token %}
-              <button type="submit" class="btn btn-ghost" title="Kategorie löschen">✕</button>
-            </form>
-            {% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-        {% if ohne_anzahl %}
-        <tr>
-          <td style="color:rgba(240,237,232,0.5);">
-            Ohne Kategorie
-            <span class="badge badge-warn ml-1">zuordnen!</span>
-          </td>
-          <td>{{ ohne_anzahl }}</td>
-          <td class="text-right font-mono">{{ ohne_summe|euro }}</td>
-          <td></td>
-        </tr>
+  <div>
+    <!-- 1. Ist-Kosten aus Belegen (führend) -->
+    <div class="card overflow-hidden">
+      <div class="px-5 py-4 border-b" style="border-color:rgba(240,237,232,0.08);">
+        <div class="font-display text-lg">Ist-Kosten nach Kategorie</div>
+        <div class="text-xs mt-1" style="color:rgba(240,237,232,0.45);">
+          Summe der Beleg-Gesamtbeträge -- die tatsächlichen Ausgaben der Freizeit.
+          Die Kategorie wird beim Beleg-Upload optional gesetzt und kann am
+          Beleg jederzeit geändert werden.
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Kategorie</th>
+            <th>Belege</th>
+            <th class="text-right">Ist-Kosten</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in eintraege %}
+          <tr>
+            <td>{{ e.kategorie.name }}</td>
+            <td>{{ e.anzahl }}</td>
+            <td class="text-right font-mono">{{ e.summe|euro }}</td>
+            <td class="text-right">
+              {% if e.loeschbar %}
+              <form method="post" action="{% url 'rechnungen:kategorie_loeschen' pk=e.kategorie.pk %}"
+                    onsubmit="return confirm('Kategorie {{ e.kategorie.name }} löschen?');" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-ghost" title="Kategorie löschen">✕</button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+          {% if ohne_anzahl %}
+          <tr>
+            <td style="color:rgba(240,237,232,0.5);">Ohne Kategorie</td>
+            <td>{{ ohne_anzahl }}</td>
+            <td class="text-right font-mono">{{ ohne_summe|euro }}</td>
+            <td></td>
+          </tr>
+          {% endif %}
+        </tbody>
+        <tfoot>
+          <tr style="border-top:1px solid rgba(240,237,232,0.15);">
+            <td class="font-display">Ist gesamt</td>
+            <td></td>
+            <td class="text-right font-mono font-display">{{ ist_gesamt|euro }}</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <!-- 2. Vorkalkulation aus der Einkaufsliste (Übersicht) -->
+    <div class="card overflow-hidden mt-6">
+      <div class="px-5 py-4 border-b" style="border-color:rgba(240,237,232,0.08);">
+        <div class="font-display text-lg">Vorkalkulation nach Einkaufsliste</div>
+        <div class="text-xs mt-1" style="color:rgba(240,237,232,0.45);">
+          Zutatenpreis mal Menge, gruppiert nach der Kategorie der
+          Einkaufsliste -- reine Planungsübersicht, unabhängig von den
+          Belegen oben.
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Einkaufslisten-Kategorie</th>
+            <th class="text-right">Vorkalkulation</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for quelle, betrag in plan_quellen %}
+          <tr>
+            <td>{{ quelle }}</td>
+            <td class="text-right font-mono">{{ betrag|euro }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="2" class="text-center" style="color:rgba(240,237,232,0.45);">
+            Noch keine bepreisbaren Positionen -- Wochenplan füllen und
+            Zutatenpreise hinterlegen.
+          </td></tr>
+          {% endfor %}
+        </tbody>
+        {% if plan_quellen %}
+        <tfoot>
+          <tr style="border-top:1px solid rgba(240,237,232,0.15);">
+            <td class="font-display">Plan gesamt</td>
+            <td class="text-right font-mono font-display">{{ plan_summe|euro }}</td>
+          </tr>
+        </tfoot>
         {% endif %}
-      </tbody>
-      <tfoot>
-        <tr style="border-top:1px solid rgba(240,237,232,0.15);">
-          <td class="font-display">Gesamt</td>
-          <td></td>
-          <td class="text-right font-mono font-display">{{ gesamt|euro }}</td>
-          <td></td>
-        </tr>
-      </tfoot>
-    </table>
+      </table>
+      {% if plan_ohne_preis %}
+      <div class="px-5 py-3 text-xs border-t" style="border-color:rgba(240,237,232,0.08); color:rgba(240,237,232,0.45);">
+        {{ plan_ohne_preis|length }} Zutat(en) ohne Preis fehlen in der
+        Vorkalkulation: {{ plan_ohne_preis|join:", " }}
+      </div>
+      {% endif %}
+    </div>
   </div>
 
   <!-- Neue Kategorie anlegen -->
@@ -83,9 +137,10 @@
         <button type="submit" class="btn btn-primary mt-3">Anlegen</button>
       </form>
       <p class="text-xs mt-4" style="color:rgba(240,237,232,0.45);">
-        Neue Kategorien stehen sofort beim Beleg-Upload und in der
-        Kategorie-Auswahl am Beleg zur Verfügung. Löschen ist nur möglich,
-        solange keine Belege zugeordnet sind.
+        Kostenpunkte gliedern die Ist-Kosten der Belege. Sie stehen sofort
+        beim Beleg-Upload und in der Kategorie-Auswahl am Beleg zur
+        Verfügung. Löschen ist nur möglich, solange keine Belege zugeordnet
+        sind.
       </p>
     </div>
   </div>

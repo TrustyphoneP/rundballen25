@@ -58,6 +58,12 @@ class Beleg(models.Model):
         null=True, blank=True, related_name="belege",
         verbose_name="Kostenkategorie",
     )
+    nur_preiserfassung = models.BooleanField(
+        default=False,
+        verbose_name="Nicht für aktuelle Freizeit",
+        help_text="Nur zur Preiserfassung (z.B. alte Belege) -- zählt "
+                  "nicht zu den Ist-Kosten der Freizeit.",
+    )
     image = models.ImageField(
         upload_to="belege/%Y/%m/",
         verbose_name="Belegfoto",

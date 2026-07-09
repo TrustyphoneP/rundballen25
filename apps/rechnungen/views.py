@@ -43,7 +43,7 @@ def index(request):
             .select_related("hochgeladen_von", "kategorie")
             .annotate(anzahl_positionen=Count("positionen"))
         )
-        ist_summe = belege.aggregate(s=Sum("gesamtbetrag"))["s"]
+        ist_summe = belege.filter(nur_preiserfassung=False).aggregate(s=Sum("gesamtbetrag"))["s"]
 
     return render(request, "rechnungen/index.html", {
         "camp":      camp,
@@ -67,6 +67,7 @@ def upload(request):
     if request.method == "POST" and form.is_valid():
         bilder = request.FILES.getlist("bilder")
         kategorie = form.cleaned_data["kategorie"]
+        nur_preiserfassung = form.cleaned_data["nur_preiserfassung"]
         sofort = form.cleaned_data["sofort_analysieren"]
         notiz = form.cleaned_data["notiz"]
 
@@ -75,6 +76,7 @@ def upload(request):
             beleg = Beleg.objects.create(
                 camp=camp,
                 kategorie=kategorie,
+                nur_preiserfassung=nur_preiserfassung,
                 image=bild,
                 notiz=notiz,
                 hochgeladen_von=request.user,
@@ -112,10 +114,33 @@ def detail(request, pk):
         pk=pk,
     )
     zutaten_namen = list(Ingredient.objects.order_by("name").values_list("name", flat=True))
-    positionen = beleg.positionen.all()
+    positionen = list(beleg.positionen.all())
     differenz = None
     if beleg.gesamtbetrag is not None:
         differenz = beleg.gesamtbetrag - beleg.positionen_summe
+
+    # Überschreiben-Rückfrage: Bei reinen Preiserfassungs-Belegen (alte
+    # Bons) pro Position prüfen, ob die Zutat bereits einen ABWEICHENDEN
+    # Preis hat. Dann fragt der Übernehmen-Button per Popup nach, bevor
+    # der alte Beleg den aktuellen Preis überschreibt.
+    abweichende_anzahl = 0
+    for pos in positionen:
+        pos.preis_weicht_ab = False
+        pos.neuer_preis = None
+        pos.alter_preis = None
+        pos.vergleichs_einheit = ""
+        if not beleg.nur_preiserfassung or pos.ingredient is None or pos.ist_uebernommen:
+            continue
+        neuer, einheit, fehler = services.preis_fuer_uebernahme(pos)
+        if fehler or neuer is None:
+            continue
+        alter = services.aktueller_preis_in(pos.ingredient, einheit)
+        if alter is not None and alter != neuer:
+            pos.preis_weicht_ab = True
+            pos.neuer_preis = neuer
+            pos.alter_preis = alter
+            pos.vergleichs_einheit = einheit
+            abweichende_anzahl += 1
 
     return render(request, "rechnungen/detail.html", {
         "beleg":         beleg,
@@ -125,6 +150,7 @@ def detail(request, pk):
         "einheiten":     Ingredient.Unit.choices,
         "grundpreis_einheiten": BelegPosition.GrundpreisEinheit.choices,
         "kategorien":    Kostenkategorie.objects.all(),
+        "abweichende_anzahl": abweichende_anzahl,
     })
 
 
@@ -290,9 +316,17 @@ def alle_uebernehmen(request, pk):
 @login_required
 def kategorien(request):
     """
-    Ist-Kosten der aktiven Freizeit je Kostenkategorie (Summe der
-    Beleg-Gesamtbeträge) plus Verwaltung: neue Kostenpunkte anlegen,
-    unbenutzte löschen.
+    Zwei getrennte Sichten auf die Kosten der aktiven Freizeit:
+
+    1. Ist-Kosten je Kostenkategorie -- Summe der Beleg-Gesamtbeträge,
+       gruppiert nach der (optionalen) Kategorie am Beleg. Das sind die
+       tatsächlichen Ausgaben und die führende Größe.
+    2. Vorkalkulation je Einkaufslisten-Kategorie -- Zutatenpreise mal
+       Mengen aus build_shopping_day_items, gruppiert nach der Quelle der
+       Einkaufsliste (Abendessen, Frühstück/Mittag, Allgemein,
+       Betreueressen, Alternative). Reine Planungsübersicht.
+
+    Dazu Verwaltung: neue Kostenpunkte anlegen, unbenutzte löschen.
     """
     camp = _aktive_freizeit()
 
@@ -305,13 +339,14 @@ def kategorien(request):
         messages.success(request, f"Kostenkategorie '{kategorie.name}' angelegt.")
         return redirect("rechnungen:kategorien")
 
+    # --- 1. Ist-Kosten aus Belegen ---
     eintraege = []
-    gesamt = Decimal("0")
+    ist_gesamt = Decimal("0")
     for kategorie in Kostenkategorie.objects.all():
-        belege = kategorie.belege.filter(camp=camp) if camp else kategorie.belege.none()
+        belege = kategorie.belege.filter(camp=camp, nur_preiserfassung=False) if camp else kategorie.belege.none()
         summe = belege.aggregate(s=Sum("gesamtbetrag"))["s"] or Decimal("0")
         anzahl = belege.count()
-        gesamt += summe
+        ist_gesamt += summe
         eintraege.append({
             "kategorie": kategorie,
             "summe":     summe,
@@ -319,17 +354,30 @@ def kategorien(request):
             "loeschbar": not kategorie.belege.exists(),
         })
 
-    ohne = Beleg.objects.filter(camp=camp, kategorie__isnull=True) if camp else Beleg.objects.none()
+    ohne = Beleg.objects.filter(camp=camp, kategorie__isnull=True, nur_preiserfassung=False) if camp else Beleg.objects.none()
     ohne_summe = ohne.aggregate(s=Sum("gesamtbetrag"))["s"] or Decimal("0")
-    gesamt += ohne_summe
+    ist_gesamt += ohne_summe
+
+    # --- 2. Vorkalkulation aus der Einkaufsliste (Zutatenpreise) ---
+    plan_quellen = []
+    plan_summe = Decimal("0")
+    plan_ohne_preis = []
+    if camp:
+        plan = services.berechne_freizeitkosten(camp)
+        plan_quellen = plan["quellen"]
+        plan_summe = plan["summe"]
+        plan_ohne_preis = plan["ohne_preis"]
 
     return render(request, "rechnungen/kategorien.html", {
-        "camp":        camp,
-        "eintraege":   eintraege,
-        "ohne_anzahl": ohne.count(),
-        "ohne_summe":  ohne_summe,
-        "gesamt":      gesamt,
-        "form":        form,
+        "camp":            camp,
+        "eintraege":       eintraege,
+        "ohne_anzahl":     ohne.count(),
+        "ohne_summe":      ohne_summe,
+        "ist_gesamt":      ist_gesamt,
+        "plan_quellen":    plan_quellen,
+        "plan_summe":      plan_summe,
+        "plan_ohne_preis": plan_ohne_preis,
+        "form":            form,
     })
 
 
@@ -418,7 +466,7 @@ def freizeitkosten(request):
     tage = camp.duration_days
     pro_person_tag = pro_person / tage if pro_person is not None and tage else None
 
-    ist_summe = Beleg.objects.filter(camp=camp).aggregate(s=Sum("gesamtbetrag"))["s"]
+    ist_summe = Beleg.objects.filter(camp=camp, nur_preiserfassung=False).aggregate(s=Sum("gesamtbetrag"))["s"]
 
     return render(request, "rechnungen/freizeitkosten.html", {
         "camp":           camp,

@@ -392,24 +392,26 @@ def analysiere_beleg(beleg, user=None):
 # Preisübernahme in die Zutaten-Stammdaten
 # ---------------------------------------------------------------------------
 
-def uebernehme_position(position, user=None):
+def preis_fuer_uebernahme(position):
     """
-    Überträgt den Grundpreis einer Beleg-Position in Ingredient.price,
-    umgerechnet auf die automatisch abgeleitete Preis-Einheit der Zutat
-    (derive_price_unit). Legt einen Preishistorie-Eintrag an.
-    Gibt (erfolg: bool, meldung: str) zurück.
+    Ermittelt, welcher Preis in welcher Einheit bei einer Übernahme in
+    Ingredient.price geschrieben würde, ohne etwas zu speichern.
+    Gibt (preis, einheit, fehler) zurück:
+    - (Decimal, "kg", None) bei Erfolg
+    - (None, "", "Meldung") wenn die Übernahme nicht möglich wäre.
+    Wird von uebernehme_position UND von der Detail-Ansicht (Vergleich
+    alter/neuer Preis für die Überschreiben-Rückfrage) genutzt, damit
+    beide exakt dieselbe Umrechnung verwenden.
     """
-    from .models import Preishistorie
-
     ing = position.ingredient
     if ing is None:
-        return False, "Position ist keiner Zutat zugeordnet."
+        return None, "", "Position ist keiner Zutat zugeordnet."
     if position.grundpreis is None or not position.grundpreis_einheit:
-        return False, "Position hat keinen Grundpreis."
+        return None, "", "Position hat keinen Grundpreis."
 
     ziel_einheit, inkonsistent = ing.derive_price_unit()
     if inkonsistent:
-        return False, (
+        return None, "", (
             f"'{ing.name}' wird mit inkompatiblen Einheiten verwendet -- "
             "Preis kann nicht eindeutig zugeordnet werden."
         )
@@ -421,12 +423,41 @@ def uebernehme_position(position, user=None):
         position.grundpreis, position.grundpreis_einheit, ziel_einheit
     )
     if preis is None:
-        return False, (
+        return None, "", (
             f"Grundpreis-Einheit '{position.grundpreis_einheit}' ist nicht in "
             f"die Preis-Einheit '{ziel_einheit}' von '{ing.name}' umrechenbar."
         )
+    return preis.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP), ziel_einheit, None
 
-    preis = preis.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+
+def aktueller_preis_in(ingredient, einheit):
+    """
+    Der aktuell hinterlegte Zutatenpreis, umgerechnet in die angegebene
+    Einheit -- für den Vergleich alt/neu vor einer Überschreibung.
+    None, wenn kein Preis hinterlegt oder nicht umrechenbar.
+    """
+    if ingredient.price is None or not ingredient.price_unit:
+        return None
+    preis = konvertiere_preis(ingredient.price, ingredient.price_unit, einheit)
+    if preis is None:
+        return None
+    return preis.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+
+
+def uebernehme_position(position, user=None):
+    """
+    Überträgt den Grundpreis einer Beleg-Position in Ingredient.price,
+    umgerechnet auf die automatisch abgeleitete Preis-Einheit der Zutat
+    (derive_price_unit). Legt einen Preishistorie-Eintrag an.
+    Gibt (erfolg: bool, meldung: str) zurück.
+    """
+    from .models import Preishistorie
+
+    ing = position.ingredient
+    preis, ziel_einheit, fehler = preis_fuer_uebernahme(position)
+    if fehler:
+        return False, fehler
+
     # Hinweis: Ingredient.price hat 4 Nachkommastellen. Wird eine Zutat nur
     # in g/ml verwendet, leitet derive_price_unit "g"/"ml" ab und der Preis
     # wird je Gramm gespeichert -- Auflösung damit 0,1 €/kg. Für die
@@ -527,7 +558,7 @@ def berechne_freizeitkosten(camp):
                 "name":   extra.get("name", "?"),
                 "amount": extra["amount"],
                 "unit":   extra["unit"],
-                "source": "Frühstück",
+                "source": "Frühstück/Mittag",
                 "kosten": kosten,
             }
             positionen.append(eintrag)
@@ -536,7 +567,7 @@ def berechne_freizeitkosten(camp):
                 lieferung_ohne_preis.append(extra.get("name", "?"))
             else:
                 lieferung_summe += kosten
-                quellen["Frühstück"] = quellen.get("Frühstück", Decimal("0")) + kosten
+                quellen["Frühstück/Mittag"] = quellen.get("Frühstück/Mittag", Decimal("0")) + kosten
 
         positionen.sort(key=lambda p: (p["kosten"] is None, -(p["kosten"] or 0)))
         summe += lieferung_summe
@@ -609,6 +640,86 @@ def berechne_rezeptkosten():
         reverse=True,
     )
     return ergebnisse
+
+
+# ---------------------------------------------------------------------------
+# Kostenrechnung: Kategorien (Plan aus Einkaufsliste, Ist aus Belegen)
+# ---------------------------------------------------------------------------
+
+# Zuordnung Einkaufslisten-Quelle -> Name der Kostenkategorie. Die Quellen
+# sind die source-Labels aus build_shopping_day_items; die Kategorienamen
+# entsprechen den per Datenmigration angelegten Standard-Kategorien.
+QUELLE_ZU_KATEGORIE = {
+    "Abendessen":       "Abendessen",
+    "Frühstück/Mittag": "Frühstück/Mittagessen",
+    "Allgemein":        "Allgemein",
+    "Betreueressen":    "Betreueressen",
+    "Alternative":      "SKF-Alternativen",
+}
+
+
+def berechne_kategoriekosten(camp):
+    """
+    Stellt je Kostenkategorie zwei GETRENNTE Werte gegenüber:
+
+    - plan: vorkalkulierte Kosten aus der Einkaufsliste -- Mengen je Quelle
+      (Abendessen, Frühstück/Mittag, Allgemein, Betreueressen, Alternative)
+      multipliziert mit den hinterlegten Zutatenpreisen. Reine Übersicht.
+    - ist: tatsächliche Ausgaben -- Summe der Gesamtbeträge aller Belege,
+      die dieser Kategorie zugeordnet wurden. Das ist der maßgebliche Wert.
+
+    Es findet KEINE Verrechnung statt; Plan und Ist stehen nebeneinander.
+    Gibt ein dict mit eintraege, ohne_kategorie, plan_nicht_zugeordnet
+    und den Summen zurück.
+    """
+    from django.db.models import Sum
+    from .models import Beleg, Kostenkategorie
+
+    plan_je_kategorie = {}
+    plan_nicht_zugeordnet = []
+    if camp is not None:
+        for quelle, betrag in berechne_freizeitkosten(camp)["quellen"]:
+            kategorie_name = QUELLE_ZU_KATEGORIE.get(quelle)
+            if kategorie_name is None:
+                plan_nicht_zugeordnet.append((quelle, betrag))
+            else:
+                plan_je_kategorie[kategorie_name] = (
+                    plan_je_kategorie.get(kategorie_name, Decimal("0")) + betrag
+                )
+
+    eintraege = []
+    ist_gesamt = Decimal("0")
+    plan_gesamt = sum(plan_je_kategorie.values(), Decimal("0")) + sum(
+        (betrag for _, betrag in plan_nicht_zugeordnet), Decimal("0")
+    )
+
+    for kategorie in Kostenkategorie.objects.all():
+        belege = kategorie.belege.filter(camp=camp) if camp else kategorie.belege.none()
+        ist = belege.aggregate(s=Sum("gesamtbetrag"))["s"] or Decimal("0")
+        ist_gesamt += ist
+        eintraege.append({
+            "kategorie": kategorie,
+            "ist":       ist,
+            "plan":      plan_je_kategorie.get(kategorie.name),
+            "anzahl":    belege.count(),
+            "loeschbar": not kategorie.belege.exists(),
+        })
+
+    ohne = (
+        Beleg.objects.filter(camp=camp, kategorie__isnull=True)
+        if camp else Beleg.objects.none()
+    )
+    ohne_summe = ohne.aggregate(s=Sum("gesamtbetrag"))["s"] or Decimal("0")
+    ist_gesamt += ohne_summe
+
+    return {
+        "eintraege":             eintraege,
+        "ohne_anzahl":           ohne.count(),
+        "ohne_summe":            ohne_summe,
+        "plan_nicht_zugeordnet": plan_nicht_zugeordnet,
+        "ist_gesamt":            ist_gesamt,
+        "plan_gesamt":           plan_gesamt,
+    }
 
 
 # ---------------------------------------------------------------------------

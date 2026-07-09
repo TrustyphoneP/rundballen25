@@ -103,12 +103,19 @@ class Recipe(models.Model):
 
 
 # Feste Frühstück/Mittag-Posten (H-Milch, Choco Drink, Pflanzenmargarine,
-# Müsliriegel), deren Einheit NUR in apps.shopping.shopping_days.py als
-# Python-Literal hartcodiert ist (z.B. add(ing, "g", ...)), nicht in einer
+# Müsliriegel, Aufschnitt), deren Einheit NUR in apps.shopping.shopping_days.py
+# als Python-Literal hartcodiert ist (z.B. add(ing, "g", ...)), nicht in einer
 # RecipeIngredient- oder GeneralIngredient-Zeile. Diese Mini-Zuordnung
 # spiegelt NUR die dortigen Einheiten für die Preis-Einheit-Ermittlung in
 # Ingredient.derive_price_unit() -- wenn sich die Einheit in
 # shopping_days.py ändert, muss sie hier ebenfalls angepasst werden.
+#
+# Obst (Äpfel, Bananen, Wassermelone, Nektarinen) steht ABSICHTLICH NICHT
+# hier: dort existieren pro Freizeit zwei getrennte FruitConfig-Felder
+# (amount_X in Stück, weight_X in kg), von denen je nach Freizeit nur eines,
+# beide oder keines befüllt ist. Welche Einheit(en) tatsächlich vorkommen,
+# wird dynamisch in Ingredient._obst_einheiten_used() über alle
+# FruitConfig-Zeilen ermittelt, statt hier pauschal "Stk" anzunehmen.
 FIXED_FRUEHSTUECK_UNITS = {
     # Extras (hardcoded in shopping_days.py dry block)
     "H-Milch":               "l",
@@ -126,14 +133,13 @@ FIXED_FRUEHSTUECK_UNITS = {
 
 # Zuordnung Zutatenname -> FruitConfig-Feldpräfix (amount_<x> / weight_<x>).
 # "Wassermelone" ist bewusst dem Feldpräfix "birne" zugeordnet -- historisch
-# gewachsener Feldname in FruitConfig.
+# gewachsener Feldname in FruitConfig, siehe apps.meals.models.FruitConfig.
 OBST_FELD_PRAEFIX = {
     "Äpfel":        "apfel",
     "Bananen":      "banane",
     "Wassermelone": "birne",
     "Nektarinen":   "nektarine",
 }
-
 
 
 class Ingredient(models.Model):
@@ -248,7 +254,10 @@ class Ingredient(models.Model):
         ermittelt über ALLE Freizeiten (FruitConfig), ob "Stk" und/oder
         "kg" TATSÄCHLICH irgendwo verwendet werden, statt pauschal eine
         feste Einheit anzunehmen. Nur Felder mit einem Wert > 0 in
-        mindestens einer Freizeit zählen als verwendet.
+        mindestens einer Freizeit zählen als verwendet -- eine Freizeit,
+        die nur das Gewicht befüllt (z.B. Nektarinen nur in kg), führt
+        NICHT dazu, dass "Stk" trotzdem als Einheit auftaucht.
+        Lokaler Import, da FruitConfig in apps.meals liegt.
         """
         feld = OBST_FELD_PRAEFIX.get(self.name)
         if feld is None:
@@ -267,7 +276,10 @@ class Ingredient(models.Model):
         aus Allgemein/Betreueressen/Alternative, aus den fest hinterlegten
         Frühstück/Mittag-Posten (FIXED_FRUEHSTUECK_UNITS) UND aus den
         Obst-Feldern in FruitConfig (dynamisch, siehe
-        _obst_einheiten_used) zusammen, als distinkte Liste.
+        _obst_einheiten_used) zusammen, als distinkte Liste. Wird für die
+        "uneinheitlich verwendet (...)"-Warnung in Admin und
+        Zutatenverwaltung genutzt, damit dort wirklich ALLE Quellen
+        auftauchen, nicht nur Rezepte.
         """
         recipe_units = list(self.recipe_uses_for_pricing().values_list("unit", flat=True).distinct())
         general_units = list(self.general_uses_for_pricing().values_list("unit", flat=True).distinct())
@@ -275,7 +287,6 @@ class Ingredient(models.Model):
         fixed_units = [fixed_unit] if fixed_unit else []
         obst_units = self._obst_einheiten_used()
         return list(dict.fromkeys(recipe_units + general_units + fixed_units + obst_units))
-
 
     def save(self, *args, **kwargs):
         # price_unit wird nicht manuell gepflegt, sondern automatisch aus den

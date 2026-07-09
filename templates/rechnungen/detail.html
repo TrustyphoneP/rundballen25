@@ -11,7 +11,8 @@
     </button>
   </form>
   {% if positionen %}
-  <form method="post" action="{% url 'rechnungen:alle_uebernehmen' pk=beleg.pk %}">
+  <form method="post" action="{% url 'rechnungen:alle_uebernehmen' pk=beleg.pk %}"
+        {% if abweichende_anzahl %}onsubmit="return confirm('{{ abweichende_anzahl }} Zutat(en) haben bereits einen abweichenden Preis. Soll der alte Beleg diese Preise überschreiben?');"{% endif %}>
     {% csrf_token %}
     <button type="submit" class="btn btn-primary">Alle Preise übernehmen</button>
   </form>
@@ -22,6 +23,7 @@
 
 <div class="section-mono mb-4">
   {{ beleg.camp.name }}
+  {% if beleg.nur_preiserfassung %} · <span class="badge badge-muted">Nur Preiserfassung</span>{% endif %}
   {% if beleg.kategorie %} · {{ beleg.kategorie.name }}{% endif %}
   {% if beleg.kaufdatum %} · Kaufdatum {{ beleg.kaufdatum|date:"d.m.Y" }}{% endif %}
   {% if beleg.gesamtbetrag %} · Gesamtbetrag {{ beleg.gesamtbetrag|euro }}{% endif %}
@@ -131,6 +133,7 @@
             <td class="text-right whitespace-nowrap">
               <button type="submit" name="action" value="speichern" form="pos-{{ pos.pk }}" class="btn btn-ghost">Speichern</button>
               <button type="submit" name="action" value="uebernehmen" form="pos-{{ pos.pk }}" class="btn btn-primary"
+                      {% if pos.preis_weicht_ab %}onclick="return confirm('{{ pos.ingredient.name|escapejs }} hat bereits {{ pos.alter_preis|dezimal_de }} €/{{ pos.vergleichs_einheit }} hinterlegt. Soll der alte Beleg den Preis mit {{ pos.neuer_preis|dezimal_de }} €/{{ pos.vergleichs_einheit }} überschreiben?');"{% endif %}
                       {% if not pos.grundpreis %}disabled style="opacity:0.4;"{% endif %}>€ übernehmen</button>
               <button type="submit" form="del-{{ pos.pk }}" class="btn btn-danger" title="Position löschen">✕</button>
             </td>
