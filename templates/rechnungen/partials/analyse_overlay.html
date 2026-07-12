@@ -2,11 +2,29 @@
 Vollbild-Overlay mit Spinner für lange Vorgänge (Beleg-Analyse).
 Erwartet eine Alpine-Variable `analyseLaeuft` im umgebenden x-data-Scope
 und muss INNERHALB des Elements mit x-data eingebunden werden.
-position:fixed löst das Overlay aus dem Layout, es liegt also immer
-bildschirmfüllend über der Seite, auch wenn es in einem Formular steckt.
+
+x-teleport="body" verschiebt das Overlay beim Rendern direkt unter
+<body>. Das ist nötig, weil position:fixed sonst von Vorfahren mit
+backdrop-filter oder transform eingefangen wird (die Topbar in base.html
+nutzt backdrop-filter:blur) -- das Overlay würde dann in diesem Element
+kleben statt den Viewport zu füllen. Der Alpine-Scope (analyseLaeuft)
+bleibt beim Teleport erhalten.
 {% endcomment %}
 <style>
   [x-cloak] { display: none !important; }
+  .analyse-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: rgba(10, 18, 22, 0.88);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    text-align: center;
+    padding: 24px;
+  }
   .analyse-spinner {
     width: 48px; height: 48px;
     border: 4px solid rgba(232, 164, 68, 0.25);
@@ -16,16 +34,15 @@ bildschirmfüllend über der Seite, auch wenn es in einem Formular steckt.
   }
   @keyframes analyse-drehung { to { transform: rotate(360deg); } }
 </style>
-<div x-show="analyseLaeuft" x-cloak
-     style="position:fixed; inset:0; z-index:100; background:rgba(10,18,22,0.88);
-            display:flex; flex-direction:column; align-items:center;
-            justify-content:center; gap:16px; text-align:center; padding:24px;">
-  <div class="analyse-spinner"></div>
-  <div class="font-display text-lg" style="color:#f0ede8;">
-    {{ overlay_text|default:"Beleg wird analysiert …" }}
+<template x-teleport="body">
+  <div class="analyse-overlay" x-show="analyseLaeuft" x-cloak>
+    <div class="analyse-spinner"></div>
+    <div class="font-display text-lg" style="color:#f0ede8;">
+      {{ overlay_text|default:"Beleg wird analysiert …" }}
+    </div>
+    <div class="text-xs" style="color:rgba(240,237,232,0.55); max-width:320px;">
+      Das kann einige Sekunden pro Beleg dauern. Bitte das Fenster nicht
+      schließen, die Seite lädt automatisch neu.
+    </div>
   </div>
-  <div class="text-xs" style="color:rgba(240,237,232,0.55); max-width:320px;">
-    Das kann einige Sekunden pro Beleg dauern. Bitte das Fenster nicht
-    schließen, die Seite lädt automatisch neu.
-  </div>
-</div>
+</template>
