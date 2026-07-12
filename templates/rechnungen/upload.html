@@ -7,7 +7,8 @@
 <div class="section-mono mb-5">{{ camp.name }} · Kassenbons &amp; A4-Rechnungen</div>
 
 <div class="card px-5 py-5 max-w-xl">
-  <form method="post" enctype="multipart/form-data" x-data="{ dateien: [] }">
+  <form method="post" enctype="multipart/form-data"
+        x-data="{ analyseLaeuft: false }" @submit="analyseLaeuft = true">
     {% csrf_token %}
 
     <label class="block text-sm mb-2" for="{{ form.bilder.id_for_label }}">Belegfotos</label>
@@ -54,9 +55,12 @@
     </div>
 
     <div class="mt-6 flex items-center gap-3">
-      <button type="submit" class="btn btn-primary">Hochladen</button>
+      <button type="submit" class="btn btn-primary" :disabled="analyseLaeuft"
+              :style="analyseLaeuft ? 'opacity:0.5;' : ''">Hochladen</button>
       <a href="{% url 'rechnungen:index' %}" class="btn btn-ghost">Abbrechen</a>
     </div>
+
+    {% include "rechnungen/partials/analyse_overlay.html" with overlay_text="Belege werden hochgeladen und analysiert …" %}
   </form>
 </div>
 

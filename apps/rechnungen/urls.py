@@ -14,6 +14,8 @@ urlpatterns = [
     path("position/<int:pk>/aktualisieren/",    views.position_aktualisieren, name="position_aktualisieren"),
     path("position/<int:pk>/loeschen/",         views.position_loeschen,      name="position_loeschen"),
     path("beleg/<int:pk>/kategorie/",           views.beleg_kategorie,        name="beleg_kategorie"),
+    path("beleg/<int:pk>/pruefen/",             views.pruefen,                name="pruefen"),
+    path("export/",                             views.export_belege,          name="export"),
 
     path("kategorien/",                         views.kategorien,             name="kategorien"),
     path("kategorien/<int:pk>/loeschen/",       views.kategorie_loeschen,     name="kategorie_loeschen"),

@@ -1,0 +1,67 @@
+{% extends "mobil/base_mobil.html" %}
+{% block title %}CSV-Import · rundBallenMobil{% endblock %}
+
+{% block content %}
+<h1 class="font-display text-2xl mb-1">Wochenplan importieren</h1>
+<p class="text-sm text-white/55 mb-5">{{ camp.name }}</p>
+
+{% if fehler %}
+  <div class="rounded-xl border border-warn/40 bg-warn/10 p-3.5 mb-5">
+    <div class="text-sm font-medium text-warn mb-2">
+      Import abgebrochen, es wurde nichts gespeichert:
+    </div>
+    <ul class="space-y-1 text-xs text-warn/90">
+      {% for f in fehler %}
+        <li>{{ f }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+{% endif %}
+
+<form method="post" enctype="multipart/form-data" class="space-y-4 mb-7">
+  {% csrf_token %}
+  <div>
+    <label for="id_datei">CSV-Datei</label>
+    <input type="file" id="id_datei" name="datei" accept=".csv,text/csv" required>
+  </div>
+
+  <label class="!flex items-center gap-2.5 !normal-case !tracking-normal !text-sm !text-white/80 rounded-xl border border-white/10 bg-p/40 p-3">
+    <input type="checkbox" name="ersetzen" value="1"
+           class="!w-4 !h-4 !p-0 accent-[#e8a444] shrink-0">
+    <span>
+      Bestehenden Plan ersetzen
+      <span class="block text-xs text-white/45 mt-0.5">
+        Löscht zuerst alle {{ anzahl_aktionen }} vorhandenen Aktionen dieser Freizeit.
+        Ohne Haken werden die Zeilen angehängt.
+      </span>
+    </span>
+  </label>
+
+  <button type="submit"
+          class="w-full rounded-xl bg-acc text-p-dark font-medium py-3
+                 active:scale-[0.98] transition-transform">
+    Importieren
+  </button>
+</form>
+
+<h2 class="text-xs uppercase tracking-widest text-white/45 mb-2">Format</h2>
+<div class="rounded-xl border border-white/10 bg-p/40 p-3.5 text-xs text-white/60 space-y-2 mb-4">
+  <p class="font-mono text-[0.65rem] leading-relaxed break-all text-white/70">
+    wochentag;beginn;ende;titel;kategorie;ort;beschreibung;gruppen;verantwortliche
+  </p>
+  <ul class="space-y-1">
+    <li><span class="text-white/80">wochentag:</span> Montag..Sonntag, Mo..So oder 0..6</li>
+    <li><span class="text-white/80">beginn/ende:</span> HH:MM, Minuten 00 oder 30</li>
+    <li><span class="text-white/80">kategorie:</span> programm, mahlzeit, schlaf, hygiene, transport, frei, sonstiges (leer = programm)</li>
+    <li><span class="text-white/80">gruppen:</span> Gruppennamen mit Komma getrennt, leer = keine Einschränkung</li>
+    <li><span class="text-white/80">verantwortliche:</span> Benutzernamen mit Komma getrennt, leer = alle</li>
+    <li>Trennzeichen Semikolon oder Komma, Umlaute in UTF-8 oder Windows-Kodierung</li>
+    <li>Der Import ist ganz oder gar nicht: bei Fehlern wird nichts gespeichert</li>
+  </ul>
+</div>
+
+<a href="{% url 'mobil:plan_import_vorlage' %}"
+   class="block text-center rounded-xl border border-white/20 py-3 text-sm">
+  Vorlage herunterladen
+</a>
+{% endblock %}

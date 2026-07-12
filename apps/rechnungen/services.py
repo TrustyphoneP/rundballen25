@@ -34,6 +34,9 @@ logger = logging.getLogger(__name__)
 
 _WEIGHT_TO_G  = {"g": Decimal("1"), "kg": Decimal("1000")}
 _VOLUME_TO_ML = {"ml": Decimal("1"), "l": Decimal("1000")}
+# Zähl-Einheiten: für die Preisübertragung 1:1 äquivalent (siehe
+# konvertiere_preis) -- ein "ST" auf dem Bon entspricht einer Packung.
+_COUNT_UNITS  = {"Stk", "Pck"}
 
 
 def konvertiere_preis(preis, von_einheit, nach_einheit):
@@ -41,6 +44,11 @@ def konvertiere_preis(preis, von_einheit, nach_einheit):
     Rechnet einen Preis von einer Einheit in eine andere um
     (z.B. 8,73 €/kg -> 0,00873 €/g). Gibt None zurück, wenn die
     Einheiten nicht derselben Dimension angehören (z.B. kg vs. Stk).
+
+    Stk und Pck gelten als äquivalente Zähl-Einheiten (Faktor 1): Bons
+    rechnen abgepackte Ware in "ST" ab, die Stammdaten führen dieselbe
+    Ware teils je "Pck" -- ein Stück auf dem Bon IST eine Packung, eine
+    Umrechnung in Gewicht ist dafür weder nötig noch möglich.
     """
     if preis is None or not von_einheit or not nach_einheit:
         return None
@@ -52,6 +60,8 @@ def konvertiere_preis(preis, von_einheit, nach_einheit):
         return preis / _WEIGHT_TO_G[von_einheit] * _WEIGHT_TO_G[nach_einheit]
     if von_einheit in _VOLUME_TO_ML and nach_einheit in _VOLUME_TO_ML:
         return preis / _VOLUME_TO_ML[von_einheit] * _VOLUME_TO_ML[nach_einheit]
+    if von_einheit in _COUNT_UNITS and nach_einheit in _COUNT_UNITS:
+        return preis
     return None
 
 
@@ -181,6 +191,33 @@ _SYSTEM_PROMPT = (
 )
 
 
+def zutaten_fuer_prompt():
+    """
+    Alle Zutaten-Namen für den Analyse-Prompt, annotiert mit der
+    Dimension, in der ihr Preis geführt wird (aus derive_price_unit):
+    Gewicht -> "kg", Volumen -> "l", Zählbares -> "Stk"/"Pck".
+    Damit kann die Analyse die passende Grundpreis-Einheit wählen --
+    bei je Stk/Pck geführten Zutaten den Stückpreis vom Bon statt einer
+    unnötigen (und später nicht übertragbaren) Gewichts-Umrechnung.
+    """
+    from apps.recipes.models import Ingredient
+
+    eintraege = []
+    for ing in Ingredient.objects.order_by("name"):
+        einheit, inkonsistent = ing.derive_price_unit()
+        if inkonsistent or not einheit:
+            eintraege.append(ing.name)
+            continue
+        if einheit in _WEIGHT_TO_G:
+            dimension = "kg"
+        elif einheit in _VOLUME_TO_ML:
+            dimension = "l"
+        else:
+            dimension = einheit
+        eintraege.append(f"{ing.name} [Preis je {dimension}]")
+    return eintraege
+
+
 def _baue_prompt(zutaten_namen):
     zutaten_liste = "\n".join(f"- {n}" for n in zutaten_namen) if zutaten_namen else "(keine)"
     return f"""Extrahiere alle Daten dieses Belegs als JSON mit exakt diesem Schema:
@@ -198,6 +235,7 @@ def _baue_prompt(zutaten_namen):
       "gesamtpreis": Zahl (Zeilensumme in Euro),
       "grundpreis": Zahl (Preis je Grundpreis-Einheit) oder null,
       "grundpreis_einheit": "kg" | "l" | "Stk" | "Pck" | null,
+      "stueckpreis": Zahl (Preis je Stück/Packung) oder null,
       "zutat": "exakter Name aus der Zutatenliste unten oder null",
       "hinweis": "z.B. Pfand, Rabatt, unsicher -- sonst null"
     }}
@@ -209,9 +247,22 @@ Regeln:
 - Mehrfachzeilen wie "2 x 1,99" ergeben menge/gesamtpreis der GESAMTEN Zeile.
 - Packungsgrößen im Artikelnamen (z.B. "Gouda 400g") in menge/einheit übernehmen;
   bei mehreren Packungen die Gesamtmenge (2 x 400g -> menge 800, einheit "g").
+- Hinter vielen Zutaten steht in eckigen Klammern, in welcher Einheit ihr
+  Preis geführt wird (z.B. [Preis je kg], [Preis je Pck]). Wähle die
+  grundpreis_einheit passend zur zugeordneten Zutat.
+- Rechnet der Bon eine Position in STÜCK ab (z.B. "13 ST - 1 ST 4,29") und
+  die zugeordnete Zutat wird je Stk oder Pck geführt, dann: menge =
+  Stückzahl, einheit = "Stk", grundpreis = Stückpreis vom Bon,
+  grundpreis_einheit = "Stk" -- AUCH wenn im Artikelnamen eine Gramm- oder
+  Literangabe steht. KEINE Umrechnung in kg/l für solche Positionen.
 - Wenn der Bon einen Grundpreis druckt (z.B. "1 kg = 8,73"), diesen übernehmen.
   Sonst grundpreis selbst berechnen (gesamtpreis geteilt durch Menge in kg/l/Stk),
   auf 4 Nachkommastellen.
+- Stückbasierte Zeilen drucken oft "ANZAHL ST - 1 ST EINZELPREIS"
+  (z.B. "39,000 ST - 1 ST 1,69 65,91"): dann stueckpreis = 1.69 setzen.
+  Den grundpreis je kg/l TROTZDEM zusätzlich berechnen, wenn die
+  Packungsgröße bekannt ist (39 x 400g = 15600 g -> 4.2251 €/kg).
+  Ist keine Packungsgröße erkennbar, menge = Stückzahl und einheit "Stk".
 - Pfand-Zeilen: hinweis "Pfand", zutat null. Rabatt-/TA-Zeilen: negativer
   gesamtpreis, hinweis "Rabatt", zutat null.
 - "zutat" NUR setzen, wenn der Artikel eindeutig einer Zutat aus der Liste
@@ -304,16 +355,13 @@ def analysiere_beleg(beleg, user=None):
     Positionen werden bei erneuter Analyse ersetzt.
     """
     from django.db import transaction
-    from apps.recipes.models import Ingredient
     from .models import Beleg, BelegPosition
 
     import datetime as _dt
 
     try:
         bilder = bereite_bilder_vor(beleg)
-        zutaten_namen = list(
-            Ingredient.objects.order_by("name").values_list("name", flat=True)
-        )
+        zutaten_namen = zutaten_fuer_prompt()
         antwort_text = _rufe_analyse_api(bilder, _baue_prompt(zutaten_namen))
         daten = _parse_json_antwort(antwort_text)
     except Exception as exc:
@@ -380,6 +428,7 @@ def analysiere_beleg(beleg, user=None):
                 gesamtpreis=gesamtpreis,
                 grundpreis=grundpreis,
                 grundpreis_einheit=grundpreis_einheit,
+                stueckpreis=_zu_decimal(pos.get("stueckpreis")),
                 ingredient=ingredient,
                 hinweis=(pos.get("hinweis") or "")[:200],
             ))
@@ -392,6 +441,9 @@ def analysiere_beleg(beleg, user=None):
 # Preisübernahme in die Zutaten-Stammdaten
 # ---------------------------------------------------------------------------
 
+_STUECK_EINHEITEN = {"Stk", "Pck"}
+
+
 def preis_fuer_uebernahme(position):
     """
     Ermittelt, welcher Preis in welcher Einheit bei einer Übernahme in
@@ -399,15 +451,20 @@ def preis_fuer_uebernahme(position):
     Gibt (preis, einheit, fehler) zurück:
     - (Decimal, "kg", None) bei Erfolg
     - (None, "", "Meldung") wenn die Übernahme nicht möglich wäre.
+
+    Stückbasiert bepreiste Zutaten (Stk/Pck): Verkauft der Bon stückweise,
+    steht der Einzelpreis in position.stueckpreis und wird DIREKT
+    verwendet -- keine Umrechnung aus kg/l nötig. Stk und Pck werden
+    dabei als gleichwertige Stück-Einheiten behandelt (eine Packung auf
+    dem Bon ist ein Stück).
+
     Wird von uebernehme_position UND von der Detail-Ansicht (Vergleich
     alter/neuer Preis für die Überschreiben-Rückfrage) genutzt, damit
-    beide exakt dieselbe Umrechnung verwenden.
+    beide exakt dieselbe Logik verwenden.
     """
     ing = position.ingredient
     if ing is None:
         return None, "", "Position ist keiner Zutat zugeordnet."
-    if position.grundpreis is None or not position.grundpreis_einheit:
-        return None, "", "Position hat keinen Grundpreis."
 
     ziel_einheit, inkonsistent = ing.derive_price_unit()
     if inkonsistent:
@@ -416,8 +473,31 @@ def preis_fuer_uebernahme(position):
             "Preis kann nicht eindeutig zugeordnet werden."
         )
     if not ziel_einheit:
-        # Zutat wird noch nirgends verwendet: Grundpreis-Einheit direkt nutzen.
-        ziel_einheit = position.grundpreis_einheit
+        # Zutat wird noch nirgends verwendet: beste vorhandene Angabe nutzen.
+        if position.grundpreis is not None and position.grundpreis_einheit:
+            ziel_einheit = position.grundpreis_einheit
+        elif position.stueckpreis is not None:
+            ziel_einheit = "Stk"
+        else:
+            return None, "", "Position hat keinen Grundpreis."
+
+    # Stückbasiert bepreiste Zutat: Stückpreis vom Bon hat Vorrang.
+    if ziel_einheit in _STUECK_EINHEITEN:
+        if position.stueckpreis is not None:
+            preis = position.stueckpreis.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+            return preis, ziel_einheit, None
+        if (position.grundpreis is not None
+                and position.grundpreis_einheit in _STUECK_EINHEITEN):
+            preis = position.grundpreis.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+            return preis, ziel_einheit, None
+        return None, "", (
+            f"'{ing.name}' wird je {ziel_einheit} bepreist, die Position hat "
+            "aber keinen Stückpreis -- bitte Stückpreis eintragen oder "
+            "Grundpreis-Einheit auf Stk/Pck stellen."
+        )
+
+    if position.grundpreis is None or not position.grundpreis_einheit:
+        return None, "", "Position hat keinen Grundpreis."
 
     preis = konvertiere_preis(
         position.grundpreis, position.grundpreis_einheit, ziel_einheit
@@ -466,10 +546,16 @@ def uebernehme_position(position, user=None):
     ing.price = preis
     ing.save()  # save() leitet price_unit automatisch ab
 
+    # Historie hält die exakte Quelle fest: bei Stück-Übernahme den
+    # Stückpreis je Stk/Pck, sonst den Grundpreis in Original-Einheit.
+    if ziel_einheit in _STUECK_EINHEITEN:
+        hist_preis, hist_einheit = preis, ziel_einheit
+    else:
+        hist_preis, hist_einheit = position.grundpreis, position.grundpreis_einheit
     Preishistorie.objects.create(
         ingredient=ing,
-        preis=position.grundpreis,
-        einheit=position.grundpreis_einheit,
+        preis=hist_preis,
+        einheit=hist_einheit,
         haendler=position.beleg.haendler,
         kaufdatum=position.beleg.kaufdatum,
         beleg=position.beleg,

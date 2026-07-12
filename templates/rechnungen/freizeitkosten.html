@@ -10,6 +10,12 @@
   · {{ personen }} Personen · {{ tage }} Tage
 </div>
 
+{% if ohne_betrag %}
+<div class="flash flash-warning">
+  {{ ohne_betrag }} Beleg(e) ohne Gesamtbetrag -- die Ist-Summe ist unvollständig.
+</div>
+{% endif %}
+
 <!-- Kennzahlen -->
 <div class="grid gap-4 mb-6" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
   <div class="card px-5 py-4">

@@ -9,10 +9,16 @@
 <p class="text-sm text-white/55 mb-5">Alle Aktionen der Woche im Überblick.</p>
 
 {% if kann_bearbeiten %}
-  <a href="{% url 'mobil:gruppen' %}"
-     class="inline-block mb-5 rounded-lg border border-white/20 px-3 py-1.5 text-xs text-white/70">
-    Gruppen verwalten
-  </a>
+  <div class="flex gap-2 mb-5">
+    <a href="{% url 'mobil:gruppen' %}"
+       class="rounded-lg border border-white/20 px-3 py-1.5 text-xs text-white/70">
+      Gruppen verwalten
+    </a>
+    <a href="{% url 'mobil:plan_import' %}"
+       class="rounded-lg border border-white/20 px-3 py-1.5 text-xs text-white/70">
+      CSV-Import
+    </a>
+  </div>
 {% endif %}
 
 {% if kann_bearbeiten and not plaene %}

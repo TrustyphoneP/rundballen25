@@ -175,6 +175,14 @@ class BelegPosition(models.Model):
         max_length=10, choices=GrundpreisEinheit.choices, blank=True,
         verbose_name="Grundpreis-Einheit",
     )
+    stueckpreis = models.DecimalField(
+        max_digits=10, decimal_places=4, null=True, blank=True,
+        verbose_name="Preis je Stück (€)",
+        help_text="Bei stückbasierten Bon-Zeilen (z.B. '13 ST - 1 ST 4,29') "
+                  "der Einzelpreis. Wird bei stückbasiert bepreisten Zutaten "
+                  "(Stk/Pck) für die Übernahme genutzt, statt aus kg/l "
+                  "umzurechnen.",
+    )
 
     ingredient = models.ForeignKey(
         Ingredient, on_delete=models.SET_NULL,

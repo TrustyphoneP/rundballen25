@@ -15,7 +15,7 @@ class BelegPositionInline(admin.TabularInline):
     extra = 0
     fields = [
         "sortierung", "artikel_name", "menge", "einheit",
-        "gesamtpreis", "grundpreis", "grundpreis_einheit",
+        "gesamtpreis", "grundpreis", "grundpreis_einheit", "stueckpreis",
         "ingredient", "hinweis", "ist_uebernommen",
     ]
     autocomplete_fields = ["ingredient"]

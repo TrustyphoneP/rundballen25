@@ -8,10 +8,14 @@ Preisliste, Rezeptkosten, Freizeitkosten und Preistreiber.
 import logging
 from decimal import Decimal, InvalidOperation
 
+import datetime
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Sum
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.text import slugify
 from django.views.decorators.http import require_POST
 
 from apps.camps.models import Camp
@@ -37,6 +41,7 @@ def index(request):
     camp = _aktive_freizeit()
     belege = []
     ist_summe = None
+    ohne_betrag = 0
     if camp:
         belege = (
             Beleg.objects.filter(camp=camp)
@@ -44,11 +49,17 @@ def index(request):
             .annotate(anzahl_positionen=Count("positionen"))
         )
         ist_summe = belege.filter(nur_preiserfassung=False).aggregate(s=Sum("gesamtbetrag"))["s"]
+        # Belege ohne Gesamtbetrag (neu oder Fehler) fehlen still in der
+        # Ist-Summe -- das muss sichtbar sein, sonst täuscht die Zahl.
+        ohne_betrag = Beleg.objects.filter(
+            camp=camp, nur_preiserfassung=False, gesamtbetrag__isnull=True
+        ).count()
 
     return render(request, "rechnungen/index.html", {
-        "camp":      camp,
-        "belege":    belege,
-        "ist_summe": ist_summe,
+        "camp":        camp,
+        "belege":      belege,
+        "ist_summe":   ist_summe,
+        "ohne_betrag": ohne_betrag,
     })
 
 
@@ -231,6 +242,8 @@ def position_aktualisieren(request, pk):
     gueltige_gp = {code for code, _ in BelegPosition.GrundpreisEinheit.choices}
     position.grundpreis_einheit = gp_einheit if gp_einheit in gueltige_gp else ""
 
+    position.stueckpreis = _parse_decimal_de(request.POST.get("stueckpreis"))
+
     # Grundpreis ggf. aus Menge + Zeilensumme nachrechnen
     if position.grundpreis is None or not position.grundpreis_einheit:
         gp, gpe = services.ermittle_grundpreis(
@@ -270,6 +283,11 @@ def position_aktualisieren(request, pk):
     else:
         messages.success(request, f"Position '{position.artikel_name}' gespeichert.")
 
+    if position.beleg.status == Beleg.Status.GEPRUEFT:
+        position.beleg.status = Beleg.Status.ANALYSIERT
+        position.beleg.save(update_fields=["status"])
+        messages.info(request, "Beleg-Prüfung zurückgesetzt, da Positionen geändert wurden.")
+
     return redirect("rechnungen:detail", pk=position.beleg.pk)
 
 
@@ -277,10 +295,14 @@ def position_aktualisieren(request, pk):
 @require_POST
 def position_loeschen(request, pk):
     position = get_object_or_404(BelegPosition.objects.select_related("beleg"), pk=pk)
-    beleg_pk = position.beleg.pk
+    beleg = position.beleg
     position.delete()
     messages.success(request, "Position gelöscht.")
-    return redirect("rechnungen:detail", pk=beleg_pk)
+    if beleg.status == Beleg.Status.GEPRUEFT:
+        beleg.status = Beleg.Status.ANALYSIERT
+        beleg.save(update_fields=["status"])
+        messages.info(request, "Beleg-Prüfung zurückgesetzt, da Positionen geändert wurden.")
+    return redirect("rechnungen:detail", pk=beleg.pk)
 
 
 @login_required
@@ -307,6 +329,148 @@ def alle_uebernehmen(request, pk):
     if not ok and not fehler:
         messages.info(request, "Keine offenen, zugeordneten Positionen mit Grundpreis vorhanden.")
     return redirect("rechnungen:detail", pk=beleg.pk)
+
+
+@login_required
+@require_POST
+def pruefen(request, pk):
+    """
+    Markiert einen analysierten Beleg als geprüft (Positionen kontrolliert,
+    Summe stimmt) bzw. nimmt die Prüfung wieder zurück. Teil des
+    Dokumentations-Workflows: neu -> analysiert -> geprüft.
+    """
+    beleg = get_object_or_404(Beleg, pk=pk)
+    if beleg.status == Beleg.Status.GEPRUEFT:
+        beleg.status = Beleg.Status.ANALYSIERT
+        beleg.save(update_fields=["status"])
+        messages.info(request, "Prüfung zurückgenommen.")
+    elif beleg.status == Beleg.Status.ANALYSIERT:
+        beleg.status = Beleg.Status.GEPRUEFT
+        beleg.save(update_fields=["status"])
+        messages.success(request, "Beleg als geprüft markiert.")
+    else:
+        messages.error(request, "Nur analysierte Belege können als geprüft markiert werden.")
+    return redirect("rechnungen:detail", pk=beleg.pk)
+
+
+# ---------------------------------------------------------------------------
+# Excel-Export der Belegliste (Ausgabendokumentation)
+# ---------------------------------------------------------------------------
+
+@login_required
+def export_belege(request):
+    """
+    Belegliste der aktiven Freizeit als Excel-Datei: ein Blatt mit allen
+    Belegen (ohne reine Preiserfassungs-Belege), ein Blatt mit Summen je
+    Kategorie. Das ist das Endprodukt der Ausgabendokumentation, z.B. für
+    die Abrechnung gegenüber dem Träger.
+    """
+    camp = _aktive_freizeit()
+    if not camp:
+        messages.warning(request, "Keine aktive Freizeit vorhanden.")
+        return redirect("rechnungen:index")
+
+    import openpyxl
+    from io import BytesIO
+    from openpyxl.styles import Font
+    from openpyxl.utils import get_column_letter
+
+    basis = Beleg.objects.filter(camp=camp, nur_preiserfassung=False)
+    belege = (
+        basis.select_related("kategorie", "hochgeladen_von")
+        .annotate(anzahl_positionen=Count("positionen"))
+        .order_by("kaufdatum", "pk")
+    )
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Belege"
+    ws.append([
+        "Kaufdatum", "Händler", "Kategorie", "Betrag (€)",
+        "Status", "Geprüft", "Positionen", "Hochgeladen von", "Notiz",
+    ])
+    for zelle in ws[1]:
+        zelle.font = Font(bold=True)
+
+    for beleg in belege:
+        hochgeladen_von = ""
+        if beleg.hochgeladen_von:
+            hochgeladen_von = (
+                beleg.hochgeladen_von.get_full_name()
+                or beleg.hochgeladen_von.username
+            )
+        ws.append([
+            beleg.kaufdatum,
+            beleg.haendler,
+            beleg.kategorie.name if beleg.kategorie else "",
+            float(beleg.gesamtbetrag) if beleg.gesamtbetrag is not None else None,
+            beleg.get_status_display(),
+            "Ja" if beleg.status == Beleg.Status.GEPRUEFT else "Nein",
+            beleg.anzahl_positionen,
+            hochgeladen_von,
+            beleg.notiz,
+        ])
+
+    for zeile in ws.iter_rows(min_row=2, min_col=1, max_col=1):
+        for zelle in zeile:
+            zelle.number_format = "DD.MM.YYYY"
+    for zeile in ws.iter_rows(min_row=2, min_col=4, max_col=4):
+        for zelle in zeile:
+            zelle.number_format = '#,##0.00" €"'
+    for spalte, breite in enumerate([12, 26, 22, 12, 18, 9, 11, 20, 32], start=1):
+        ws.column_dimensions[get_column_letter(spalte)].width = breite
+
+    # Blatt 2: Summen je Kategorie
+    ws2 = wb.create_sheet("Summen je Kategorie")
+    ws2.append(["Kategorie", "Belege", "Summe (€)"])
+    for zelle in ws2[1]:
+        zelle.font = Font(bold=True)
+
+    gesamt = Decimal("0")
+    gesamt_anzahl = 0
+    for kategorie in Kostenkategorie.objects.all():
+        qs = basis.filter(kategorie=kategorie)
+        anzahl = qs.count()
+        if anzahl == 0:
+            continue
+        summe = qs.aggregate(s=Sum("gesamtbetrag"))["s"] or Decimal("0")
+        ws2.append([kategorie.name, anzahl, float(summe)])
+        gesamt += summe
+        gesamt_anzahl += anzahl
+
+    ohne_qs = basis.filter(kategorie__isnull=True)
+    ohne_anzahl = ohne_qs.count()
+    if ohne_anzahl:
+        ohne_summe = ohne_qs.aggregate(s=Sum("gesamtbetrag"))["s"] or Decimal("0")
+        ws2.append(["Ohne Kategorie", ohne_anzahl, float(ohne_summe)])
+        gesamt += ohne_summe
+        gesamt_anzahl += ohne_anzahl
+
+    ws2.append(["Gesamt", gesamt_anzahl, float(gesamt)])
+    for zelle in ws2[ws2.max_row]:
+        zelle.font = Font(bold=True)
+
+    ohne_betrag = basis.filter(gesamtbetrag__isnull=True).count()
+    if ohne_betrag:
+        ws2.append([])
+        ws2.append([f"Hinweis: {ohne_betrag} Beleg(e) ohne Gesamtbetrag "
+                    "(neu oder Fehler) -- Summen unvollständig."])
+
+    for zeile in ws2.iter_rows(min_row=2, min_col=3, max_col=3):
+        for zelle in zeile:
+            zelle.number_format = '#,##0.00" €"'
+    for spalte, breite in enumerate([26, 10, 14], start=1):
+        ws2.column_dimensions[get_column_letter(spalte)].width = breite
+
+    buf = BytesIO()
+    wb.save(buf)
+    dateiname = f"belege_{slugify(camp.name)}_{datetime.date.today().isoformat()}.xlsx"
+    response = HttpResponse(
+        buf.getvalue(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = f'attachment; filename="{dateiname}"'
+    return response
 
 
 # ---------------------------------------------------------------------------
@@ -358,6 +522,12 @@ def kategorien(request):
     ohne_summe = ohne.aggregate(s=Sum("gesamtbetrag"))["s"] or Decimal("0")
     ist_gesamt += ohne_summe
 
+    ohne_betrag = 0
+    if camp:
+        ohne_betrag = Beleg.objects.filter(
+            camp=camp, nur_preiserfassung=False, gesamtbetrag__isnull=True
+        ).count()
+
     # --- 2. Vorkalkulation aus der Einkaufsliste (Zutatenpreise) ---
     plan_quellen = []
     plan_summe = Decimal("0")
@@ -373,6 +543,7 @@ def kategorien(request):
         "eintraege":       eintraege,
         "ohne_anzahl":     ohne.count(),
         "ohne_summe":      ohne_summe,
+        "ohne_betrag":     ohne_betrag,
         "ist_gesamt":      ist_gesamt,
         "plan_quellen":    plan_quellen,
         "plan_summe":      plan_summe,
@@ -467,6 +638,9 @@ def freizeitkosten(request):
     pro_person_tag = pro_person / tage if pro_person is not None and tage else None
 
     ist_summe = Beleg.objects.filter(camp=camp, nur_preiserfassung=False).aggregate(s=Sum("gesamtbetrag"))["s"]
+    ohne_betrag = Beleg.objects.filter(
+        camp=camp, nur_preiserfassung=False, gesamtbetrag__isnull=True
+    ).count()
 
     return render(request, "rechnungen/freizeitkosten.html", {
         "camp":           camp,
@@ -476,6 +650,7 @@ def freizeitkosten(request):
         "pro_person":     pro_person,
         "pro_person_tag": pro_person_tag,
         "ist_summe":      ist_summe,
+        "ohne_betrag":    ohne_betrag,
     })
 
 

@@ -4,12 +4,26 @@
 {% block page_title %}Beleg{% if beleg.haendler %}: {{ beleg.haendler }}{% endif %}{% endblock %}
 
 {% block topbar_actions %}
-  <form method="post" action="{% url 'rechnungen:analysieren' pk=beleg.pk %}">
+  <form method="post" action="{% url 'rechnungen:analysieren' pk=beleg.pk %}"
+        x-data="{ analyseLaeuft: false }" @submit="analyseLaeuft = true">
     {% csrf_token %}
-    <button type="submit" class="btn btn-ghost">
+    <button type="submit" class="btn btn-ghost" :disabled="analyseLaeuft"
+            :style="analyseLaeuft ? 'opacity:0.5;' : ''">
       {% if beleg.status == "neu" %}Analysieren{% else %}Erneut analysieren{% endif %}
     </button>
+    {% include "rechnungen/partials/analyse_overlay.html" %}
   </form>
+  {% if beleg.status == "analysiert" %}
+  <form method="post" action="{% url 'rechnungen:pruefen' pk=beleg.pk %}">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-ghost" title="Positionen kontrolliert, Summe stimmt">✓ Als geprüft markieren</button>
+  </form>
+  {% elif beleg.status == "geprueft" %}
+  <form method="post" action="{% url 'rechnungen:pruefen' pk=beleg.pk %}">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-ghost">Prüfung zurücknehmen</button>
+  </form>
+  {% endif %}
   {% if positionen %}
   <form method="post" action="{% url 'rechnungen:alle_uebernehmen' pk=beleg.pk %}"
         {% if abweichende_anzahl %}onsubmit="return confirm('{{ abweichende_anzahl }} Zutat(en) haben bereits einen abweichenden Preis. Soll der alte Beleg diese Preise überschreiben?');"{% endif %}>
@@ -87,6 +101,7 @@
             <th style="width:100px;">Summe €</th>
             <th style="width:110px;">Grundpreis €</th>
             <th style="width:80px;">je</th>
+            <th style="width:90px;" title="Preis je Stück/Packung bei stückbasierten Bon-Zeilen">Stück €</th>
             <th style="width:180px;">Zutat</th>
             <th style="width:170px;"></th>
           </tr>
@@ -122,6 +137,7 @@
                 {% endfor %}
               </select>
             </td>
+            <td><input type="text" name="stueckpreis" value="{{ pos.stueckpreis|dezimal_de }}" form="pos-{{ pos.pk }}" inputmode="decimal"></td>
             <td>
               <input type="text" name="zutat" list="zutaten-datalist"
                      value="{{ pos.ingredient.name|default:'' }}"

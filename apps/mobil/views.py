@@ -5,6 +5,7 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import SetPasswordForm
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
 from apps.camps.models import Camp
@@ -596,3 +597,60 @@ def checkliste_verwalten(request, pk=None):
         "liste": liste,
         "form": form,
     })
+
+
+# ---------------------------------------------------------------------------
+# Wochenplan CSV-Import
+# ---------------------------------------------------------------------------
+
+@login_required
+def plan_import(request):
+    """Wochenplan per CSV hochladen (Leitung/Admin)."""
+    from .csv_import import csv_parsen, csv_importieren
+
+    camp = aktive_freizeit(request)
+    if camp is None:
+        return redirect("mobil:freizeiten")
+    if not kann_bearbeiten(request.user):
+        messages.error(request, "Keine Berechtigung für den Import.")
+        return redirect("mobil:woche")
+
+    fehler = []
+    if request.method == "POST":
+        datei = request.FILES.get("datei")
+        ersetzen = request.POST.get("ersetzen") == "1"
+        if datei is None:
+            fehler = ["Bitte eine CSV-Datei auswählen."]
+        elif datei.size > 1024 * 1024:
+            fehler = ["Die Datei ist größer als 1 MB."]
+        else:
+            aktionen, fehler = csv_parsen(datei.read(), camp)
+            if not fehler:
+                anzahl = csv_importieren(aktionen, camp, ersetzen=ersetzen)
+                if ersetzen:
+                    messages.success(
+                        request,
+                        f"Wochenplan ersetzt: {anzahl} Aktionen importiert.",
+                    )
+                else:
+                    messages.success(request, f"{anzahl} Aktionen importiert.")
+                return redirect("mobil:woche")
+
+    anzahl_aktionen = Aktion.objects.filter(wochenplan__camp_id=camp.pk).count()
+    return render(request, "mobil/plan_import.html", {
+        "camp": camp,
+        "fehler": fehler,
+        "anzahl_aktionen": anzahl_aktionen,
+    })
+
+
+@login_required
+def plan_import_vorlage(request):
+    """CSV-Vorlage zum Herunterladen."""
+    from .csv_import import VORLAGE
+    antwort = HttpResponse(
+        VORLAGE.encode("utf-8-sig"),  # BOM, damit Excel Umlaute korrekt zeigt
+        content_type="text/csv; charset=utf-8",
+    )
+    antwort["Content-Disposition"] = 'attachment; filename="wochenplan_vorlage.csv"'
+    return antwort

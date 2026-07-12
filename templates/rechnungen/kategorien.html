@@ -17,6 +17,13 @@
 </div>
 {% endif %}
 
+{% if ohne_betrag %}
+<div class="flash flash-warning">
+  {{ ohne_betrag }} Beleg(e) ohne Gesamtbetrag (neu oder Fehler bei der
+  Analyse) -- die Ist-Kosten sind unvollständig.
+</div>
+{% endif %}
+
 <div class="grid gap-6" style="grid-template-columns: minmax(340px, 1fr) minmax(280px, 380px);">
 
   <div>

@@ -19,6 +19,8 @@ urlpatterns = [
     path("heute/",              views.heute_view,        name="heute"),
     path("woche/",              views.woche_view,        name="woche"),
     path("plan/neu/",           views.plan_anlegen,      name="plan_neu"),
+    path("plan/import/",        views.plan_import,       name="plan_import"),
+    path("plan/import/vorlage/", views.plan_import_vorlage, name="plan_import_vorlage"),
     path("aktion/neu/",         views.aktion_anlegen,    name="aktion_neu"),
     path("aktion/<int:pk>/",    views.aktion_bearbeiten, name="aktion_bearbeiten"),
 
