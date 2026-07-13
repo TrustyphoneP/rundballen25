@@ -21,6 +21,7 @@ urlpatterns = [
     path("kategorien/<int:pk>/loeschen/",       views.kategorie_loeschen,     name="kategorie_loeschen"),
 
     path("preisliste/",                         views.preisliste,             name="preisliste"),
+    path("zutat/<int:pk>/",                     views.zutat,                  name="zutat"),
     path("rezeptkosten/",                       views.rezeptkosten,           name="rezeptkosten"),
     path("freizeitkosten/",                     views.freizeitkosten,         name="freizeitkosten"),
     path("preistreiber/",                       views.preistreiber,           name="preistreiber"),

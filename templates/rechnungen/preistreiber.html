@@ -21,7 +21,7 @@
         <tbody>
           {% for e in treiber.gewicht %}
           <tr>
-            <td>{{ e.ingredient.name }}</td>
+            <td><a href="{% url 'rechnungen:zutat' pk=e.ingredient.pk %}" class="hover:underline" style="color:#e8a444;">{{ e.ingredient.name }}</a></td>
             <td class="text-right font-mono whitespace-nowrap">{{ e.preis|euro }} / kg</td>
           </tr>
           {% empty %}
@@ -42,7 +42,7 @@
         <tbody>
           {% for e in treiber.volumen %}
           <tr>
-            <td>{{ e.ingredient.name }}</td>
+            <td><a href="{% url 'rechnungen:zutat' pk=e.ingredient.pk %}" class="hover:underline" style="color:#e8a444;">{{ e.ingredient.name }}</a></td>
             <td class="text-right font-mono whitespace-nowrap">{{ e.preis|euro }} / l</td>
           </tr>
           {% empty %}
@@ -63,7 +63,7 @@
         <tbody>
           {% for e in treiber.stueck %}
           <tr>
-            <td>{{ e.ingredient.name }}</td>
+            <td><a href="{% url 'rechnungen:zutat' pk=e.ingredient.pk %}" class="hover:underline" style="color:#e8a444;">{{ e.ingredient.name }}</a></td>
             <td class="text-right font-mono whitespace-nowrap">{{ e.preis|euro }} / {{ e.einheit }}</td>
           </tr>
           {% empty %}

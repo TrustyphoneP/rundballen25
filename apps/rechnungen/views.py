@@ -655,6 +655,107 @@ def freizeitkosten(request):
 
 
 # ---------------------------------------------------------------------------
+# Zutaten-Steckbrief: alles Relevante zu einer Zutat auf einer Seite
+# ---------------------------------------------------------------------------
+
+@login_required
+def zutat(request, pk):
+    """
+    Steckbrief einer Zutat: Preis je Einheit (inkl. Normalisierung auf
+    €/kg bzw. €/l), tatsächliche Ausgaben aus Beleg-Positionen,
+    Verwendung in Rezepten und in Allgemein/Betreueressen/Alternative,
+    geplante Kosten in der aktiven Freizeit sowie die Preishistorie.
+    """
+    from apps.meals.models import GeneralIngredient
+    from apps.recipes.models import RecipeIngredient
+
+    ing = get_object_or_404(
+        Ingredient.objects.prefetch_related("allergens"), pk=pk
+    )
+    camp = _aktive_freizeit()
+
+    # Preis normalisiert auf die gebräuchliche Grundpreis-Einheit
+    preis_normalisiert = None
+    norm_einheit = ""
+    if ing.price is not None and ing.price_unit:
+        if ing.price_unit in ("g", "kg"):
+            preis_normalisiert = services.konvertiere_preis(ing.price, ing.price_unit, "kg")
+            norm_einheit = "kg"
+        elif ing.price_unit in ("ml", "l"):
+            preis_normalisiert = services.konvertiere_preis(ing.price, ing.price_unit, "l")
+            norm_einheit = "l"
+
+    # Verwendung in Rezepten (mit Kosten je Rezept-Ansatz und pro Person)
+    rezept_verwendungen = []
+    for ri in RecipeIngredient.objects.filter(ingredient=ing).select_related("recipe"):
+        kosten = ing.price_for(ri.amount, ri.unit)
+        pro_person = None
+        if kosten is not None and ri.recipe.base_servings:
+            pro_person = kosten / Decimal(str(ri.recipe.base_servings))
+        rezept_verwendungen.append({
+            "ri": ri, "kosten": kosten, "pro_person": pro_person,
+        })
+
+    # Verwendung in Allgemein / Betreueressen / SKF-Alternativen
+    general_verwendungen = (
+        GeneralIngredient.objects.filter(ingredient=ing)
+        .select_related("camp").order_by("-camp__start_date", "category")
+    )
+
+    # Tatsächliche Ausgaben: Beleg-Positionen dieser Zutat
+    positionen = (
+        BelegPosition.objects.filter(ingredient=ing)
+        .select_related("beleg", "beleg__kategorie")
+        .order_by("-beleg__kaufdatum", "-beleg__hochgeladen_am")
+    )
+    ist_summe = Decimal("0")
+    ist_anzahl = 0
+    if camp:
+        for pos in positionen:
+            if (pos.beleg.camp_id == camp.pk
+                    and not pos.beleg.nur_preiserfassung
+                    and pos.gesamtpreis is not None):
+                ist_summe += pos.gesamtpreis
+                ist_anzahl += 1
+
+    # Geplante Kosten in der aktiven Freizeit (aus der Einkaufsliste)
+    plan_eintraege = []
+    plan_summe = Decimal("0")
+    if camp:
+        kosten = services.berechne_freizeitkosten(camp)
+        for lieferung in kosten["lieferungen"]:
+            for p in lieferung["positionen"]:
+                if p["name"] == ing.name:
+                    plan_eintraege.append({
+                        "lieferung": lieferung["label"],
+                        "amount":    p["amount"],
+                        "unit":      p["unit"],
+                        "source":    p["source"],
+                        "kosten":    p["kosten"],
+                    })
+                    if p["kosten"] is not None:
+                        plan_summe += p["kosten"]
+
+    historie = ing.preishistorie.select_related("beleg")[:50]
+
+    return render(request, "rechnungen/zutat_detail.html", {
+        "ing":                 ing,
+        "camp":                camp,
+        "einheiten":           ing.all_units_used(),
+        "preis_normalisiert":  preis_normalisiert,
+        "norm_einheit":        norm_einheit,
+        "rezept_verwendungen": rezept_verwendungen,
+        "general_verwendungen": general_verwendungen,
+        "positionen":          positionen,
+        "ist_summe":           ist_summe,
+        "ist_anzahl":          ist_anzahl,
+        "plan_eintraege":      plan_eintraege,
+        "plan_summe":          plan_summe,
+        "historie":            historie,
+    })
+
+
+# ---------------------------------------------------------------------------
 # Preistreiber
 # ---------------------------------------------------------------------------
 

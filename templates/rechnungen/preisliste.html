@@ -34,7 +34,11 @@
     <tbody>
       {% for e in eintraege %}
       <tr>
-        <td>{{ e.ingredient.name }}</td>
+        <td>
+          <a href="{% url 'rechnungen:zutat' pk=e.ingredient.pk %}" class="hover:underline" style="color:#e8a444;">
+            {{ e.ingredient.name }}
+          </a>
+        </td>
         <td>
           {% if e.ingredient.price is not None %}
             {{ e.ingredient.price|euro }}{% if e.ingredient.price_unit %} / {{ e.ingredient.price_unit }}{% endif %}

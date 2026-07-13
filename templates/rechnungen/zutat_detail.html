@@ -1,0 +1,207 @@
+{% extends "base/base.html" %}
+{% load rechnungen_tags %}
+{% block title %}{{ ing.name }} – Zutaten-Steckbrief{% endblock %}
+{% block page_title %}{{ ing.name }}{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{% url 'recipes:ingredient_edit' pk=ing.pk %}" class="btn btn-ghost">Zutat bearbeiten</a>
+{% endblock %}
+
+{% block content %}
+
+<div class="section-mono mb-5">
+  Zutaten-Steckbrief
+  {% if ing.is_fresh %} · frisch{% else %} · trocken{% endif %}
+  {% if einheiten %} · verwendet in: {{ einheiten|join:", " }}{% endif %}
+  {% if ing.allergens.all %} · Allergene: {% for a in ing.allergens.all %}{{ a }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}
+</div>
+
+{% if ing.notes %}
+<div class="card px-5 py-3 mb-5 text-sm" style="color:rgba(240,237,232,0.6);">{{ ing.notes }}</div>
+{% endif %}
+
+<!-- Kennzahlen -->
+<div class="grid gap-4 mb-6" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+  <div class="card px-5 py-4">
+    <div class="section-mono mb-1">Preis</div>
+    <div class="font-display text-2xl">
+      {% if ing.price is not None %}{{ ing.price|euro }} / {{ ing.price_unit }}{% else %}–{% endif %}
+    </div>
+    {% if preis_normalisiert %}
+    <div class="text-xs mt-1" style="color:rgba(240,237,232,0.45);">
+      entspricht {{ preis_normalisiert|euro }} / {{ norm_einheit }}
+    </div>
+    {% endif %}
+  </div>
+  <div class="card px-5 py-4">
+    <div class="section-mono mb-1">Tatsächlich ausgegeben{% if camp %} ({{ camp.name }}){% endif %}</div>
+    <div class="font-display text-2xl">{{ ist_summe|euro }}</div>
+    <div class="text-xs mt-1" style="color:rgba(240,237,232,0.45);">
+      {{ ist_anzahl }} Beleg-Position(en), ohne Preiserfassungs-Belege
+    </div>
+  </div>
+  <div class="card px-5 py-4">
+    <div class="section-mono mb-1">Geplant{% if camp %} ({{ camp.name }}){% endif %}</div>
+    <div class="font-display text-2xl">{{ plan_summe|euro }}</div>
+    <div class="text-xs mt-1" style="color:rgba(240,237,232,0.45);">
+      aus der Einkaufsliste über alle Lieferungen
+    </div>
+  </div>
+  <div class="card px-5 py-4">
+    <div class="section-mono mb-1">Preispunkte</div>
+    <div class="font-display text-2xl">{{ historie|length }}</div>
+    <div class="text-xs mt-1" style="color:rgba(240,237,232,0.45);">
+      Einträge in der Preishistorie
+    </div>
+  </div>
+</div>
+
+<div class="grid gap-6" style="grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));">
+
+  <!-- Verwendung in Rezepten -->
+  <div class="card overflow-hidden">
+    <div class="px-5 py-4 border-b" style="border-color:rgba(240,237,232,0.08);">
+      <div class="font-display text-lg">Verwendung in Rezepten</div>
+    </div>
+    <table>
+      <thead>
+        <tr><th>Rezept</th><th>Menge</th><th class="text-right">Kosten</th><th class="text-right">pro Person</th></tr>
+      </thead>
+      <tbody>
+        {% for v in rezept_verwendungen %}
+        <tr>
+          <td>
+            <a href="{% url 'recipes:detail' pk=v.ri.recipe.pk %}" class="hover:underline" style="color:#e8a444;">
+              {{ v.ri.recipe.name }}
+            </a>
+            <div class="text-xs" style="color:rgba(240,237,232,0.35);">{{ v.ri.recipe.base_servings }} Portionen</div>
+          </td>
+          <td>{{ v.ri.amount|menge:v.ri.unit }}</td>
+          <td class="text-right font-mono">{{ v.kosten|euro }}</td>
+          <td class="text-right font-mono">{{ v.pro_person|euro }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="text-center" style="color:rgba(240,237,232,0.45);">In keinem Rezept verwendet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Verwendung in Allgemein / Betreueressen / Alternative -->
+  <div class="card overflow-hidden">
+    <div class="px-5 py-4 border-b" style="border-color:rgba(240,237,232,0.08);">
+      <div class="font-display text-lg">Allgemein / Betreueressen / SKF-Alternativen</div>
+    </div>
+    <table>
+      <thead>
+        <tr><th>Bereich</th><th>Freizeit</th><th>Menge</th></tr>
+      </thead>
+      <tbody>
+        {% for g in general_verwendungen %}
+        <tr>
+          <td>{{ g.get_category_display }}</td>
+          <td class="text-xs" style="color:rgba(240,237,232,0.5);">{{ g.camp.name }}</td>
+          <td>{{ g.amount|menge:g.unit }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="3" class="text-center" style="color:rgba(240,237,232,0.45);">Nicht verwendet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Geplante Mengen in der aktiven Freizeit -->
+  {% if camp %}
+  <div class="card overflow-hidden">
+    <div class="px-5 py-4 border-b" style="border-color:rgba(240,237,232,0.08);">
+      <div class="font-display text-lg">Geplant: {{ camp.name }}</div>
+      <div class="text-xs mt-1" style="color:rgba(240,237,232,0.45);">aus der Einkaufsliste, je Lieferung</div>
+    </div>
+    <table>
+      <thead>
+        <tr><th>Lieferung</th><th>Kategorie</th><th>Menge</th><th class="text-right">Kosten</th></tr>
+      </thead>
+      <tbody>
+        {% for p in plan_eintraege %}
+        <tr>
+          <td>{{ p.lieferung }}</td>
+          <td class="text-xs" style="color:rgba(240,237,232,0.5);">{{ p.source }}</td>
+          <td>{{ p.amount|menge:p.unit }}</td>
+          <td class="text-right font-mono">{% if p.kosten is not None %}{{ p.kosten|euro }}{% else %}–{% endif %}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="text-center" style="color:rgba(240,237,232,0.45);">Kommt in der aktuellen Einkaufsliste nicht vor.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <!-- Beleg-Positionen -->
+  <div class="card overflow-hidden">
+    <div class="px-5 py-4 border-b" style="border-color:rgba(240,237,232,0.08);">
+      <div class="font-display text-lg">Beleg-Positionen</div>
+      <div class="text-xs mt-1" style="color:rgba(240,237,232,0.45);">tatsächliche Einkäufe dieser Zutat</div>
+    </div>
+    <div style="max-height:360px; overflow-y:auto;">
+      <table>
+        <thead>
+          <tr><th>Beleg</th><th>Artikel</th><th>Menge</th><th class="text-right">Summe</th><th class="text-right">Grundpreis</th></tr>
+        </thead>
+        <tbody>
+          {% for pos in positionen %}
+          <tr>
+            <td>
+              <a href="{% url 'rechnungen:detail' pk=pos.beleg.pk %}" class="hover:underline" style="color:#e8a444;">
+                {{ pos.beleg.haendler|default:"Beleg" }}
+              </a>
+              <div class="text-xs" style="color:rgba(240,237,232,0.35);">
+                {{ pos.beleg.kaufdatum|date:"d.m.Y"|default:"–" }}
+                {% if pos.beleg.nur_preiserfassung %}· <span class="badge badge-muted">Preiserfassung</span>{% endif %}
+              </div>
+            </td>
+            <td class="text-xs">{{ pos.artikel_name }}</td>
+            <td>{% if pos.menge %}{{ pos.menge|menge:pos.einheit }}{% else %}–{% endif %}</td>
+            <td class="text-right font-mono">{{ pos.gesamtpreis|euro }}</td>
+            <td class="text-right font-mono text-xs">
+              {% if pos.stueckpreis %}{{ pos.stueckpreis|euro }}/Stk
+              {% elif pos.grundpreis %}{{ pos.grundpreis|euro }}/{{ pos.grundpreis_einheit }}
+              {% else %}–{% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="text-center" style="color:rgba(240,237,232,0.45);">Noch keine Beleg-Positionen.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Preishistorie -->
+  <div class="card overflow-hidden">
+    <div class="px-5 py-4 border-b" style="border-color:rgba(240,237,232,0.08);">
+      <div class="font-display text-lg">Preishistorie</div>
+    </div>
+    <div style="max-height:360px; overflow-y:auto;">
+      <table>
+        <thead>
+          <tr><th>Erfasst</th><th>Preis</th><th>Händler</th><th>Kaufdatum</th></tr>
+        </thead>
+        <tbody>
+          {% for h in historie %}
+          <tr>
+            <td class="text-xs" style="color:rgba(240,237,232,0.5);">{{ h.erfasst_am|date:"d.m.Y H:i" }}</td>
+            <td class="font-mono">{{ h.preis|euro }} / {{ h.einheit }}</td>
+            <td>{{ h.haendler|default:"manuell" }}</td>
+            <td>{{ h.kaufdatum|date:"d.m.Y"|default:"–" }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" class="text-center" style="color:rgba(240,237,232,0.45);">Noch keine Preisübernahmen.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
