@@ -115,13 +115,13 @@ class RegistrierungForm(forms.Form):
     name = forms.CharField(
         label="Dein Name",
         max_length=150,
-        widget=forms.TextInput(attrs={"placeholder": "z. B. Mia", "autocomplete": "name"}),
+        widget=forms.TextInput(attrs={"placeholder": "Nur den Vornamen", "autocomplete": "name"}),
     )
     username = forms.CharField(
         label="Benutzername",
         max_length=150,
         widget=forms.TextInput(attrs={
-            "placeholder": "für die Anmeldung",
+            "placeholder": "Für die Anmeldung",
             "autocapitalize": "none",
             "autocomplete": "username",
         }),

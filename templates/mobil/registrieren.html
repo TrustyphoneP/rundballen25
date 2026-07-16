@@ -37,6 +37,10 @@
     <div>
       <label for="{{ form.password1.id_for_label }}">Passwort</label>
       {{ form.password1 }} {{ form.password1.errors }}
+      <p class="helptext mt-1.5">
+        Mindestens 8 Zeichen, nicht nur Zahlen, kein gängiges Passwort,
+        nicht zu ähnlich zu deinem Namen oder Benutzernamen.
+      </p>
     </div>
     <div>
       <label for="{{ form.password2.id_for_label }}">Passwort wiederholen</label>
