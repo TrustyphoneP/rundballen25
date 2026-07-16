@@ -1,0 +1,45 @@
+{% extends "mobil/base_mobil.html" %}
+{% block title %}Registrieren · rundBallenMobil{% endblock %}
+{% block header_right %}{% endblock %}
+
+{% block content %}
+<div class="flex flex-col justify-center min-h-[70vh]">
+
+  <div class="text-center mb-8">
+    <div class="font-display text-3xl mb-2">
+      rund<span class="text-acc">Ballen</span>Mobil
+    </div>
+    <p class="text-sm text-white/50">
+      Registriere dich mit dem Zugangscode deiner Freizeit.
+    </p>
+  </div>
+
+  <form method="post" class="space-y-4">
+    {% csrf_token %}
+    {% if code_form.non_field_errors %}
+      <div class="rounded-lg px-3 py-2 text-sm bg-warn/15 border border-warn/40 text-warn">
+        {{ code_form.non_field_errors }}
+      </div>
+    {% endif %}
+
+    <div>
+      <label for="{{ code_form.code.id_for_label }}">Zugangscode</label>
+      {{ code_form.code }} {{ code_form.code.errors }}
+    </div>
+
+    <button type="submit"
+            class="w-full rounded-xl bg-acc text-p-dark font-medium py-3 mt-2
+                   active:scale-[0.98] transition-transform">
+      Weiter
+    </button>
+  </form>
+
+  <p class="text-sm text-white/45 text-center mt-6">
+    Schon einen Account?
+    <a href="{% url 'mobil:login' %}" class="text-acc underline underline-offset-2">Anmelden</a>
+  </p>
+  <p class="text-xs text-white/35 text-center mt-3">
+    Den Code bekommst du von der Freizeitleitung.
+  </p>
+</div>
+{% endblock %}

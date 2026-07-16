@@ -594,3 +594,84 @@ def skf_briefing_day(request, camp_pk, day_pk):
         "dm":       dm,
         "briefing": briefing,
     })
+
+
+# ---------------------------------------------------------------------------
+# Freizeit-Verwaltung: Übersicht, Anlegen, Bearbeiten, Aktivieren
+# ---------------------------------------------------------------------------
+
+@login_required
+def camp_list(request):
+    """
+    Übersicht aller Freizeiten (aktiv + Archiv). Von hier aus kann eine
+    neue Freizeit angelegt oder eine alte wieder aktiviert werden. Die
+    gesamte App rendert immer die aktive Freizeit, daher ist "Aktivieren"
+    gleichbedeutend mit "diese Freizeit ansehen/bearbeiten".
+    """
+    camps = (
+        Camp.objects
+        .annotate(
+            teili_count=Count("participants", filter=Q(participants__person_type="participant"), distinct=True),
+            betreuer_count=Count("participants", filter=Q(participants__person_type="supervisor"), distinct=True),
+        )
+        .order_by("-start_date")
+    )
+    return render(request, "camps/camp_list.html", {"camps": camps})
+
+
+@login_required
+def camp_create(request):
+    """
+    Neue Freizeit anlegen. Wird direkt aktiviert (alle anderen werden
+    deaktiviert), damit man frisch anfangen kann. Die alte Freizeit bleibt
+    vollständig erhalten und kann über die Übersicht reaktiviert werden.
+    """
+    if request.method == "POST":
+        form = CampForm(request.POST)
+        if form.is_valid():
+            camp = form.save(commit=False)
+            camp.created_by = request.user
+            camp.is_active = True
+            camp.save()
+            Camp.objects.exclude(pk=camp.pk).update(is_active=False)
+            messages.success(
+                request,
+                f'Freizeit "{camp.name}" angelegt und aktiviert. '
+                f'Die bisherige Freizeit bleibt erhalten und kann über die Freizeit-Übersicht reaktiviert werden.'
+            )
+            return redirect("camps:dashboard")
+    else:
+        form = CampForm()
+    return render(request, "camps/camp_form.html", {"form": form, "is_new": True})
+
+
+@login_required
+def camp_edit(request, pk):
+    """Stammdaten einer Freizeit bearbeiten (Name, Zeitraum, Ort, Planzahlen)."""
+    camp = get_object_or_404(Camp, pk=pk)
+    if request.method == "POST":
+        form = CampForm(request.POST, instance=camp)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Freizeit "{camp.name}" gespeichert.')
+            return redirect("camps:camp_list")
+    else:
+        form = CampForm(instance=camp)
+    return render(request, "camps/camp_form.html", {"form": form, "is_new": False, "camp": camp})
+
+
+@login_required
+@require_POST
+def camp_activate(request, pk):
+    """
+    Macht die gewählte Freizeit zur aktiven. Es ist immer genau eine
+    Freizeit aktiv; alle anderen werden deaktiviert. Daten gehen dabei
+    nie verloren, es wird nur umgeschaltet, welche Freizeit die App zeigt.
+    """
+    camp = get_object_or_404(Camp, pk=pk)
+    Camp.objects.exclude(pk=camp.pk).update(is_active=False)
+    if not camp.is_active:
+        camp.is_active = True
+        camp.save(update_fields=["is_active"])
+    messages.success(request, f'Freizeit "{camp.name}" ist jetzt aktiv.')
+    return redirect("camps:camp_list")

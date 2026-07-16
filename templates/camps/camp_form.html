@@ -1,0 +1,95 @@
+{% extends "base/base.html" %}
+
+{% block title %}{% if is_new %}Neue Freizeit{% else %}Freizeit bearbeiten{% endif %} | rundballen24{% endblock %}
+{% block page_title %}{% if is_new %}Neue Freizeit{% else %}Freizeit bearbeiten{% endif %}{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{% url 'camps:camp_list' %}" class="btn btn-ghost">Abbrechen</a>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl">
+  <form method="post" novalidate>
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="card p-4 mb-5" style="border-color:rgba(224,123,84,0.4);">
+      <div class="text-sm" style="color:#e07b54;">{{ form.non_field_errors.0 }}</div>
+    </div>
+    {% endif %}
+
+    <!-- Grunddaten -->
+    <div class="card p-6 mb-5">
+      <div class="section-mono mb-4">Grunddaten</div>
+      <div class="mb-4">
+        <label class="section-mono block mb-1">Bezeichnung</label>
+        {{ form.name }}
+        {% if form.name.errors %}
+          <div class="text-xs mt-1" style="color:#e07b54;">{{ form.name.errors.0 }}</div>
+        {% endif %}
+      </div>
+      <div class="mb-4">
+        <label class="section-mono block mb-1">Beschreibung (optional)</label>
+        {{ form.description }}
+      </div>
+      <div>
+        <label class="section-mono block mb-1">Ort (optional)</label>
+        {{ form.location }}
+      </div>
+    </div>
+
+    <!-- Zeitraum -->
+    <div class="card p-6 mb-5">
+      <div class="section-mono mb-4">Zeitraum</div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="section-mono block mb-1">Beginn</label>
+          {{ form.start_date }}
+          {% if form.start_date.errors %}
+            <div class="text-xs mt-1" style="color:#e07b54;">{{ form.start_date.errors.0 }}</div>
+          {% endif %}
+        </div>
+        <div>
+          <label class="section-mono block mb-1">Ende</label>
+          {{ form.end_date }}
+          {% if form.end_date.errors %}
+            <div class="text-xs mt-1" style="color:#e07b54;">{{ form.end_date.errors.0 }}</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Planzahlen -->
+    <div class="card p-6 mb-5">
+      <div class="section-mono mb-4">Planzahlen</div>
+      <div class="text-xs mb-3" style="color:rgba(240,237,232,0.4);">
+        Grobe Planung. Sobald Teilis erfasst sind, rechnet die App mit den tatsächlichen Zahlen.
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="section-mono block mb-1">Teilis (geplant)</label>
+          {{ form.participant_count }}
+        </div>
+        <div>
+          <label class="section-mono block mb-1">Betreuer (geplant)</label>
+          {{ form.supervisor_count }}
+        </div>
+      </div>
+    </div>
+
+    {% if is_new %}
+    <div class="text-xs mb-4" style="color:rgba(240,237,232,0.4);">
+      Die neue Freizeit wird beim Speichern direkt aktiviert. Die bisherige Freizeit
+      bleibt erhalten und kann über die Freizeit-Übersicht wieder aktiviert werden.
+    </div>
+    {% endif %}
+
+    <div class="flex items-center gap-3">
+      <button type="submit" class="btn btn-primary">
+        {% if is_new %}Freizeit anlegen{% else %}Speichern{% endif %}
+      </button>
+      <a href="{% url 'camps:camp_list' %}" class="btn btn-ghost">Abbrechen</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

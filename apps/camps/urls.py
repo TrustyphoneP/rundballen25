@@ -20,6 +20,12 @@ urlpatterns = [
     path("teilnehmer/<int:pk>/bearbeiten/",            views.participant_edit,   name="participant_edit"),
     path("teilnehmer/<int:pk>/löschen/",              views.participant_delete, name="participant_delete"),
 
+    # Freizeit-Verwaltung
+    path("freizeiten/",                                views.camp_list,          name="camp_list"),
+    path("freizeiten/neu/",                            views.camp_create,        name="camp_create"),
+    path("freizeiten/<int:pk>/bearbeiten/",            views.camp_edit,          name="camp_edit"),
+    path("freizeiten/<int:pk>/aktivieren/",            views.camp_activate,      name="camp_activate"),
+
     # Hilfsmittel
     path("csv-vorlage/",                               views.csv_template,       name="csv_template"),
 ]

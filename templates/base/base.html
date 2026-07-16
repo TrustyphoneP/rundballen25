@@ -228,7 +228,7 @@
           <div class="nav-dot"></div> Kategoriekosten
         </a>
         <a href="{% url 'rechnungen:preisliste' %}" @click="sidebarOpen = false"
-           class="nav-link {% if request.resolver_match.url_name == 'preisliste' %}active{% endif %}">
+           class="nav-link {% if request.resolver_match.url_name == 'preisliste' or request.resolver_match.url_name == 'zutat' %}active{% endif %}">
           <div class="nav-dot"></div> Preisliste
         </a>
         <a href="{% url 'rechnungen:rezeptkosten' %}" @click="sidebarOpen = false"
@@ -280,7 +280,9 @@
         </button>
         <h1 class="font-display text-lg flex-1 truncate">{% block page_title %}{% endblock %}</h1>
         {% if active_camp %}
-        <span class="badge badge-muted hidden sm:inline-flex">{{ active_camp.name }}</span>
+        <a href="{% url 'camps:camp_list' %}" class="badge badge-muted hidden sm:inline-flex" style="text-decoration:none;" title="Freizeiten verwalten">{{ active_camp.name }}</a>
+        {% else %}
+        <a href="{% url 'camps:camp_list' %}" class="badge badge-muted hidden sm:inline-flex" style="text-decoration:none;">Freizeit wählen</a>
         {% endif %}
         <div class="flex items-center gap-2 flex-shrink-0">
           {% block topbar_actions %}{% endblock %}

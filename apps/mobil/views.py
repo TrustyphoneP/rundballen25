@@ -11,7 +11,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from apps.camps.models import Camp
 from apps.mobile_api.models import Wochenplan, Aktion, WOCHENTAG_CHOICES
 
-from .forms import WochenplanForm, AktionForm, GruppeForm, RegistrierungForm, ChecklisteForm
+from .forms import WochenplanForm, AktionForm, GruppeForm, RegistrierungForm, ZugangscodeForm, ChecklisteForm
 from .models import FreizeitMitglied, Gruppe, FreizeitZugang, Checkliste, ChecklistenPunkt, PunktErledigt
 
 SESSION_CAMP_KEY = "mobil_camp_id"
@@ -101,13 +101,47 @@ def login_view(request):
     return render(request, "mobil/login.html", {"error": error})
 
 
+REGISTRIERUNG_CAMP_KEY = "registrieren_camp_id"
+
+
 def registrieren_view(request):
-    """Selbstregistrierung mit Freizeit-Zugangscode."""
+    """
+    Selbstregistrierung in zwei Schritten:
+    1. Zugangscode eingeben -> legt die Freizeit fest
+    2. Name, Zugangsdaten und Gruppe waehlen (Dropdown zeigt nur
+       Gruppen der per Code ermittelten Freizeit)
+    """
     if request.user.is_authenticated:
         return redirect("mobil:heute")
 
+    camp_id = request.session.get(REGISTRIERUNG_CAMP_KEY)
+    camp = Camp.objects.filter(pk=camp_id, is_active=True).first() if camp_id else None
+
+    # Schritt 1: noch keine Freizeit ermittelt
+    if camp is None:
+        if request.method == "POST":
+            code_form = ZugangscodeForm(request.POST)
+            if code_form.is_valid():
+                request.session[REGISTRIERUNG_CAMP_KEY] = code_form.zugang.camp.pk
+                return redirect("mobil:registrieren")
+        else:
+            code_form = ZugangscodeForm()
+        return render(request, "mobil/registrieren_code.html", {"code_form": code_form})
+
+    # Schritt 2: Profil und Gruppe
     if request.method == "POST":
-        form = RegistrierungForm(request.POST)
+        if request.POST.get("code_aendern") == "1":
+            request.session.pop(REGISTRIERUNG_CAMP_KEY, None)
+            return redirect("mobil:registrieren")
+
+        # Registrierung koennte zwischenzeitlich geschlossen worden sein
+        zugang = FreizeitZugang.objects.filter(camp=camp).first()
+        if zugang is None or not zugang.aktiv:
+            request.session.pop(REGISTRIERUNG_CAMP_KEY, None)
+            messages.error(request, "Die Registrierung für diese Freizeit ist nicht mehr offen.")
+            return redirect("mobil:registrieren")
+
+        form = RegistrierungForm(request.POST, camp=camp)
         if form.is_valid():
             from django.contrib.auth import get_user_model
             User = get_user_model()
@@ -117,8 +151,10 @@ def registrieren_view(request):
                 first_name=form.cleaned_data["name"],
                 role="supervisor",
             )
-            camp = form.zugang.camp
-            FreizeitMitglied.objects.create(user=user, camp=camp)
+            FreizeitMitglied.objects.create(
+                user=user, camp=camp, gruppe=form.cleaned_data["gruppe"]
+            )
+            request.session.pop(REGISTRIERUNG_CAMP_KEY, None)
             login(request, user)
             request.session[SESSION_CAMP_KEY] = camp.pk
             messages.success(
@@ -127,8 +163,8 @@ def registrieren_view(request):
             )
             return redirect("mobil:heute")
     else:
-        form = RegistrierungForm()
-    return render(request, "mobil/registrieren.html", {"form": form})
+        form = RegistrierungForm(camp=camp)
+    return render(request, "mobil/registrieren.html", {"form": form, "camp": camp})
 
 
 def logout_view(request):

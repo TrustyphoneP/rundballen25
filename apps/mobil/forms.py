@@ -84,7 +84,8 @@ class GruppeForm(forms.ModelForm):
         }
 
 
-class RegistrierungForm(forms.Form):
+class ZugangscodeForm(forms.Form):
+    """Schritt 1 der Registrierung: nur der Zugangscode."""
     code = forms.CharField(
         label="Zugangscode",
         widget=forms.TextInput(attrs={
@@ -93,6 +94,23 @@ class RegistrierungForm(forms.Form):
             "autocomplete": "one-time-code",
         }),
     )
+
+    def clean_code(self):
+        code = self.cleaned_data["code"].strip()
+        zugang = (
+            FreizeitZugang.objects
+            .filter(code__iexact=code, aktiv=True, camp__is_active=True)
+            .select_related("camp")
+            .first()
+        )
+        if zugang is None:
+            raise forms.ValidationError("Dieser Zugangscode ist nicht gültig.")
+        self.zugang = zugang
+        return code
+
+
+class RegistrierungForm(forms.Form):
+    """Schritt 2 der Registrierung: Name, Zugangsdaten, Gruppe."""
     name = forms.CharField(
         label="Dein Name",
         max_length=150,
@@ -115,19 +133,17 @@ class RegistrierungForm(forms.Form):
         label="Passwort wiederholen",
         widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}),
     )
+    gruppe = forms.ModelChoiceField(
+        label="Deine Gruppe",
+        queryset=Gruppe.objects.none(),
+        required=False,
+        empty_label="Keine Gruppe",
+    )
 
-    def clean_code(self):
-        code = self.cleaned_data["code"].strip()
-        zugang = (
-            FreizeitZugang.objects
-            .filter(code__iexact=code, aktiv=True, camp__is_active=True)
-            .select_related("camp")
-            .first()
-        )
-        if zugang is None:
-            raise forms.ValidationError("Dieser Zugangscode ist nicht gültig.")
-        self.zugang = zugang
-        return code
+    def __init__(self, *args, camp=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if camp is not None:
+            self.fields["gruppe"].queryset = Gruppe.objects.filter(camp=camp)
 
     def clean_username(self):
         username = self.cleaned_data["username"].strip()
