@@ -57,6 +57,7 @@ class AktionForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         if camp is not None:
             self.fields["gruppen"].queryset = Gruppe.objects.filter(camp=camp)
+            self.fields["gruppen"].label_from_instance = lambda g: g.name
         if self.instance.pk:
             self.fields["gruppen"].initial = self.instance.gruppen.all()
         qs = User.objects.filter(is_active=True).order_by("first_name", "username")
@@ -144,6 +145,7 @@ class RegistrierungForm(forms.Form):
         super().__init__(*args, **kwargs)
         if camp is not None:
             self.fields["gruppe"].queryset = Gruppe.objects.filter(camp=camp)
+            self.fields["gruppe"].label_from_instance = lambda g: g.name
 
     def clean_username(self):
         username = self.cleaned_data["username"].strip()
