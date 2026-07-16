@@ -22,7 +22,7 @@
   {% endfor %}
 </div>
 
-{% if not aktionen %}
+{% if not eintraege %}
   <div class="rounded-xl border border-white/10 bg-p/40 p-8 text-center">
     <div class="text-3xl mb-2">🌤</div>
     <p class="text-sm text-white/50">Für diesen Tag sind noch keine Aktionen eingetragen.</p>
@@ -31,7 +31,28 @@
 
 <!-- Zeitleiste -->
 <div class="space-y-2.5">
-  {% for aktion, zeit in aktionen %}
+  {% for e in eintraege %}
+    {% if not e.aktion %}
+    <!-- Abendessen aus der Küchenplanung (Standard 18:00) -->
+    <div class="rounded-xl border border-acc/30 bg-acc-dim p-3.5 flex gap-3">
+      <div class="font-mono text-xs text-acc pt-0.5 w-[5.5rem] shrink-0 leading-relaxed">
+        {{ e.zeit }}
+      </div>
+      <div class="min-w-0 flex-1">
+        <div class="font-medium leading-snug">Abendessen</div>
+        <div class="text-xs text-white/50 mt-0.5">Aus der Küchenplanung</div>
+        <div class="mt-2 space-y-1">
+          {% for slot, rezept in e.abendessen %}
+            <div class="flex gap-2 text-xs">
+              <span class="text-white/45 w-24 shrink-0 uppercase tracking-wide text-[0.65rem] pt-px">{{ slot }}</span>
+              <span class="text-white/85">{{ rezept }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% else %}
+    {% with aktion=e.aktion zeit=e.zeit %}
     <div class="rounded-xl border border-white/10 bg-p/40 p-3.5 flex gap-3">
       <div class="font-mono text-xs text-acc pt-0.5 w-[5.5rem] shrink-0 leading-relaxed">
         {{ zeit }}
@@ -44,6 +65,16 @@
         </div>
         {% if aktion.beschreibung %}
           <div class="text-xs text-white/60 mt-1.5">{{ aktion.beschreibung }}</div>
+        {% endif %}
+        {% if e.abendessen %}
+          <div class="mt-2 space-y-1 border-t border-white/10 pt-2">
+            {% for slot, rezept in e.abendessen %}
+              <div class="flex gap-2 text-xs">
+                <span class="text-white/45 w-24 shrink-0 uppercase tracking-wide text-[0.65rem] pt-px">{{ slot }}</span>
+                <span class="text-white/85">{{ rezept }}</span>
+              </div>
+            {% endfor %}
+          </div>
         {% endif %}
         {% if aktion.gruppen.exists %}
           <div class="flex flex-wrap gap-1 mt-2">
@@ -77,6 +108,8 @@
         </a>
       {% endif %}
     </div>
+    {% endwith %}
+    {% endif %}
   {% endfor %}
 </div>
 

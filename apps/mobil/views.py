@@ -1,5 +1,5 @@
 import secrets
-from datetime import date
+from datetime import date, timedelta
 
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
@@ -46,6 +46,57 @@ def aktive_freizeit(request):
 
 def zeitspanne(a):
     return f"{a.beginn_stunde:02d}:{a.beginn_minute:02d}–{a.ende_stunde:02d}:{a.ende_minute:02d}"
+
+
+def datum_fuer_wochentag(camp, wochentag):
+    """
+    Bildet einen Wochentag (0-6) auf ein konkretes Datum der Freizeit ab.
+    Läuft die Freizeit gerade, zählt die aktuelle Woche, sonst die erste
+    passende Woche im Freizeitzeitraum.
+    """
+    heute = date.today()
+    if camp.start_date <= heute <= camp.end_date:
+        kandidat = heute + timedelta(days=wochentag - heute.weekday())
+        if camp.start_date <= kandidat <= camp.end_date:
+            return kandidat
+    kandidat = camp.start_date + timedelta(
+        days=(wochentag - camp.start_date.weekday()) % 7
+    )
+    if kandidat <= camp.end_date:
+        return kandidat
+    return None
+
+
+def abendessen_fuer_tag(camp, wochentag):
+    """
+    Holt die Abendessen-Planung der Küche (meals.DayMeal) für den Tag.
+    Rückgabe: Liste von (Slot-Name, Rezeptname) oder None.
+    """
+    datum = datum_fuer_wochentag(camp, wochentag)
+    if datum is None:
+        return None
+    from apps.meals.models import DayMeal
+    day_meal = (
+        DayMeal.objects
+        .filter(day__camp_id=camp.pk, day__date=datum)
+        .select_related("main_course", "dessert", "salad")
+        .first()
+    )
+    if day_meal is None:
+        return None
+    komponenten = [
+        (label, rezept.name)
+        for label, rezept in [
+            ("Hauptgericht", day_meal.main_course),
+            ("Salat", day_meal.salad),
+            ("Dessert", day_meal.dessert),
+        ]
+        if rezept
+    ]
+    return komponenten or None
+
+
+ABENDESSEN_STANDARD = (18, 0, 19, 0)  # Beginn 18:00, Ende 19:00
 
 
 def aktionen_fuer_tag(camp, user, wochentag):
@@ -245,9 +296,34 @@ def heute_view(request):
     wochentag = max(0, min(6, wochentag))
 
     aktionen = aktionen_fuer_tag(camp, request.user, wochentag)
+    abendessen = abendessen_fuer_tag(camp, wochentag)
+
+    eintraege = []
+    abendessen_zugeordnet = False
+    for a in aktionen:
+        eintrag = {"aktion": a, "zeit": zeitspanne(a), "abendessen": None,
+                   "sort": a.beginn_stunde * 60 + a.beginn_minute}
+        # Küchen-Komponenten an eine vorhandene Abendessen-Aktion hängen
+        if (abendessen and not abendessen_zugeordnet
+                and a.kategorie == "mahlzeit" and "abendessen" in a.titel.lower()):
+            eintrag["abendessen"] = abendessen
+            abendessen_zugeordnet = True
+        eintraege.append(eintrag)
+
+    # Keine passende Aktion: eigene Karte, standardmäßig 18:00
+    if abendessen and not abendessen_zugeordnet:
+        bs, bm, es, em = ABENDESSEN_STANDARD
+        eintraege.append({
+            "aktion": None,
+            "zeit": f"{bs:02d}:{bm:02d}–{es:02d}:{em:02d}",
+            "abendessen": abendessen,
+            "sort": bs * 60 + bm,
+        })
+    eintraege.sort(key=lambda e: e["sort"])
+
     return render(request, "mobil/heute.html", {
         "camp": camp,
-        "aktionen": [(a, zeitspanne(a)) for a in aktionen],
+        "eintraege": eintraege,
         "wochentag": wochentag,
         "wochentage": WOCHENTAG_CHOICES,
         "ist_heute": wochentag == date.today().weekday(),
