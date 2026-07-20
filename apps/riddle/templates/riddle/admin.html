@@ -1,0 +1,182 @@
+{% extends "riddle/base_riddle.html" %}
+{% load tz %}
+
+{% block title %}Spielleiter{% endblock %}
+
+{% block header_title %}
+  <span class="font-display text-xl tracking-wide">
+    rund<span class="text-acc">Ballen</span>
+    <span class="font-mono text-sm text-[#f0ede8]/50 ml-2">Spielleiter</span>
+  </span>
+{% endblock %}
+
+{% block header_right %}
+  <a href="{% url 'riddle:home' %}"
+     class="text-xs text-[#f0ede8]/50 hover:text-[#f0ede8]/80 transition-colors">
+    Spielansicht
+  </a>
+{% endblock %}
+
+{% block content %}
+
+{# Django-Messages #}
+{% if messages %}
+  {% for msg in messages %}
+  <div class="flash flash-{{ msg.tags }}">{{ msg }}</div>
+  {% endfor %}
+{% endif %}
+
+{# ===== Spielstand ===== #}
+<div class="card px-5 py-5 mb-4">
+  <div class="section-mono mb-3">Spielstand</div>
+
+  {% if state.current_stage == 0 %}
+    <p class="text-sm text-[#f0ede8]/70 mb-4">Das Spiel ist noch nicht gestartet.</p>
+    <form method="post" action="{% url 'riddle:admin_action' %}">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="start">
+      <button type="submit" class="btn btn-primary">Spiel starten</button>
+    </form>
+
+  {% elif state.is_finished %}
+    <p class="text-sm mb-4">Das Spiel ist <span class="text-ok font-medium">beendet</span>.</p>
+    <form method="post" action="{% url 'riddle:admin_action' %}">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="reset">
+      <button type="submit" class="btn btn-danger"
+              onclick="return confirm('Spiel wirklich zuruecksetzen?')">
+        Spiel zur&uuml;cksetzen
+      </button>
+    </form>
+
+  {% else %}
+    <div class="flex items-baseline gap-3 mb-1">
+      <span class="font-display text-2xl">Stufe {{ state.current_stage }}</span>
+      <span class="section-mono">von 4</span>
+    </div>
+    {% if state.started_at %}
+    <p class="text-xs text-[#f0ede8]/40 mb-4">
+      Gestartet {{ state.started_at|localtime|date:"d.m.Y H:i" }} Uhr
+    </p>
+    {% endif %}
+
+    <div class="space-y-2">
+      {% if can_advance %}
+      <form method="post" action="{% url 'riddle:admin_action' %}">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="advance">
+        <button type="submit" class="btn btn-primary"
+                onclick="return confirm('Naechste Stufe freischalten?')">
+          N&auml;chste Stufe freischalten
+        </button>
+      </form>
+      {% endif %}
+
+      {% if state.current_stage == 4 %}
+      <form method="post" action="{% url 'riddle:admin_action' %}">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="finish">
+        <button type="submit" class="btn btn-primary"
+                onclick="return confirm('Spiel beenden?')">
+          Spiel beenden
+        </button>
+      </form>
+      {% endif %}
+
+      <form method="post" action="{% url 'riddle:admin_action' %}">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="reset">
+        <button type="submit" class="btn btn-danger"
+                onclick="return confirm('Spiel wirklich zuruecksetzen?')">
+          Zur&uuml;cksetzen
+        </button>
+      </form>
+    </div>
+  {% endif %}
+</div>
+
+{# ===== Stufen ===== #}
+<div class="card px-5 py-5 mb-4">
+  <div class="section-mono mb-3">R&auml;tsel-Stufen</div>
+  <div class="space-y-3">
+    {% for s in stages %}
+    <div class="rounded-lg border px-4 py-3
+                {% if s.order == state.current_stage %}border-acc-brd bg-acc-dim
+                {% else %}border-white/10{% endif %}">
+      <div class="flex items-center gap-2 mb-1">
+        <span class="text-sm font-medium">Stufe {{ s.order }}</span>
+        <span class="font-mono text-xs text-[#f0ede8]/50">{{ s.solution_year }}</span>
+        {% if s.order < state.current_stage %}
+          <span class="badge badge-ok">erledigt</span>
+        {% elif s.order == state.current_stage %}
+          <span class="badge badge-acc">aktiv</span>
+        {% else %}
+          <span class="badge badge-muted">gesperrt</span>
+        {% endif %}
+      </div>
+
+      {% if s.order == state.current_stage %}
+      <form method="post" action="{% url 'riddle:admin_action' %}" class="mt-3 space-y-3">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="save_stage">
+        <input type="hidden" name="stage_order" value="{{ s.order }}">
+        <div>
+          <div class="section-mono mb-2">Hinweis (leer = kein Hinweis)</div>
+          <textarea name="hint" rows="3"
+                    placeholder="Hinweis f&uuml;r die Spieler">{{ s.hint }}</textarea>
+        </div>
+        <div>
+          <div class="section-mono mb-2">L&ouml;sung des Textr&auml;tsels</div>
+          <input type="text" name="text_solution" value="{{ s.text_solution }}"
+                 placeholder="Korrekte Antwort">
+          <p class="text-xs text-[#f0ede8]/40 mt-1">
+            Gro&szlig;-/Kleinschreibung und Leerzeichen werden ignoriert.
+          </p>
+        </div>
+        <div>
+          <div class="section-mono mb-2">Antwortstring bei korrekter L&ouml;sung</div>
+          <textarea name="text_response" rows="3"
+                    placeholder="Wird nach richtiger Antwort angezeigt">{{ s.text_response }}</textarea>
+        </div>
+        <button type="submit" class="btn btn-ghost">Stufe speichern</button>
+      </form>
+      {% elif s.hint or s.text_solution %}
+      <div class="text-xs text-[#f0ede8]/40 mt-1 space-y-0.5">
+        {% if s.hint %}<p>Hinweis: {{ s.hint|truncatechars:60 }}</p>{% endif %}
+        {% if s.text_solution %}<p>Textl&ouml;sung: {{ s.text_solution|truncatechars:40 }}</p>{% endif %}
+      </div>
+      {% endif %}
+    </div>
+    {% empty %}
+    <p class="text-sm text-[#f0ede8]/50">
+      Noch keine Stufen angelegt. Bitte im
+      <a href="/admin/riddle/riddlestage/add/" class="text-acc underline">Django-Admin</a>
+      erstellen.
+    </p>
+    {% endfor %}
+  </div>
+</div>
+
+{# ===== Sperren ===== #}
+<div class="card px-5 py-5">
+  <div class="section-mono mb-3">Sperren</div>
+  <p class="text-sm text-[#f0ede8]/70 mb-3">
+    Aktive Sperren:
+    <span class="font-mono {% if active_bans %}text-warn{% else %}text-ok{% endif %}">{{ active_bans }}</span>
+  </p>
+  <form method="post" action="{% url 'riddle:admin_action' %}">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="clear_bans">
+    <button type="submit" class="btn btn-danger"
+            onclick="return confirm('Alle Sperren aufheben?')">
+      Alle Sperren aufheben
+    </button>
+  </form>
+</div>
+
+<p class="text-center mt-5">
+  <a href="/admin/riddle/" class="text-xs text-[#f0ede8]/40 hover:text-[#f0ede8]/70">
+    Django-Admin
+  </a>
+</p>
+{% endblock %}

@@ -1,0 +1,74 @@
+{% extends "riddle/base_riddle.html" %}
+
+{% block title %}{{ stage.solution_year }}{% endblock %}
+
+{% block header_title %}
+  <span class="font-display text-xl tracking-wide">
+    rund<span class="text-acc">Ballen</span>
+    <span class="font-mono text-sm text-[#f0ede8]/50 ml-2">{{ stage.solution_year }}</span>
+  </span>
+{% endblock %}
+
+{% block content %}
+
+{# Fortschritt #}
+<div class="flex items-center gap-2 mb-5">
+  {% for i in "1234" %}
+    {% with forloop.counter as n %}
+      <div class="flex-1 h-1 rounded-full
+        {% if n < state.current_stage %}bg-acc
+        {% elif n == state.current_stage %}bg-p-pale
+        {% else %}bg-white/10{% endif %}">
+      </div>
+    {% endwith %}
+  {% endfor %}
+  <span class="section-mono ml-1">{{ state.current_stage }}/4</span>
+</div>
+
+<div class="card px-5 py-4 mb-4">
+  <div class="section-mono mb-1">Stufe {{ state.current_stage }}</div>
+  <div class="font-display text-lg">
+    <span class="text-acc">{{ stage.solution_year }}</span> ist korrekt
+  </div>
+</div>
+
+{# Textraetsel #}
+<div class="card px-6 py-6 mb-4">
+  <div class="text-sm leading-relaxed text-[#f0ede8]/85 space-y-3">
+    {{ stage.text_content|safe }}
+  </div>
+</div>
+
+{% if answer_correct %}
+  {# ===== Antwortstring nach korrekter Loesung ===== #}
+  <div class="card px-6 py-6 mb-4 border-l-2" style="border-left-color:#4caf7d;">
+    <div class="section-mono mb-2" style="color:#4caf7d;">Richtig</div>
+    <div class="text-sm leading-relaxed text-[#f0ede8]/90 space-y-3">
+      {{ stage.text_response|linebreaks }}
+    </div>
+  </div>
+  <div class="card px-5 py-5 text-center">
+    <p class="text-xs text-[#f0ede8]/50 mb-4 leading-relaxed">
+      Wartet auf den Spielleiter. Dann gibt es ein neues Bild.
+    </p>
+    <a href="{% url 'riddle:home' %}" class="btn btn-ghost">Zur&uuml;ck zum R&auml;tsel-Bild</a>
+  </div>
+
+{% else %}
+  {# ===== Eingabefeld fuer die Textantwort ===== #}
+  <div class="card px-5 py-5">
+    <div class="section-mono mb-3">Eure Antwort</div>
+    {% if answer_wrong %}
+    <div class="flash flash-error mb-3">Das ist nicht die richtige Antwort.</div>
+    {% endif %}
+    <form method="post" autocomplete="off">
+      {% csrf_token %}
+      <input type="text" name="antwort" value="{{ entered_answer }}"
+             placeholder="Antwort eingeben" required
+             {% if not answer_wrong %}autofocus{% endif %}>
+      <button type="submit" class="btn btn-primary mt-3">Antwort pr&uuml;fen</button>
+    </form>
+  </div>
+{% endif %}
+
+{% endblock %}

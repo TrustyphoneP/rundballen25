@@ -1,0 +1,107 @@
+{% extends "riddle/base_riddle.html" %}
+
+{% block title %}Rundballen{% endblock %}
+
+{% block content %}
+
+{% if ban %}
+  {# ===== Gesperrt ===== #}
+  <div class="card px-6 py-10 text-center">
+    <div class="section-mono mb-3">Zugang gesperrt</div>
+    <div class="font-display text-2xl text-warn mb-3">Du hast den Rundballen ver&auml;rgert.</div>
+    <p class="text-sm text-[#f0ede8]/60 mb-6">Warte, bis der Rundballen wieder gut gelaunt ist.</p>
+    <div id="countdown" class="font-mono text-3xl tracking-widest text-acc tabular-nums">--:--:--</div>
+    <div class="section-mono mt-2">verbleibende Wartezeit</div>
+  </div>
+
+{% elif state.current_stage == 0 %}
+  {# ===== Spiel noch nicht gestartet: Anleitung ===== #}
+  <div class="card px-6 py-8">
+    <div class="section-mono mb-3">Spielanleitung</div>
+    <h1 class="font-display text-2xl mb-5">Das Rundballen-R&auml;tsel</h1>
+    <div class="space-y-4 text-sm leading-relaxed text-[#f0ede8]/80">
+      <p>Auf dieser Seite erscheint ein Bild mit einem versteckten R&auml;tsel.
+         Die L&ouml;sung ist immer eine <span class="text-acc font-medium">Jahreszahl</span>.</p>
+      <p>Habt ihr die Jahreszahl gefunden? Dann wisst ihr, was zu tun ist.</p>
+      <p>Insgesamt gibt es vier Bilder und vier Textseiten, immer abwechselnd.</p>
+      <p class="text-warn font-medium">Wer falsch liegt, ver&auml;rgert den Rundballen
+         und muss eine Weile warten.</p>
+    </div>
+    <div class="mt-6 pt-5 border-t border-white/10 section-mono">
+      Das Spiel startet, sobald der Spielleiter es freigibt
+    </div>
+  </div>
+
+{% elif state.is_finished %}
+  {# ===== Spiel beendet ===== #}
+  <div class="card px-6 py-12 text-center">
+    <div class="section-mono mb-3">Spielende</div>
+    <div class="font-display text-3xl text-acc mb-3">Geschafft!</div>
+    <p class="text-sm text-[#f0ede8]/70">Das Rundballen-R&auml;tsel ist gel&ouml;st.
+       Herzlichen Gl&uuml;ckwunsch!</p>
+  </div>
+
+{% elif stage %}
+  {# ===== Aktives Bild-Raetsel ===== #}
+
+  {# Fortschritt #}
+  <div class="flex items-center gap-2 mb-5">
+    {% for i in "1234" %}
+      {% with forloop.counter as n %}
+        <div class="flex-1 h-1 rounded-full
+          {% if n < state.current_stage %}bg-acc
+          {% elif n == state.current_stage %}bg-p-pale
+          {% else %}bg-white/10{% endif %}">
+        </div>
+      {% endwith %}
+    {% endfor %}
+    <span class="section-mono ml-1">{{ state.current_stage }}/4</span>
+  </div>
+
+  {# Bild #}
+  <div class="card p-3 mb-4">
+    {% if stage.image %}
+      <img src="{{ stage.image.url }}" alt="R&auml;tsel {{ state.current_stage }}"
+           class="w-full rounded-lg block">
+    {% else %}
+      <div class="h-56 rounded-lg bg-white/5 flex items-center justify-center
+                  text-sm text-[#f0ede8]/40">
+        Bild folgt
+      </div>
+    {% endif %}
+  </div>
+
+  {# Hinweisflaeche: nur sichtbar, wenn der Spielleiter einen Hinweis gesetzt hat #}
+  {% if stage.hint %}
+  <div class="card px-5 py-4 border-l-2" style="border-left-color:#e8a444;">
+    <div class="section-mono mb-2" style="color:#e8a444;">Hinweis</div>
+    <p class="text-sm leading-relaxed text-[#f0ede8]/85">{{ stage.hint }}</p>
+  </div>
+  {% endif %}
+
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if ban %}
+<script>
+  const target = new Date("{{ ban.banned_until|date:'c' }}").getTime();
+  const el = document.getElementById("countdown");
+  function pad(n) { return String(n).padStart(2, "0"); }
+  function tick() {
+    const diff = target - Date.now();
+    if (diff <= 0) {
+      el.textContent = "00:00:00";
+      setTimeout(() => { window.location.reload(); }, 1000);
+      return;
+    }
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    const s = Math.floor((diff % 60000) / 1000);
+    el.textContent = pad(h) + ":" + pad(m) + ":" + pad(s);
+  }
+  tick();
+  setInterval(tick, 1000);
+</script>
+{% endif %}
+{% endblock %}

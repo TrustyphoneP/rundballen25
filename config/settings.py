@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "apps.mobile_api",
     "apps.mobil",
+    "apps.riddle",
 
     # Third-party
     "channels",

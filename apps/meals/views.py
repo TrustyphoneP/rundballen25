@@ -501,25 +501,25 @@ def fruehstueck(request, camp_pk=None):
 
     extras = [
         {
-            "name":  "H-Milch",
+            "name":  "H-Milch 3,5%",
             "per_day": "15 l",
             "total": f"{num_bread_days * 15 + 9} l",
             "note":  "15 l / Tag + 9 l Reserve",
         },
         {
-            "name":  "G&G Choco Drink",
+            "name":  "Kakaopulver",
             "per_day": "1 Pck",
             "total": f"{num_bread_days + 1} Pck",
             "note":  "1 Pck / Tag + 1 Pck Reserve (Tag danach)",
         },
         {
-            "name":  "G&G Pflanzenmargarine",
+            "name":  "Pflanzenmargarine",
             "per_day": "—",
             "total": f"{round((total_bread_slices + total_halbweck) * 2.5)} g  ({round((total_bread_slices + total_halbweck) * 2.5 / 1000, 2)} kg)",
             "note":  "2,5 g / (Brotscheibe + Halbweck)",
         },
         {
-            "name":  "G&G Müsliriegel",
+            "name":  "Müsliriegel",
             "per_day": f"{teilis_only} Stk",
             "total": f"{num_bread_days * teilis_only} Stk",
             "note":  "1,5 Stk / Teili / Tag (gerundet)",

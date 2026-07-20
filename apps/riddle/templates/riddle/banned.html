@@ -1,0 +1,35 @@
+{% extends "riddle/base_riddle.html" %}
+
+{% block title %}Rundballen{% endblock %}
+
+{% block content %}
+<div class="card px-6 py-10 text-center">
+  <div class="section-mono mb-3">Zugang gesperrt</div>
+  <div class="font-display text-2xl text-warn mb-3">Du hast den Rundballen ver&auml;rgert.</div>
+  <p class="text-sm text-[#f0ede8]/60 mb-6">Warte, bis der Rundballen wieder gut gelaunt ist.</p>
+  <div id="countdown" class="font-mono text-3xl tracking-widest text-acc tabular-nums">--:--:--</div>
+  <div class="section-mono mt-2">verbleibende Wartezeit</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const target = new Date("{{ ban.banned_until|date:'c' }}").getTime();
+  const el = document.getElementById("countdown");
+  function pad(n) { return String(n).padStart(2, "0"); }
+  function tick() {
+    const diff = target - Date.now();
+    if (diff <= 0) {
+      el.textContent = "00:00:00";
+      setTimeout(() => { window.location.href = "{% url 'riddle:home' %}"; }, 1000);
+      return;
+    }
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    const s = Math.floor((diff % 60000) / 1000);
+    el.textContent = pad(h) + ":" + pad(m) + ":" + pad(s);
+  }
+  tick();
+  setInterval(tick, 1000);
+</script>
+{% endblock %}

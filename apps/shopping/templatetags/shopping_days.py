@@ -440,35 +440,15 @@ def build_shopping_day_items(camp, shopping_day, all_day_meals):
             _all_slices     = _loaves_per_day * _total_bread * 25
             _all_teilis_days = _teilis * _total_bread
 
-            # Doppelweck/Halbweck einmal berechnen (eigenes try, damit eine
-            # fehlende BrotConfig nicht die trockenen Posten mit versenkt).
-            # Wird fuer Margarine (Halbweck-Scheiben) und Nuss-Nougat genutzt.
-            _total_doppelweck = 0
-            try:
-                brot_cfg = BrotConfig.objects.get(camp=camp)
-                camp_days_ordered = list(camp.days.order_by("date"))
-                if len(camp_days_ordered) >= 2:
-                    dw_bread_dates = [d.date for d in camp_days_ordered[1:]]
-                    dw_extra_date  = camp_days_ordered[-1].date + _td(days=1)
-                    for dw_date in dw_bread_dates + [dw_extra_date]:
-                        factor = 0.6 if dw_date == dw_extra_date else 1.0
-                        _total_doppelweck += math.ceil(_teilis * brot_cfg.doppelweck_per_person * factor)
-            except Exception:
-                pass
-            _total_halbweck = _total_doppelweck * 2
-
-            # Feste Frühstücksposten als ECHTE Zutaten: get_or_create
-            # verknuepft ueber den exakten DB-Namen und legt Fehlendes an.
-            # Mengen identisch zur Anzeige in der Fruehstueck-Ansicht:
-            # - H-Milch 3,5%: 15 l/Tag + 9 l fuer den Tag nach der Freizeit
-            # - Kakaopulver: 1 Pck/Tag + 1 Pck fuer den Tag nach der Freizeit
-            # - Pflanzenmargarine: 2,5 g je (Brotscheibe + Halbweck)
-            # - Müsliriegel: 1,5 Stk je Teili und Tag (aufgerundet)
+            # Feste Frühstücksposten als ECHTE Zutaten (nicht mehr als
+            # Sonder-Extras): get_or_create legt fehlende Zutaten selbst an,
+            # add() macht daraus normale Einkaufslisten-Positionen, die wie
+            # alles andere aggregiert, angezeigt und exportiert werden.
             _dry_defs = [
-                ("H-Milch 3,5%",     _total_bread * 15 + 9,                            "l",   "vegetarian"),
-                ("Kakaopulver",      _total_bread + 1,                                 "Pck", "vegan"),
-                ("Pflanzenmargarine", round((_all_slices + _total_halbweck) * 2.5),    "g",   "vegan"),
-                ("Müsliriegel",      math.ceil(_all_teilis_days * 1.5),                "Stk", "vegetarian"),
+                ("H-Milch",               _total_bread * 15,                 "l",   "vegetarian"),
+                ("G&G Choco Drink",       _total_bread,                      "Pck", "vegetarian"),
+                ("G&G Pflanzenmargarine", round(_all_slices * 2.5),          "g",   "vegan"),
+                ("G&G Müsliriegel",       math.ceil(_all_teilis_days * 1.5), "Stk", "vegetarian"),
             ]
             for _name, _amount, _unit, _diet in _dry_defs:
                 if _amount and _amount > 0:
@@ -478,15 +458,25 @@ def build_shopping_day_items(camp, shopping_day, all_day_meals):
                     add(ing, _unit, _amount, False, "Frühstück/Mittag")
 
             # Nuss-Nougat-Creme
-            nn_cfg = NussNougatConfig.objects.get(camp=camp)
-            if nn_cfg.g_per_halbweck and _total_doppelweck > 0:
-                nn_total_g = round(nn_cfg.g_per_halbweck * 2 * _total_doppelweck * 0.6)
-                if nn_total_g > 0:
-                    ing, _ = _Ing.objects.get_or_create(
-                        name="G&G Nuss-Nougat-Creme",
-                        defaults={"diet_type": "vegetarian", "is_fresh": False},
-                    )
-                    add(ing, "g", nn_total_g, False, "Frühstück/Mittag")
+            nn_cfg   = NussNougatConfig.objects.get(camp=camp)
+            brot_cfg = BrotConfig.objects.get(camp=camp)
+            if nn_cfg.g_per_halbweck:
+                camp_days_ordered = list(camp.days.order_by("date"))
+                if len(camp_days_ordered) >= 2:
+                    dw_bread_dates = [d.date for d in camp_days_ordered[1:]]
+                    dw_extra_date  = camp_days_ordered[-1].date + _td(days=1)
+                    dw_all_dates   = dw_bread_dates + [dw_extra_date]
+                    total_doppelweck = 0
+                    for dw_date in dw_all_dates:
+                        factor = 0.6 if dw_date == dw_extra_date else 1.0
+                        total_doppelweck += math.ceil(_teilis * brot_cfg.doppelweck_per_person * factor)
+                    nn_total_g = round(nn_cfg.g_per_halbweck * 2 * total_doppelweck * 0.6)
+                    if nn_total_g > 0:
+                        ing, _ = _Ing.objects.get_or_create(
+                            name="G&G Nuss-Nougat-Creme",
+                            defaults={"diet_type": "vegetarian", "is_fresh": False},
+                        )
+                        add(ing, "g", nn_total_g, False, "Frühstück/Mittag")
         except Exception:
             pass
 

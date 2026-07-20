@@ -18,6 +18,8 @@ urlpatterns = [
     path("api/v1/recipes/", include("apps.recipes.api_urls")),
     path("api/mobile/", include("apps.mobile_api.urls")),
     path("mobil/", include("apps.mobil.urls")),
+    path("riddle/", include("apps.riddle.urls", namespace="riddle")),
+    path("<int:year>/", include("apps.riddle.year_urls")),
 ]
 
 if settings.DEBUG:
