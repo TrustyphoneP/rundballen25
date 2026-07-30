@@ -208,7 +208,10 @@
         </a>
 
         <div class="section-mono px-2 mb-2 mt-4">Weiteres</div>
-        <a href="#" class="nav-link"><div class="nav-dot"></div> Feedback</a>
+        <a href="{% url 'feedback:admin_overview' %}" @click="sidebarOpen = false"
+           class="nav-link {% if request.resolver_match.app_name == 'feedback' %}active{% endif %}">
+          <div class="nav-dot"></div> Feedback
+        </a>
         <a href="{% url 'voting:index' %}" @click="sidebarOpen = false"
            class="nav-link {% if 'voting' in request.resolver_match.app_name %}active{% endif %}">
           <div class="nav-dot"></div> Abstimmung

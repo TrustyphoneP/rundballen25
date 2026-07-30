@@ -1,0 +1,155 @@
+{% extends "feedback/base_public.html" %}
+
+{% block title %}Feedback – {{ camp.name }}{% endblock %}
+
+{% block content %}
+
+  <h1 class="font-display text-2xl mb-1">Wie war das Essen?</h1>
+  <p class="text-sm text-white/50 mb-5">
+    Tippe auf ein Gericht, um es zu bewerten. Dein Feedback ist anonym.
+  </p>
+
+  <form method="post" id="feedback-form">
+    {% csrf_token %}
+    <input type="hidden" name="ratings_json" id="ratings-json" value="{}">
+
+    <div class="space-y-2.5 mb-6" id="day-list">
+      {% for day in days %}
+      <a href="{% url 'feedback:day' day.pk %}"
+         class="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04]
+                px-4 py-3.5 active:bg-white/[0.08] transition-colors"
+         data-day="{{ day.pk }}">
+        <div class="flex-1 min-w-0">
+          <div class="font-mono text-[0.6rem] tracking-[0.12em] uppercase text-white/40 mb-0.5">
+            {{ day.date|date:"l, d.m." }}
+          </div>
+          <div class="font-medium truncate">{{ day.day_meal.main_course.name }}</div>
+        </div>
+        <div class="rating-badge hidden items-center gap-1.5 shrink-0">
+          <span class="rating-value font-mono text-sm text-acc"></span>
+          <svg class="w-5 h-5 text-ok" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+          </svg>
+        </div>
+        <svg class="w-4 h-4 text-white/30 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+        </svg>
+      </a>
+      {% empty %}
+      <div class="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-6 text-center text-sm text-white/50">
+        Im Wochenplan sind noch keine Hauptgerichte eingetragen.
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="mb-6">
+      <label for="general-comment">Allgemeines Feedback</label>
+      <textarea name="general_comment" id="general-comment" rows="4"
+                placeholder="Was möchtest du uns sonst noch sagen?"></textarea>
+    </div>
+
+    <button type="button" id="submit-btn"
+            class="w-full rounded-xl bg-acc text-p-dark font-semibold py-3.5 text-base
+                   active:brightness-90 transition disabled:opacity-40 disabled:pointer-events-none">
+      Feedback abschicken
+    </button>
+    <p class="mt-2 text-center text-xs text-white/40" id="submit-hint"></p>
+  </form>
+
+  <!-- Bestätigungs-Popup -->
+  <div id="confirm-overlay"
+       class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm
+              flex items-end sm:items-center justify-center px-4 pb-[env(safe-area-inset-bottom)]">
+    <div class="w-full max-w-sm rounded-t-2xl sm:rounded-2xl border border-white/10
+                bg-p-dark px-5 pt-5 pb-6 sm:pb-5">
+      <p class="text-sm leading-relaxed mb-5">
+        Hiermit bestätige ich verstanden zu haben, dass 1 schlecht und 10 gut ist.
+      </p>
+      <div class="flex flex-col gap-2.5">
+        <button type="button" id="confirm-submit"
+                class="w-full rounded-xl bg-acc text-p-dark font-semibold py-3 text-base
+                       active:brightness-90 transition">
+          Feedback abschicken
+        </button>
+        <button type="button" id="confirm-cancel"
+                class="w-full rounded-xl border border-white/15 py-3 text-base text-white/70
+                       active:bg-white/[0.06] transition">
+          Zurück zur Auswahl
+        </button>
+      </div>
+    </div>
+  </div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const KEY = "rb_feedback_{{ camp.pk }}";
+  const form = document.getElementById("feedback-form");
+  const hidden = document.getElementById("ratings-json");
+  const general = document.getElementById("general-comment");
+  const hint = document.getElementById("submit-hint");
+  const submitBtn = document.getElementById("submit-btn");
+  const overlay = document.getElementById("confirm-overlay");
+  const confirmSubmit = document.getElementById("confirm-submit");
+  const confirmCancel = document.getElementById("confirm-cancel");
+  const GENERAL_KEY = KEY + "_general";
+
+  function load() {
+    try { return JSON.parse(sessionStorage.getItem(KEY) || "{}"); }
+    catch (e) { return {}; }
+  }
+
+  // Checkmarks und Bewertungen anzeigen
+  const data = load();
+  let count = 0;
+  document.querySelectorAll("#day-list [data-day]").forEach(function (el) {
+    const entry = data[el.dataset.day];
+    if (entry && entry.rating) {
+      count++;
+      const badge = el.querySelector(".rating-badge");
+      badge.classList.remove("hidden");
+      badge.classList.add("flex");
+      badge.querySelector(".rating-value").textContent = entry.rating + "/10";
+    }
+  });
+  if (count > 0) {
+    hint.textContent = count + (count === 1 ? " Gericht bewertet" : " Gerichte bewertet");
+  }
+
+  // Allgemeines Feedback wiederherstellen (falls man zwischendurch auf einer
+  // Bewertungsseite war)
+  general.value = sessionStorage.getItem(GENERAL_KEY) || "";
+  general.addEventListener("input", function () {
+    sessionStorage.setItem(GENERAL_KEY, general.value);
+  });
+
+  submitBtn.addEventListener("click", function () {
+    const current = load();
+    if (Object.keys(current).length === 0 && !general.value.trim()) {
+      hint.textContent = "Bewerte erst ein Gericht oder schreib uns etwas.";
+      return;
+    }
+    overlay.classList.remove("hidden");
+  });
+
+  confirmCancel.addEventListener("click", function () {
+    overlay.classList.add("hidden");
+  });
+
+  overlay.addEventListener("click", function (e) {
+    if (e.target === overlay) overlay.classList.add("hidden");
+  });
+
+  confirmSubmit.addEventListener("click", function () {
+    const current = load();
+    hidden.value = JSON.stringify(current);
+    // Zwischenspeicher leeren, damit nach dem Speichern frisch gestartet wird
+    sessionStorage.removeItem(KEY);
+    sessionStorage.removeItem(GENERAL_KEY);
+    form.submit();
+  });
+})();
+</script>
+{% endblock %}

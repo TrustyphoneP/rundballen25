@@ -1,0 +1,78 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="de" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#1e4c59">
+  <title>{% block title %}Feedback – rundballen24{% endblock %}</title>
+  <link rel="icon" type="image/x-icon" href="{% static 'favicon.ico' %}?v=2">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            p:   { DEFAULT:'#1e4c59', light:'#2a6275', dark:'#122f38', pale:'#3a7a8f' },
+            acc: { DEFAULT:'#e8a444', dim:'rgba(232,164,68,0.15)', brd:'rgba(232,164,68,0.28)' },
+            ok:  '#4caf7d',
+            warn:'#e07b54',
+          },
+          fontFamily: {
+            display: ['"DM Serif Display"','serif'],
+            mono:    ['"DM Mono"','monospace'],
+            sans:    ['Outfit','sans-serif'],
+          },
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body { font-weight: 350; }
+    textarea {
+      background: rgba(255,255,255,0.06) !important;
+      border: 1px solid rgba(255,255,255,0.14) !important;
+      color: #f0ede8 !important;
+      border-radius: 10px !important;
+      padding: 10px 12px !important;
+      width: 100%;
+      font-size: 16px;   /* verhindert iOS-Zoom */
+    }
+    textarea:focus {
+      outline: none; border-color: #e8a444 !important;
+      box-shadow: 0 0 0 2px rgba(232,164,68,0.25);
+    }
+    label { font-size: 0.75rem; letter-spacing: 0.04em; text-transform: uppercase;
+            color: rgba(240,237,232,0.55); display: block; margin-bottom: 4px; }
+    @media (prefers-reduced-motion: reduce) { * { transition:none !important; } }
+  </style>
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="h-full bg-p-dark text-[#f0ede8] font-sans antialiased">
+
+  <div class="mx-auto max-w-lg min-h-full flex flex-col">
+
+    <header class="sticky top-0 z-20 bg-p-dark/90 backdrop-blur border-b border-white/10
+                   px-4 pt-[env(safe-area-inset-top)]">
+      <div class="flex items-center justify-between h-14">
+        <a href="{% url 'feedback:home' %}" class="font-display text-xl tracking-wide">
+          rund<span class="text-acc">ballen</span>24
+        </a>
+        <span class="font-mono text-[0.6rem] tracking-[0.15em] uppercase text-white/45">
+          Feedback
+        </span>
+      </div>
+    </header>
+
+    <main class="flex-1 px-4 py-5 pb-[calc(env(safe-area-inset-bottom)+24px)]">
+      {% block content %}{% endblock %}
+    </main>
+
+  </div>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,93 @@
+{% extends "base/base.html" %}
+
+{% block title %}Feedback-Auswertung{% endblock %}
+{% block page_title %}Feedback{% endblock %}
+
+{% block content %}
+
+{% if not camp %}
+  <div class="card p-6 text-sm" style="color:rgba(240,237,232,0.55);">
+    Keine aktive Freizeit gefunden.
+  </div>
+{% else %}
+
+  <!-- Kopfzeile mit Kennzahlen und Link zur Teili-Ansicht -->
+  <div class="flex flex-wrap items-center gap-4 mb-6">
+    <div class="card px-5 py-4">
+      <div class="section-mono mb-1">Abgaben</div>
+      <div class="font-display text-3xl">{{ total_submissions }}</div>
+    </div>
+    <div class="card px-5 py-4 flex-1 min-w-[260px]">
+      <div class="section-mono mb-1">Teili-Ansicht</div>
+      <div class="text-sm" style="color:rgba(240,237,232,0.7);">
+        Teilis erreichen die Feedbackfunktion unter
+        <a href="{% url 'feedback:home' %}" target="_blank" rel="noopener"
+           class="font-mono" style="color:#e8a444;">rundballen24.de{% url 'feedback:home' %}</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bewertungen pro Gericht -->
+  <div class="section-mono mb-3">Bewertungen pro Gericht</div>
+  <div class="space-y-4 mb-8">
+    {% for row in day_rows %}
+    <div class="card p-5">
+      <div class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-1">
+        <span class="font-mono text-xs" style="color:rgba(240,237,232,0.45);">
+          {{ row.day.date|date:"l, d.m." }}
+        </span>
+        <span class="font-display text-lg">{{ row.main.name }}</span>
+        <span class="ml-auto flex items-center gap-3">
+          {% if row.avg %}
+            <span class="font-display text-2xl" style="color:#e8a444;">
+              {{ row.avg|floatformat:1 }}<span class="text-sm" style="color:rgba(240,237,232,0.4);">/10</span>
+            </span>
+            <span class="font-mono text-xs" style="color:rgba(240,237,232,0.45);">
+              {{ row.anzahl }} Bewertung{{ row.anzahl|pluralize:"en" }}
+            </span>
+          {% else %}
+            <span class="font-mono text-xs" style="color:rgba(240,237,232,0.35);">
+              Noch keine Bewertung
+            </span>
+          {% endif %}
+        </span>
+      </div>
+
+      {% if row.comments %}
+      <div class="mt-3 space-y-2">
+        {% for c in row.comments %}
+        <div class="rounded-lg px-3 py-2 text-sm flex items-baseline gap-3"
+             style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);">
+          <span class="font-mono text-xs shrink-0" style="color:#e8a444;">{{ c.rating }}/10</span>
+          <span style="color:rgba(240,237,232,0.85);">{{ c.comment }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    {% empty %}
+    <div class="card p-6 text-sm" style="color:rgba(240,237,232,0.55);">
+      Im Wochenplan sind noch keine Hauptgerichte eingetragen.
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Allgemeines Feedback -->
+  <div class="section-mono mb-3">Allgemeines Feedback</div>
+  <div class="space-y-2">
+    {% for s in general_comments %}
+    <div class="card px-4 py-3 text-sm flex items-baseline gap-4">
+      <span class="font-mono text-xs shrink-0" style="color:rgba(240,237,232,0.4);">
+        {{ s.submitted_at|date:"d.m. H:i" }}
+      </span>
+      <span style="color:rgba(240,237,232,0.85);">{{ s.general_comment }}</span>
+    </div>
+    {% empty %}
+    <div class="card p-6 text-sm" style="color:rgba(240,237,232,0.55);">
+      Noch kein allgemeines Feedback eingegangen.
+    </div>
+    {% endfor %}
+  </div>
+
+{% endif %}
+{% endblock %}

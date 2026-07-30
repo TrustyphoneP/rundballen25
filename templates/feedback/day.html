@@ -1,0 +1,132 @@
+{% extends "feedback/base_public.html" %}
+
+{% block title %}{{ main.name }} bewerten{% endblock %}
+
+{% block extra_head %}
+<style>
+  /* Schieberegler im Dark Theme */
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.14);
+    outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    background: #e8a444;
+    border: 3px solid #122f38;
+    box-shadow: 0 0 0 2px rgba(232,164,68,0.5);
+    cursor: pointer;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: #e8a444;
+    border: 3px solid #122f38;
+    box-shadow: 0 0 0 2px rgba(232,164,68,0.5);
+    cursor: pointer;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+  <a href="{% url 'feedback:home' %}"
+     class="inline-flex items-center gap-1.5 text-sm text-white/50 mb-5">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+    </svg>
+    Zurück zur Übersicht
+  </a>
+
+  <div class="font-mono text-[0.6rem] tracking-[0.12em] uppercase text-white/40 mb-1">
+    {{ day.date|date:"l, d.m.Y" }}
+  </div>
+  <h1 class="font-display text-2xl mb-6">{{ main.name }}</h1>
+
+  <div class="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-5 mb-5">
+    <div class="flex items-baseline justify-between mb-4">
+      <label class="!mb-0">Deine Bewertung</label>
+      <span id="rating-number" class="font-display text-3xl text-acc">5</span>
+    </div>
+
+    <input type="range" min="1" max="10" step="1" value="5" id="rating-slider"
+           aria-label="Bewertung von 1 bis 10">
+
+    <div class="flex justify-between mt-2 font-mono text-[0.6rem] text-white/35">
+      <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
+      <span>6</span><span>7</span><span>8</span><span>9</span><span>10</span>
+    </div>
+
+    <div id="rating-text"
+         class="mt-4 min-h-[3.5rem] flex items-center justify-center text-center
+                rounded-lg bg-acc-dim border border-acc-brd px-3 py-2.5
+                text-sm text-acc leading-snug">
+    </div>
+  </div>
+
+  <div class="mb-6">
+    <label for="dish-comment">Feedback zum Gericht</label>
+    <textarea id="dish-comment" rows="4"
+              placeholder="Was war gut, was können wir besser machen?"></textarea>
+  </div>
+
+  <button type="button" id="save-btn"
+          class="w-full rounded-xl bg-acc text-p-dark font-semibold py-3.5 text-base
+                 active:brightness-90 transition">
+    Speichern
+  </button>
+
+{% endblock %}
+
+{% block scripts %}
+{{ rating_texts|json_script:"rating-texts" }}
+<script>
+(function () {
+  const KEY = "rb_feedback_{{ camp.pk }}";
+  const DAY = "{{ day.pk }}";
+  const TEXTS = JSON.parse(document.getElementById("rating-texts").textContent);
+
+  const slider = document.getElementById("rating-slider");
+  const number = document.getElementById("rating-number");
+  const text = document.getElementById("rating-text");
+  const comment = document.getElementById("dish-comment");
+
+  function load() {
+    try { return JSON.parse(sessionStorage.getItem(KEY) || "{}"); }
+    catch (e) { return {}; }
+  }
+
+  function render() {
+    number.textContent = slider.value;
+    text.textContent = TEXTS[slider.value] || "";
+  }
+
+  // Bereits vorhandene Bewertung wiederherstellen
+  const data = load();
+  if (data[DAY]) {
+    slider.value = data[DAY].rating || 5;
+    comment.value = data[DAY].comment || "";
+  }
+  render();
+
+  slider.addEventListener("input", render);
+
+  document.getElementById("save-btn").addEventListener("click", function () {
+    const current = load();
+    current[DAY] = {
+      rating: parseInt(slider.value, 10),
+      comment: comment.value.trim(),
+    };
+    sessionStorage.setItem(KEY, JSON.stringify(current));
+    window.location.href = "{% url 'feedback:home' %}";
+  });
+})();
+</script>
+{% endblock %}
