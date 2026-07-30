@@ -23,7 +23,7 @@ RATING_TEXTS = {
     7:  "\"Teili XYZ isst das sonst gar nicht!\"",
     8:  "\"Nehme extra zwei Laktase\"",
     9:  "\"Absoluter Freizeitklassiker\"",
-    10: "\"Mache nur wieder mit, wenn es dieses Gericht gibt.\"",
+    10: "\"Mache nur wieder mit, wenn es dieses Gericht gibt\"",
 }
 
 
