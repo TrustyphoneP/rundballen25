@@ -129,14 +129,19 @@ def lookup_ingredient(name):
 # Bildvorverarbeitung
 # ---------------------------------------------------------------------------
 
-# Zielbreite nach Skalierung. Bonschrift ist klein -- 1100 px Breite reichen
-# für gestochen scharfe Ziffern, ohne die API-Limits zu reizen.
-_MAX_BREITE = 1100
-# Maximale Segmenthöhe. Lange Kassenbons (Seitenverhältnis > ~2,4) werden in
-# überlappende Segmente geschnitten, damit keine Zeile an einer Schnittkante
-# verloren geht und die Auflösung pro Segment hoch bleibt.
-_MAX_HOEHE = 2200
-_UEBERLAPPUNG = 180
+# Zielbreite nach Skalierung. A4-Großhandelsrechnungen füllen auf einem
+# Handyfoto oft nur ~2/3 der Bildbreite; bei 1100 px blieben für die kleine
+# Spaltenschrift (z.B. "0,560") effektiv nur ~700 px -- zu wenig. 1300 px
+# geben allen Belegtypen Reserve.
+_MAX_BREITE = 1300
+# Maximale Segmenthöhe. Die Vision-API skaliert Bilder herunter, deren
+# LÄNGSTE Kante 1568 px überschreitet -- ein hochauflösendes, aber
+# unsegmentiertes Hochformat-Foto käme dort also wieder verkleinert an.
+# Deshalb bleiben Segmente unter 1568 px Höhe; normale 4:3-Handyfotos
+# (z.B. 3024x4032 -> 1300x1733) werden dadurch in zwei überlappende
+# Segmente geschnitten und behalten ihre volle Auflösung.
+_MAX_HOEHE = 1500
+_UEBERLAPPUNG = 200
 
 
 def bereite_bilder_vor(beleg):
@@ -226,16 +231,20 @@ def _baue_prompt(zutaten_namen):
   "haendler": "Name des Ladens oder null",
   "datum": "Kaufdatum als YYYY-MM-DD oder null",
   "gesamtbetrag": Zahl (Endsumme in Euro) oder null,
+  "preise_netto": true | false,
   "positionen": [
     {{
       "text_original": "Zeile wie auf dem Bon gedruckt",
       "artikel_name": "bereinigter, gut lesbarer Artikelname",
+      "artikelnummer": "händlerinterne Artikelnummer oder null",
+      "ean": "EAN/GTIN (8-14 Ziffern) oder null",
       "menge": Zahl (GESAMTmenge der Zeile) oder null,
       "einheit": "g" | "kg" | "ml" | "l" | "Stk" | "Pck" | null,
       "gesamtpreis": Zahl (Zeilensumme in Euro),
       "grundpreis": Zahl (Preis je Grundpreis-Einheit) oder null,
       "grundpreis_einheit": "kg" | "l" | "Stk" | "Pck" | null,
       "stueckpreis": Zahl (Preis je Stück/Packung) oder null,
+      "mwst_satz": Zahl (Steuersatz in Prozent, z.B. 7 oder 19) oder null,
       "zutat": "exakter Name aus der Zutatenliste unten oder null",
       "hinweis": "z.B. Pfand, Rabatt, unsicher -- sonst null"
     }}
@@ -247,6 +256,35 @@ Regeln:
 - Mehrfachzeilen wie "2 x 1,99" ergeben menge/gesamtpreis der GESAMTEN Zeile.
 - Packungsgrößen im Artikelnamen (z.B. "Gouda 400g") in menge/einheit übernehmen;
   bei mehreren Packungen die Gesamtmenge (2 x 400g -> menge 800, einheit "g").
+- GROSSHANDELSRECHNUNGEN (z.B. Wasgau C+C, Metro, Handelshof; erkennbar an
+  Spaltenlayout mit Artikelnummer, Menge, VE, Steuercode): Die Mengenspalte
+  ist die GEBINDEZAHL, die Packungsgröße steht im Artikelnamen. Gesamtmenge
+  = Gebindezahl x Packungsgröße. Beispiel: "Apfelmus 4250g CN, Menge 4,000,
+  Poswert 31,64" -> menge 17000, einheit "g", gesamtpreis 31.64, grundpreis
+  1.8612, grundpreis_einheit "kg", stueckpreis 7.91 (Preis je Gebinde).
+  Mengenangaben wie "T405 1" bedeuten 1 kg. Die Artikelnummer aus der
+  ersten Spalte in "artikelnummer" übernehmen.
+- Zweitzeilen unter einer Position (Marke, Herkunft, "Cuisine Noblesse",
+  E-Nummern) gehören zur Position DARÜBER: in text_original anhängen,
+  KEINE eigene Position daraus machen.
+- "preise_netto": true, wenn der Beleg Nettopreise druckt -- typisch für
+  Großhandelsrechnungen mit Steuercode-Spalte je Position (z.B. "R" =
+  ermäßigt 7 %, "A" = voll 19 %); die MwSt wird dort erst in der
+  Schlusssumme aufgeschlagen. Supermarkt- und Drogerie-Bons (Rewe, Aldi,
+  dm, Globus usw.) drucken Bruttopreise -> false. Bei Netto-Belegen je
+  Position den Steuercode in "mwst_satz" auflösen (R -> 7, A -> 19).
+  Bei Brutto-Bons den mwst_satz aus der Steuerkennung der Zeile setzen,
+  falls vorhanden (z.B. dm/Globus: "1" = 19, "2" = 7), sonst null.
+- Steht eine EAN/GTIN bei der Position (z.B. Globus druckt
+  "#4009412075152" über der Bezeichnung), in "ean" übernehmen (nur
+  Ziffern, ohne "#").
+- Zeigt das Foto nur ein Blatt einer mehrseitigen Rechnung ohne
+  Endsumme, dann gesamtbetrag null lassen -- NICHT die Positionssummen
+  aufaddieren und nicht die letzte sichtbare Zeile als Summe deuten.
+- Ist auf dem Bon KEINE Packungsgröße erkennbar (häufig bei dm: "3x 4,45
+  bionella NussNougat Cr"), dann menge = Stückzahl, einheit "Stk",
+  stueckpreis = Einzelpreis. KEINEN kg- oder l-Preis aus vermutetem
+  Produktwissen raten.
 - Hinter vielen Zutaten steht in eckigen Klammern, in welcher Einheit ihr
   Preis geführt wird (z.B. [Preis je kg], [Preis je Pck]). Wähle die
   grundpreis_einheit passend zur zugeordneten Zutat.
@@ -386,6 +424,7 @@ def analysiere_beleg(beleg, user=None):
                 )
         beleg.kaufdatum = kaufdatum
         beleg.gesamtbetrag = _zu_decimal(daten.get("gesamtbetrag"), "0.01")
+        beleg.preise_netto = bool(daten.get("preise_netto"))
         beleg.analyse_rohdaten = daten
         beleg.analyse_fehler = ""
         beleg.status = Beleg.Status.ANALYSIERT
@@ -418,17 +457,40 @@ def analysiere_beleg(beleg, user=None):
 
             ingredient = lookup_ingredient(pos.get("zutat"))
 
+            # EAN: nur Ziffern, plausible GTIN-Länge (8-14), sonst verwerfen.
+            ean = "".join(c for c in str(pos.get("ean") or "") if c.isdigit())
+            if not (8 <= len(ean) <= 14):
+                if ean:
+                    logger.warning(
+                        "Unplausible EAN %r bei Beleg %s verworfen.", ean, beleg.pk
+                    )
+                ean = ""
+
+            # MwSt-Satz: nur realistische deutsche Sätze zulassen.
+            mwst_satz = _zu_decimal(pos.get("mwst_satz"), "0.01")
+            if mwst_satz is not None and mwst_satz not in (
+                Decimal("0.00"), Decimal("7.00"), Decimal("19.00")
+            ):
+                logger.warning(
+                    "Unplausibler MwSt-Satz %s bei Beleg %s verworfen.",
+                    mwst_satz, beleg.pk,
+                )
+                mwst_satz = None
+
             neue.append(BelegPosition(
                 beleg=beleg,
                 sortierung=idx,
                 text_original=(pos.get("text_original") or "")[:300],
                 artikel_name=(pos.get("artikel_name") or pos.get("text_original") or "?")[:200],
+                artikelnummer=str(pos.get("artikelnummer") or "")[:50],
+                ean=ean,
                 menge=menge,
                 einheit=einheit,
                 gesamtpreis=gesamtpreis,
                 grundpreis=grundpreis,
                 grundpreis_einheit=grundpreis_einheit,
                 stueckpreis=_zu_decimal(pos.get("stueckpreis")),
+                mwst_satz=mwst_satz,
                 ingredient=ingredient,
                 hinweis=(pos.get("hinweis") or "")[:200],
             ))
@@ -442,6 +504,30 @@ def analysiere_beleg(beleg, user=None):
 # ---------------------------------------------------------------------------
 
 _STUECK_EINHEITEN = {"Stk", "Pck"}
+
+
+def brutto_faktor(position):
+    """
+    Faktor, mit dem Positionspreise vor der Übernahme multipliziert
+    werden, damit Ingredient.price und die Preishistorie durchgängig
+    BRUTTO führen (Supermarkt-Bons drucken brutto, Großhandels-
+    rechnungen netto -- ohne Normalisierung wären die Preise nicht
+    vergleichbar).
+
+    Gibt (faktor, fehler) zurück:
+    - (Decimal("1"), None) bei Brutto-Belegen
+    - (Decimal("1.07")/("1.19"), None) bei Netto-Belegen mit MwSt-Satz
+    - (None, "Meldung") bei Netto-Belegen ohne MwSt-Satz an der Position,
+      denn den Steuersatz zu raten würde die Preisdatenbank verfälschen.
+    """
+    if not position.beleg.preise_netto:
+        return Decimal("1"), None
+    if position.mwst_satz is None:
+        return None, (
+            "Netto-Beleg ohne MwSt-Satz an der Position -- bitte 7 oder 19 "
+            "eintragen, damit auf brutto umgerechnet werden kann."
+        )
+    return Decimal("1") + position.mwst_satz / Decimal("100"), None
 
 
 def preis_fuer_uebernahme(position):
@@ -466,6 +552,10 @@ def preis_fuer_uebernahme(position):
     if ing is None:
         return None, "", "Position ist keiner Zutat zugeordnet."
 
+    faktor, faktor_fehler = brutto_faktor(position)
+    if faktor_fehler:
+        return None, "", faktor_fehler
+
     ziel_einheit, inkonsistent = ing.derive_price_unit()
     if inkonsistent:
         return None, "", (
@@ -484,11 +574,15 @@ def preis_fuer_uebernahme(position):
     # Stückbasiert bepreiste Zutat: Stückpreis vom Bon hat Vorrang.
     if ziel_einheit in _STUECK_EINHEITEN:
         if position.stueckpreis is not None:
-            preis = position.stueckpreis.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+            preis = (position.stueckpreis * faktor).quantize(
+                Decimal("0.0001"), rounding=ROUND_HALF_UP
+            )
             return preis, ziel_einheit, None
         if (position.grundpreis is not None
                 and position.grundpreis_einheit in _STUECK_EINHEITEN):
-            preis = position.grundpreis.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+            preis = (position.grundpreis * faktor).quantize(
+                Decimal("0.0001"), rounding=ROUND_HALF_UP
+            )
             return preis, ziel_einheit, None
         return None, "", (
             f"'{ing.name}' wird je {ziel_einheit} bepreist, die Position hat "
@@ -507,7 +601,7 @@ def preis_fuer_uebernahme(position):
             f"Grundpreis-Einheit '{position.grundpreis_einheit}' ist nicht in "
             f"die Preis-Einheit '{ziel_einheit}' von '{ing.name}' umrechenbar."
         )
-    return preis.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP), ziel_einheit, None
+    return (preis * faktor).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP), ziel_einheit, None
 
 
 def aktueller_preis_in(ingredient, einheit):
@@ -548,10 +642,17 @@ def uebernehme_position(position, user=None):
 
     # Historie hält die exakte Quelle fest: bei Stück-Übernahme den
     # Stückpreis je Stk/Pck, sonst den Grundpreis in Original-Einheit.
+    # Auch die Historie führt BRUTTO (Netto-Belege werden über den
+    # brutto_faktor umgerechnet), damit Preise über Händler und Jahre
+    # hinweg vergleichbar bleiben.
     if ziel_einheit in _STUECK_EINHEITEN:
         hist_preis, hist_einheit = preis, ziel_einheit
     else:
-        hist_preis, hist_einheit = position.grundpreis, position.grundpreis_einheit
+        faktor, _ = brutto_faktor(position)
+        hist_preis = (position.grundpreis * faktor).quantize(
+            Decimal("0.0001"), rounding=ROUND_HALF_UP
+        )
+        hist_einheit = position.grundpreis_einheit
     Preishistorie.objects.create(
         ingredient=ing,
         preis=hist_preis,

@@ -64,6 +64,16 @@ class Beleg(models.Model):
         help_text="Nur zur Preiserfassung (z.B. alte Belege) -- zählt "
                   "nicht zu den Ist-Kosten der Freizeit.",
     )
+    preise_netto = models.BooleanField(
+        default=False,
+        verbose_name="Nettopreise",
+        help_text="Großhandelsrechnungen (z.B. Wasgau C+C) drucken "
+                  "Nettopreise mit Steuercode je Position. Bei der "
+                  "Preisübernahme wird dann anhand des MwSt-Satzes der "
+                  "Position auf brutto umgerechnet, damit alle Preise in "
+                  "der Datenbank vergleichbar sind (Supermarkt-Bons sind "
+                  "brutto).",
+    )
     image = models.ImageField(
         upload_to="belege/%Y/%m/",
         verbose_name="Belegfoto",
@@ -150,6 +160,27 @@ class BelegPosition(models.Model):
     )
     artikel_name = models.CharField(
         max_length=200, verbose_name="Artikel",
+    )
+
+    # Stabile Artikel-Schlüssel für die spätere Alias-Zuordnung:
+    # Großhandelsrechnungen drucken eine händlerinterne Artikelnummer
+    # (z.B. Wasgau "78103"), manche Bons die EAN/GTIN über der Position
+    # (z.B. Globus "#4009412075152"). Beide sind verlässlicher als der
+    # abgeschnittene Bontext.
+    artikelnummer = models.CharField(
+        max_length=50, blank=True,
+        verbose_name="Artikelnummer (Händler)",
+    )
+    ean = models.CharField(
+        max_length=20, blank=True,
+        verbose_name="EAN/GTIN",
+    )
+    mwst_satz = models.DecimalField(
+        max_digits=4, decimal_places=2, null=True, blank=True,
+        verbose_name="MwSt-Satz (%)",
+        help_text="Steuersatz der Position (7 oder 19). Bei Netto-Belegen "
+                  "Pflicht für die Preisübernahme, da netto -> brutto "
+                  "umgerechnet wird.",
     )
 
     # Gesamtmenge der Zeile (z.B. 2 Packungen à 400 g -> 800 g)

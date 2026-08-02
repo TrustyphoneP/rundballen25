@@ -168,18 +168,18 @@ def detail(request, pk):
 @login_required
 @require_POST
 def beleg_kategorie(request, pk):
-    """Ändert die Kostenkategorie eines Belegs."""
+    """Ändert Kostenkategorie und Netto-Kennzeichen eines Belegs."""
     beleg = get_object_or_404(Beleg, pk=pk)
     kategorie_id = request.POST.get("kategorie")
     if kategorie_id:
         kategorie = get_object_or_404(Kostenkategorie, pk=kategorie_id)
         beleg.kategorie = kategorie
-        beleg.save(update_fields=["kategorie"])
-        messages.success(request, f"Kategorie auf '{kategorie.name}' gesetzt.")
     else:
         beleg.kategorie = None
-        beleg.save(update_fields=["kategorie"])
-        messages.success(request, "Kategorie entfernt.")
+
+    beleg.preise_netto = bool(request.POST.get("preise_netto"))
+    beleg.save(update_fields=["kategorie", "preise_netto"])
+    messages.success(request, "Beleg-Einstellungen gespeichert.")
     return redirect("rechnungen:detail", pk=beleg.pk)
 
 
@@ -243,6 +243,16 @@ def position_aktualisieren(request, pk):
     position.grundpreis_einheit = gp_einheit if gp_einheit in gueltige_gp else ""
 
     position.stueckpreis = _parse_decimal_de(request.POST.get("stueckpreis"))
+
+    mwst = _parse_decimal_de(request.POST.get("mwst_satz"), "0.01")
+    if mwst is not None and mwst not in (Decimal("0"), Decimal("7"), Decimal("19")):
+        messages.warning(
+            request,
+            f"MwSt-Satz {mwst} % ist kein gültiger deutscher Satz (0, 7 oder 19) "
+            "-- Eingabe verworfen.",
+        )
+        mwst = position.mwst_satz
+    position.mwst_satz = mwst
 
     # Grundpreis ggf. aus Menge + Zeilensumme nachrechnen
     if position.grundpreis is None or not position.grundpreis_einheit:

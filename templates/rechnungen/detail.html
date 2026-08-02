@@ -38,6 +38,7 @@
 <div class="section-mono mb-4">
   {{ beleg.camp.name }}
   {% if beleg.nur_preiserfassung %} · <span class="badge badge-muted">Nur Preiserfassung</span>{% endif %}
+  {% if beleg.preise_netto %} · <span class="badge badge-warn" title="Beleg druckt Nettopreise -- Preisübernahme rechnet anhand des MwSt-Satzes je Position auf brutto um.">Nettopreise</span>{% endif %}
   {% if beleg.kategorie %} · {{ beleg.kategorie.name }}{% endif %}
   {% if beleg.kaufdatum %} · Kaufdatum {{ beleg.kaufdatum|date:"d.m.Y" }}{% endif %}
   {% if beleg.gesamtbetrag %} · Gesamtbetrag {{ beleg.gesamtbetrag|euro }}{% endif %}
@@ -67,16 +68,26 @@
       </a>
     </div>
     <div class="card px-4 py-4 mt-3">
-      <div class="section-mono mb-2">Kostenkategorie</div>
-      <form method="post" action="{% url 'rechnungen:beleg_kategorie' pk=beleg.pk %}" class="flex items-center gap-2">
+      <div class="section-mono mb-2">Beleg-Einstellungen</div>
+      <form method="post" action="{% url 'rechnungen:beleg_kategorie' pk=beleg.pk %}">
         {% csrf_token %}
-        <select name="kategorie">
-          <option value="">– keine –</option>
-          {% for k in kategorien %}
-          <option value="{{ k.pk }}" {% if beleg.kategorie_id == k.pk %}selected{% endif %}>{{ k.name }}</option>
-          {% endfor %}
-        </select>
-        <button type="submit" class="btn btn-ghost">Setzen</button>
+        <div class="flex items-center gap-2">
+          <select name="kategorie">
+            <option value="">– keine Kategorie –</option>
+            {% for k in kategorien %}
+            <option value="{{ k.pk }}" {% if beleg.kategorie_id == k.pk %}selected{% endif %}>{{ k.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <label class="flex items-center gap-2 mt-3 text-sm" style="cursor:pointer;">
+          <input type="checkbox" name="preise_netto" value="1" {% if beleg.preise_netto %}checked{% endif %}>
+          <span>Nettopreise (Großhandelsrechnung)</span>
+        </label>
+        <div class="text-xs mt-1" style="color:rgba(240,237,232,0.45);">
+          Bei Netto-Belegen rechnet die Preisübernahme anhand des
+          MwSt-Satzes je Position auf brutto um.
+        </div>
+        <button type="submit" class="btn btn-ghost mt-3">Speichern</button>
       </form>
     </div>
     <div class="mt-3 flex items-center gap-2">
@@ -102,6 +113,7 @@
             <th style="width:110px;">Grundpreis €</th>
             <th style="width:80px;">je</th>
             <th style="width:90px;" title="Preis je Stück/Packung bei stückbasierten Bon-Zeilen">Stück €</th>
+            <th style="width:70px;" title="MwSt-Satz der Position (7 oder 19). Bei Netto-Belegen Pflicht für die Preisübernahme.">MwSt %</th>
             <th style="width:180px;">Zutat</th>
             <th style="width:170px;"></th>
           </tr>
@@ -113,6 +125,13 @@
               <input type="text" name="artikel_name" value="{{ pos.artikel_name }}" form="pos-{{ pos.pk }}">
               {% if pos.text_original and pos.text_original != pos.artikel_name %}
               <div class="text-xs mt-1 font-mono" style="color:rgba(240,237,232,0.35);">{{ pos.text_original }}</div>
+              {% endif %}
+              {% if pos.artikelnummer or pos.ean %}
+              <div class="text-xs mt-1 font-mono" style="color:rgba(240,237,232,0.35);">
+                {% if pos.artikelnummer %}Art. {{ pos.artikelnummer }}{% endif %}
+                {% if pos.artikelnummer and pos.ean %} · {% endif %}
+                {% if pos.ean %}EAN {{ pos.ean }}{% endif %}
+              </div>
               {% endif %}
               {% if pos.hinweis %}
               <span class="badge badge-warn mt-1">{{ pos.hinweis }}</span>
@@ -138,6 +157,13 @@
               </select>
             </td>
             <td><input type="text" name="stueckpreis" value="{{ pos.stueckpreis|dezimal_de }}" form="pos-{{ pos.pk }}" inputmode="decimal"></td>
+            <td>
+              <select name="mwst_satz" form="pos-{{ pos.pk }}">
+                <option value="">–</option>
+                <option value="7"  {% if pos.mwst_satz == 7 %}selected{% endif %}>7</option>
+                <option value="19" {% if pos.mwst_satz == 19 %}selected{% endif %}>19</option>
+              </select>
+            </td>
             <td>
               <input type="text" name="zutat" list="zutaten-datalist"
                      value="{{ pos.ingredient.name|default:'' }}"
@@ -175,6 +201,9 @@
       „€ übernehmen" schreibt den Grundpreis in die Zutaten-Stammdaten
       (mit automatischer kg/g- bzw. l/ml-Umrechnung) und legt einen
       Preishistorie-Eintrag an.
+      {% if beleg.preise_netto %}Dieser Beleg druckt Nettopreise -- die
+      Übernahme rechnet anhand des MwSt-Satzes je Position auf brutto
+      um.{% endif %}
     </div>
 
     {% elif beleg.status == "neu" %}
